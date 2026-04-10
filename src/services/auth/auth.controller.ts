@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { LoginSchema, RefreshTokenSchema } from './dto/login.dto';
+import { LoginSchema, RefreshTokenSchema, ChangePasswordSchema } from './dto/login.dto';
 import { successResponse } from '../../common/types/api-response.type';
 
 @Controller('api/v1/auth')
@@ -38,5 +38,17 @@ export class AuthController {
   async logout(@Request() req: { user: { userId: string; jti: string } }) {
     await this.authService.logout(req.user.userId, req.user.jti);
     return successResponse(null, 'Logged out successfully');
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('change-password')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @Request() req: { user: { userId: string } },
+    @Body() body: unknown,
+  ) {
+    const dto = ChangePasswordSchema.parse(body);
+    await this.authService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
+    return successResponse(null, 'Password changed. All sessions have been invalidated.');
   }
 }

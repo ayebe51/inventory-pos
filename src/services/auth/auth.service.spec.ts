@@ -36,6 +36,7 @@ function buildUser(overrides: Partial<{
 const mockPrisma = {
   user: {
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
 };
 
@@ -301,6 +302,58 @@ describe('AuthService', () => {
       await service.invalidateAllSessions('user-uuid-1');
 
       expect(mockCacheService.delByPattern).toHaveBeenCalledWith('auth:refresh:user-uuid-1:*');
+    });
+  });
+
+  // ── changePassword ──────────────────────────────────────────────────────────
+
+  describe('changePassword', () => {
+    it('updates password hash and invalidates all sessions on success', async () => {
+      const hash = await hashPassword('old-password');
+      mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
+      mockPrisma.user.update.mockResolvedValue({});
+      mockCacheService.delByPattern.mockResolvedValue(undefined);
+
+      await service.changePassword('user-uuid-1', 'old-password', 'new-password-123');
+
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-uuid-1' },
+          data: expect.objectContaining({ password_hash: expect.any(String) }),
+        }),
+      );
+      expect(mockCacheService.delByPattern).toHaveBeenCalledWith('auth:refresh:user-uuid-1:*');
+    });
+
+    it('throws BadRequestException when current password is wrong', async () => {
+      const hash = await hashPassword('correct-password');
+      mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
+
+      await expect(
+        service.changePassword('user-uuid-1', 'wrong-password', 'new-password-123'),
+      ).rejects.toThrow('Current password is incorrect');
+    });
+
+    it('throws UnauthorizedException when user is not found', async () => {
+      mockPrisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.changePassword('ghost-id', 'any', 'new-password-123'),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('stores new password with bcrypt cost factor 12', async () => {
+      const hash = await hashPassword('old-password');
+      mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
+      mockPrisma.user.update.mockResolvedValue({});
+      mockCacheService.delByPattern.mockResolvedValue(undefined);
+
+      await service.changePassword('user-uuid-1', 'old-password', 'new-password-123');
+
+      const updateCall = (mockPrisma.user.update as jest.Mock).mock.calls[0][0];
+      const newHash: string = updateCall.data.password_hash;
+      // bcrypt hash with cost 12 starts with $2b$12$
+      expect(newHash).toMatch(/^\$2b\$12\$/);
     });
   });
 });

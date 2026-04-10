@@ -25,7 +25,7 @@
 ## Task 3: Domain Services — Auth & RBAC
 
 - [x] 3.1 Implementasi `AuthService`: login dengan bcrypt (cost factor 12), issue JWT access token (15 menit) dan refresh token (7 hari)
-- [ ] 3.2 Implementasi token refresh, logout, dan invalidasi semua sesi saat password diubah
+- [x] 3.2 Implementasi token refresh, logout, dan invalidasi semua sesi saat password diubah
 - [ ] 3.3 Implementasi MFA (TOTP) untuk role Owner, Finance_Manager, dan Auditor
 - [ ] 3.4 Implementasi `RBACService.checkPermission()` dengan format `MODULE.ACTION` dan semua permission khusus
 - [ ] 3.5 Buat NestJS Guard untuk RBAC yang digunakan sebagai decorator di semua endpoint
