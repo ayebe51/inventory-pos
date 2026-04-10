@@ -34,3 +34,19 @@ export function errorResponse(
 ): APIError {
   return { success: false, error: { code, message, ...(details ? { details } : {}) } };
 }
+
+export function paginatedResponse<T>(
+  data: T[],
+  total: number,
+  page: number,
+  perPage: number,
+  message = 'OK',
+): APIResponse<T[]> {
+  const meta: PaginationMeta = {
+    page,
+    per_page: perPage,
+    total,
+    total_pages: Math.ceil(total / perPage),
+  };
+  return { success: true, data, message, meta };
+}
