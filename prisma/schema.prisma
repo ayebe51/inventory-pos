@@ -115,6 +115,7 @@ model User {
   payments_reversed         Payment[]         @relation("PaymentReversedBy")
   payments_created          Payment[]         @relation("PaymentCreatedBy")
   invoice_allocations       InvoiceAllocation[]
+  payment_allocations       PaymentAllocation[]
   fiscal_periods_closed     FiscalPeriod[]
   journal_entries_posted    JournalEntry[]    @relation("JEPostedBy")
   journal_entries_created   JournalEntry[]    @relation("JECreatedBy")
@@ -1014,8 +1015,9 @@ model Invoice {
   branch           Branch              @relation(fields: [branch_id], references: [id])
   posted_by_user   User?               @relation("InvoicePostedBy", fields: [posted_by], references: [id])
   created_by_user  User                @relation("InvoiceCreatedBy", fields: [created_by], references: [id])
-  lines            InvoiceLine[]
-  allocations      InvoiceAllocation[]
+  lines                InvoiceLine[]
+  allocations          InvoiceAllocation[]
+  payment_allocations  PaymentAllocation[]
 
   @@index([customer_id, status])
   @@index([supplier_id, status])
@@ -1076,6 +1078,7 @@ model Payment {
   reversed_by_user  User?               @relation("PaymentReversedBy", fields: [reversed_by], references: [id])
   created_by_user   User                @relation("PaymentCreatedBy", fields: [created_by], references: [id])
   allocations       InvoiceAllocation[]
+  payment_allocations PaymentAllocation[]
   bank_statements   BankStatement[]
 
   @@map("payments")
@@ -1090,11 +1093,29 @@ model InvoiceAllocation {
   created_by       String   @db.Uuid
   created_at       DateTime @default(now())
 
-  invoice    Invoice @relation(fields: [invoice_id], references: [id])
-  payment    Payment @relation(fields: [payment_id], references: [id])
-  created_by_user User @relation(fields: [created_by], references: [id])
+  invoice         Invoice @relation(fields: [invoice_id], references: [id])
+  payment         Payment @relation(fields: [payment_id], references: [id])
+  created_by_user User    @relation(fields: [created_by], references: [id])
 
+  @@unique([invoice_id, payment_id])
   @@map("invoice_allocations")
+}
+
+model PaymentAllocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  payment_id       String   @db.Uuid
+  invoice_id       String   @db.Uuid
+  allocated_amount Decimal  @db.Decimal(18, 2)
+  allocated_at     DateTime
+  created_by       String   @db.Uuid
+  created_at       DateTime @default(now())
+
+  payment         Payment @relation(fields: [payment_id], references: [id])
+  invoice         Invoice @relation(fields: [invoice_id], references: [id])
+  created_by_user User    @relation(fields: [created_by], references: [id])
+
+  @@unique([payment_id, invoice_id])
+  @@map("payment_allocations")
 }
 
 model BankStatement {
@@ -1128,10 +1149,11 @@ model BankReconciliation {
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 
-  bank_account    ChartOfAccount @relation(fields: [bank_account_id], references: [id])
-  period          FiscalPeriod   @relation(fields: [period_id], references: [id])
-  reconciled_by_user User?       @relation(fields: [reconciled_by], references: [id])
+  bank_account       ChartOfAccount @relation(fields: [bank_account_id], references: [id])
+  period             FiscalPeriod   @relation(fields: [period_id], references: [id])
+  reconciled_by_user User?          @relation(fields: [reconciled_by], references: [id])
 
+  @@unique([bank_account_id, period_id])
   @@map("bank_reconciliations")
 }
 
