@@ -78,10 +78,26 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "tsconfig.json" }]
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s",
+      "!**/*.module.ts",
+      "!**/index.ts",
+      "!**/main.ts"
+    ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "coverageReporters": ["text", "lcov", "html"],
+    "testEnvironment": "node",
+    "setupFiles": ["../test/setup.ts"],
+    "moduleNameMapper": {
+      "^@common/(.*)$": "<rootDir>/common/$1",
+      "^@config/(.*)$": "<rootDir>/config/$1",
+      "^@modules/(.*)$": "<rootDir>/modules/$1",
+      "^@services/(.*)$": "<rootDir>/services/$1"
+    },
+    "transform": {
+      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "tsconfig.json" }]
+    }
   }
 }
