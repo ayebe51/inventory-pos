@@ -289,6 +289,9 @@ model Product {
   return_lines     SalesReturnLine[]
   invoice_lines    InvoiceLine[]
 
+  // Partial index idx_products_active (WHERE deleted_at IS NULL AND is_active = true)
+  // is defined in migration 20260410102336_master_data_tables via raw SQL —
+  // Prisma does not support partial indexes natively.
   @@map("products")
 }
 

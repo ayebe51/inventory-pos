@@ -1,0 +1,29 @@
+-- Migration: Database Indexes
+-- Task 2.9: Consolidate and document all required database indexes
+--
+-- All required indexes are already present in their respective table migrations:
+--
+--   inventory_ledger (20260410102338_inventory_tables):
+--     - idx_inv_ledger_product_warehouse  ON inventory_ledger(product_id, warehouse_id)
+--     - idx_inv_ledger_reference          ON inventory_ledger(reference_type, reference_id)
+--     - idx_inv_ledger_date               ON inventory_ledger(movement_date DESC)
+--
+--   journal_entries (20260410102341_accounting_tables):
+--     - idx_journal_entries_period_status ON journal_entries(period_id, status)
+--
+--   journal_entry_lines (20260410102341_accounting_tables):
+--     - idx_journal_entry_lines_account_je ON journal_entry_lines(account_id, je_id)
+--
+--   pos_transactions (20260410102339_sales_pos_tables):
+--     - idx_pos_shift_status              ON pos_transactions(shift_id, status)
+--     - idx_pos_date                      ON pos_transactions(transaction_date DESC)
+--
+--   products — partial index (20260410102336_master_data_tables):
+--     - idx_products_active               ON products(code, name)
+--                                         WHERE deleted_at IS NULL AND is_active = true
+--
+-- This migration is a no-op consolidation record confirming all indexes
+-- from the design spec (structure.md § Database Indexing Strategy) are in place.
+-- No new DDL is required.
+
+-- (intentionally empty — all indexes already exist in prior migrations)

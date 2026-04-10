@@ -20,7 +20,7 @@
 - [x] 2.6 Buat migration untuk tabel invoicing: `invoices`, `invoice_lines`, `invoice_allocations`, `payments`, `payment_allocations`, `bank_statements`, `bank_reconciliations`
 - [x] 2.7 Buat migration untuk tabel accounting: `journal_entries`, `journal_entry_lines`, `auto_journal_templates`
 - [x] 2.8 Buat migration untuk tabel governance: `audit_logs` (immutable, tanpa updated_at/deleted_at), `approval_requests`, `approval_request_steps`
-- [ ] 2.9 Tambahkan semua database indexes: inventory ledger, journal entries, POS, dan partial index untuk active records
+- [x] 2.9 Tambahkan semua database indexes: inventory ledger, journal entries, POS, dan partial index untuk active records
 
 ## Task 3: Domain Services — Auth & RBAC
 
