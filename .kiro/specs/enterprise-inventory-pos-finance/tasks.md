@@ -16,7 +16,7 @@
 - [x] 2.2 Buat migration untuk tabel master data: `products`, `categories`, `brands`, `units_of_measure`, `customers`, `suppliers`, `price_lists`, `chart_of_accounts`, `fiscal_periods`, `payment_methods`
 - [x] 2.3 Buat migration untuk tabel purchase: `purchase_requests`, `purchase_orders`, `purchase_order_lines`, `goods_receipts`, `goods_receipt_lines`
 - [x] 2.4 Buat migration untuk tabel inventory: `inventory_ledger` (append-only, tanpa updated_at/deleted_at), `stock_transfers`, `stock_adjustments`, `stock_opnames`
-- [ ] 2.5 Buat migration untuk tabel sales/POS: `shifts`, `pos_transactions`, `pos_transaction_lines`, `pos_payments`, `sales_orders`, `delivery_orders`, `sales_returns`
+- [x] 2.5 Buat migration untuk tabel sales/POS: `shifts`, `pos_transactions`, `pos_transaction_lines`, `pos_payments`, `sales_orders`, `delivery_orders`, `sales_returns`
 - [ ] 2.6 Buat migration untuk tabel invoicing: `invoices`, `invoice_lines`, `invoice_allocations`, `payments`, `payment_allocations`, `bank_statements`, `bank_reconciliations`
 - [ ] 2.7 Buat migration untuk tabel accounting: `journal_entries`, `journal_entry_lines`, `auto_journal_templates`
 - [ ] 2.8 Buat migration untuk tabel governance: `audit_logs` (immutable, tanpa updated_at/deleted_at), `approval_requests`, `approval_request_steps`
