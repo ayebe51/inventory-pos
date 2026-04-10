@@ -12,18 +12,1255 @@ datasource db {
 // ============================================================
 
 model Branch {
+  id         String    @id @default(uuid()) @db.Uuid
+  code       String    @unique @db.VarChar(20)
+  name       String    @db.VarChar(200)
+  address    String?   @db.Text
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  warehouses         Warehouse[]
+  users              User[]
+  user_roles         UserRole[]
+  purchase_requests  PurchaseRequest[]
+  purchase_orders    PurchaseOrder[]
+  shifts             Shift[]
+  sales_orders       SalesOrder[]
+  invoices           Invoice[]
+  payments           Payment[]
+  chart_of_accounts  ChartOfAccount[]
+
+  @@map("branches")
+}
+
+model Warehouse {
   id          String    @id @default(uuid()) @db.Uuid
-  code        String    @unique @db.VarChar(20)
+  code        String    @db.VarChar(20)
   name        String    @db.VarChar(200)
+  branch_id   String    @db.Uuid
   address     String?   @db.Text
-  phone       String?   @db.VarChar(20)
   is_active   Boolean   @default(true)
-  parent_id   String?   @db.Uuid
-  parent      Branch?   @relation("BranchHierarchy", fields: [parent_id], references: [id])
-  children    Branch[]  @relation("BranchHierarchy")
+  is_locked   Boolean   @default(false)
+  lock_reason String?   @db.Text
+  locked_at   DateTime?
+  locked_by   String?   @db.Uuid
   created_at  DateTime  @default(now())
   updated_at  DateTime  @updatedAt
   deleted_at  DateTime?
 
-  @@map("branches")
+  branch              Branch            @relation(fields: [branch_id], references: [id])
+  locked_by_user      User?             @relation("WarehouseLockedBy", fields: [locked_by], references: [id])
+  purchase_requests   PurchaseRequest[]
+  purchase_orders     PurchaseOrder[]
+  goods_receipts      GoodsReceipt[]
+  inventory_ledger    InventoryLedger[]
+  stock_transfers_from StockTransfer[]  @relation("StockTransferFrom")
+  stock_transfers_to   StockTransfer[]  @relation("StockTransferTo")
+  stock_adjustments   StockAdjustment[]
+  stock_opnames       StockOpname[]
+  shifts              Shift[]
+  sales_orders        SalesOrder[]
+  delivery_orders     DeliveryOrder[]
+  sales_returns       SalesReturn[]
+
+  @@unique([code, branch_id])
+  @@map("warehouses")
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(200)
+  password_hash String    @db.VarChar(255)
+  full_name     String    @db.VarChar(200)
+  is_active     Boolean   @default(true)
+  mfa_secret    String?   @db.VarChar(100)
+  mfa_enabled   Boolean   @default(false)
+  branch_id     String?   @db.Uuid
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  deleted_at    DateTime?
+
+  branch                    Branch?           @relation(fields: [branch_id], references: [id])
+  user_roles                UserRole[]
+  warehouses_locked         Warehouse[]       @relation("WarehouseLockedBy")
+  purchase_requests_created PurchaseRequest[] @relation("PRCreatedBy")
+  purchase_orders_approved  PurchaseOrder[]   @relation("POApprovedBy")
+  purchase_orders_created   PurchaseOrder[]   @relation("POCreatedBy")
+  goods_receipts_confirmed  GoodsReceipt[]    @relation("GRConfirmedBy")
+  goods_receipts_created    GoodsReceipt[]    @relation("GRCreatedBy")
+  inventory_ledger_created  InventoryLedger[]
+  stock_transfers_approved  StockTransfer[]   @relation("STApprovedBy")
+  stock_transfers_created   StockTransfer[]   @relation("STCreatedBy")
+  stock_adjustments_approved StockAdjustment[] @relation("SAApprovedBy")
+  stock_adjustments_created  StockAdjustment[] @relation("SACreatedBy")
+  stock_opnames_initiated   StockOpname[]     @relation("OpnameInitiatedBy")
+  stock_opnames_finalized   StockOpname[]     @relation("OpnameFinalizedBy")
+  shifts_cashier            Shift[]           @relation("ShiftCashier")
+  shifts_force_closed       Shift[]           @relation("ShiftForceClosed")
+  pos_transactions_cashier  PosTransaction[]  @relation("POSCashier")
+  pos_transactions_voided   PosTransaction[]  @relation("POSVoidedBy")
+  pos_lines_override        PosTransactionLine[] @relation("POSPriceOverrideBy")
+  sales_orders_approved     SalesOrder[]      @relation("SOApprovedBy")
+  sales_orders_created      SalesOrder[]      @relation("SOCreatedBy")
+  delivery_orders_confirmed DeliveryOrder[]   @relation("DOConfirmedBy")
+  delivery_orders_created   DeliveryOrder[]   @relation("DOCreatedBy")
+  sales_returns_approved    SalesReturn[]     @relation("SRApprovedBy")
+  sales_returns_created     SalesReturn[]     @relation("SRCreatedBy")
+  invoices_posted           Invoice[]         @relation("InvoicePostedBy")
+  invoices_created          Invoice[]         @relation("InvoiceCreatedBy")
+  payments_approved         Payment[]         @relation("PaymentApprovedBy")
+  payments_posted           Payment[]         @relation("PaymentPostedBy")
+  payments_reversed         Payment[]         @relation("PaymentReversedBy")
+  payments_created          Payment[]         @relation("PaymentCreatedBy")
+  invoice_allocations       InvoiceAllocation[]
+  fiscal_periods_closed     FiscalPeriod[]
+  journal_entries_posted    JournalEntry[]    @relation("JEPostedBy")
+  journal_entries_created   JournalEntry[]    @relation("JECreatedBy")
+  audit_logs                AuditLog[]
+  approval_requests_submitted ApprovalRequest[]
+  approval_request_steps    ApprovalRequestStep[]
+  bank_reconciliations_reconciled BankReconciliation[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique @db.VarChar(100)
+  description String?   @db.Text
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  role_permissions RolePermission[]
+  user_roles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  module      String  @db.VarChar(50)
+  action      String  @db.VarChar(50)
+  description String? @db.Text
+
+  role_permissions RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  role_id       String   @db.Uuid
+  permission_id String   @db.Uuid
+  created_at    DateTime @default(now())
+
+  role       Role       @relation(fields: [role_id], references: [id])
+  permission Permission @relation(fields: [permission_id], references: [id])
+
+  @@unique([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  role_id    String   @db.Uuid
+  branch_id  String?  @db.Uuid
+  created_at DateTime @default(now())
+
+  user   User    @relation(fields: [user_id], references: [id])
+  role   Role    @relation(fields: [role_id], references: [id])
+  branch Branch? @relation(fields: [branch_id], references: [id])
+
+  @@unique([user_id, role_id])
+  @@map("user_roles")
+}
+
+// ============================================================
+// MASTER DATA TABLES
+// ============================================================
+
+model Category {
+  id         String    @id @default(uuid()) @db.Uuid
+  code       String    @unique @db.VarChar(50)
+  name       String    @db.VarChar(200)
+  parent_id  String?   @db.Uuid
+  level      Int       @default(1)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parent_id], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id         String    @id @default(uuid()) @db.Uuid
+  code       String    @unique @db.VarChar(50)
+  name       String    @db.VarChar(200)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model UnitOfMeasure {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.VarChar(100)
+  symbol     String   @db.VarChar(20)
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  products_base     Product[]              @relation("ProductBaseUOM")
+  products_purchase Product[]              @relation("ProductPurchaseUOM")
+  products_sales    Product[]              @relation("ProductSalesUOM")
+  pr_lines          PurchaseRequestLine[]
+  po_lines          PurchaseOrderLine[]
+  gr_lines          GoodsReceiptLine[]
+  transfer_lines    StockTransferLine[]
+  adjustment_lines  StockAdjustmentLine[]
+  pos_lines         PosTransactionLine[]
+  so_lines          SalesOrderLine[]
+  return_lines      SalesReturnLine[]
+
+  @@map("units_of_measure")
+}
+
+model Product {
+  id                String    @id @default(uuid()) @db.Uuid
+  code              String    @unique @db.VarChar(50)
+  barcode           String?   @db.VarChar(100)
+  name              String    @db.VarChar(200)
+  description       String?   @db.Text
+  category_id       String    @db.Uuid
+  brand_id          String?   @db.Uuid
+  uom_id            String    @db.Uuid
+  uom_purchase_id   String?   @db.Uuid
+  uom_sales_id      String?   @db.Uuid
+  cost_method       String    @default("WAC") @db.VarChar(10)
+  standard_cost     Decimal   @default(0) @db.Decimal(18, 4)
+  selling_price     Decimal   @default(0) @db.Decimal(18, 4)
+  min_selling_price Decimal   @default(0) @db.Decimal(18, 4)
+  reorder_point     Decimal   @default(0) @db.Decimal(18, 4)
+  reorder_qty       Decimal   @default(0) @db.Decimal(18, 4)
+  max_stock         Decimal?  @db.Decimal(18, 4)
+  is_serialized     Boolean   @default(false)
+  is_batch_tracked  Boolean   @default(false)
+  is_active         Boolean   @default(true)
+  tax_category      String?   @db.VarChar(50)
+  weight            Decimal?  @db.Decimal(10, 4)
+  volume            Decimal?  @db.Decimal(10, 4)
+  image_url         String?   @db.VarChar(500)
+  notes             String?   @db.Text
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  deleted_at        DateTime?
+
+  category         Category      @relation(fields: [category_id], references: [id])
+  brand            Brand?        @relation(fields: [brand_id], references: [id])
+  uom              UnitOfMeasure @relation("ProductBaseUOM", fields: [uom_id], references: [id])
+  uom_purchase     UnitOfMeasure? @relation("ProductPurchaseUOM", fields: [uom_purchase_id], references: [id])
+  uom_sales        UnitOfMeasure? @relation("ProductSalesUOM", fields: [uom_sales_id], references: [id])
+  price_list_items PriceListItem[]
+  pr_lines         PurchaseRequestLine[]
+  po_lines         PurchaseOrderLine[]
+  gr_lines         GoodsReceiptLine[]
+  inventory_ledger InventoryLedger[]
+  transfer_lines   StockTransferLine[]
+  adjustment_lines StockAdjustmentLine[]
+  opname_lines     StockOpnameLine[]
+  pos_lines        PosTransactionLine[]
+  so_lines         SalesOrderLine[]
+  return_lines     SalesReturnLine[]
+  invoice_lines    InvoiceLine[]
+
+  @@map("products")
+}
+
+model Customer {
+  id                  String    @id @default(uuid()) @db.Uuid
+  code                String    @unique @db.VarChar(50)
+  name                String    @db.VarChar(200)
+  email               String?   @db.VarChar(200)
+  phone               String?   @db.VarChar(30)
+  address             String?   @db.Text
+  credit_limit        Decimal   @default(0) @db.Decimal(18, 2)
+  outstanding_balance Decimal   @default(0) @db.Decimal(18, 2)
+  is_active           Boolean   @default(true)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  deleted_at          DateTime?
+
+  price_lists    PriceList[]
+  pos_transactions PosTransaction[]
+  sales_orders   SalesOrder[]
+  sales_returns  SalesReturn[]
+  invoices       Invoice[]
+  payments       Payment[]
+
+  @@map("customers")
+}
+
+model Supplier {
+  id                 String    @id @default(uuid()) @db.Uuid
+  code               String    @unique @db.VarChar(50)
+  name               String    @db.VarChar(200)
+  email              String?   @db.VarChar(200)
+  phone              String?   @db.VarChar(30)
+  address            String?   @db.Text
+  payment_terms_days Int       @default(30)
+  is_active          Boolean   @default(true)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  deleted_at         DateTime?
+
+  purchase_orders PurchaseOrder[]
+  goods_receipts  GoodsReceipt[]
+  invoices        Invoice[]
+  payments        Payment[]
+
+  @@map("suppliers")
+}
+
+model PriceList {
+  id          String    @id @default(uuid()) @db.Uuid
+  code        String    @unique @db.VarChar(50)
+  name        String    @db.VarChar(200)
+  customer_id String?   @db.Uuid
+  valid_from  DateTime
+  valid_to    DateTime?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  customer         Customer?       @relation(fields: [customer_id], references: [id])
+  price_list_items PriceListItem[]
+
+  @@map("price_lists")
+}
+
+model PriceListItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  price_list_id String   @db.Uuid
+  product_id    String   @db.Uuid
+  unit_price    Decimal  @db.Decimal(18, 4)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  price_list PriceList @relation(fields: [price_list_id], references: [id])
+  product    Product   @relation(fields: [product_id], references: [id])
+
+  @@unique([price_list_id, product_id])
+  @@map("price_list_items")
+}
+
+model ChartOfAccount {
+  id               String    @id @default(uuid()) @db.Uuid
+  account_code     String    @unique @db.VarChar(20)
+  account_name     String    @db.VarChar(200)
+  account_type     String    @db.VarChar(30)
+  account_category String?   @db.VarChar(100)
+  parent_id        String?   @db.Uuid
+  level            Int       @default(1)
+  is_header        Boolean   @default(false)
+  normal_balance   String    @db.VarChar(10)
+  is_active        Boolean   @default(true)
+  is_system        Boolean   @default(false)
+  branch_id        String?   @db.Uuid
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  parent                  ChartOfAccount?  @relation("COAHierarchy", fields: [parent_id], references: [id])
+  children                ChartOfAccount[] @relation("COAHierarchy")
+  branch                  Branch?          @relation(fields: [branch_id], references: [id])
+  payment_methods         PaymentMethod[]
+  journal_entry_lines     JournalEntryLine[]
+  auto_journal_debit      AutoJournalTemplate[] @relation("AutoJournalDebit")
+  auto_journal_credit     AutoJournalTemplate[] @relation("AutoJournalCredit")
+  bank_statements         BankStatement[]
+  bank_reconciliations    BankReconciliation[]
+
+  @@map("chart_of_accounts")
+}
+
+
+model FiscalPeriod {
+  id          String    @id @default(uuid()) @db.Uuid
+  period_name String    @db.VarChar(100)
+  year        Int
+  month       Int
+  start_date  DateTime
+  end_date    DateTime
+  status      String    @default("DRAFT") @db.VarChar(20)
+  closed_by   String?   @db.Uuid
+  closed_at   DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  closed_by_user       User?                @relation(fields: [closed_by], references: [id])
+  journal_entries      JournalEntry[]
+  bank_reconciliations BankReconciliation[]
+
+  @@unique([year, month])
+  @@map("fiscal_periods")
+}
+
+model PaymentMethod {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.VarChar(100)
+  type       String   @db.VarChar(20)
+  account_id String?  @db.Uuid
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  account          ChartOfAccount? @relation(fields: [account_id], references: [id])
+  pos_payments     PosPayment[]
+  payments         Payment[]
+
+  @@map("payment_methods")
+}
+
+// ============================================================
+// PURCHASE TABLES
+// ============================================================
+
+model PurchaseRequest {
+  id           String    @id @default(uuid()) @db.Uuid
+  pr_number    String    @unique @db.VarChar(30)
+  branch_id    String    @db.Uuid
+  warehouse_id String    @db.Uuid
+  status       String    @default("DRAFT") @db.VarChar(30)
+  requested_by String    @db.Uuid
+  notes        String?   @db.Text
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
+
+  branch          Branch                @relation(fields: [branch_id], references: [id])
+  warehouse       Warehouse             @relation(fields: [warehouse_id], references: [id])
+  requested_by_user User               @relation("PRCreatedBy", fields: [requested_by], references: [id])
+  lines           PurchaseRequestLine[]
+  purchase_orders PurchaseOrder[]
+
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  pr_id           String   @db.Uuid
+  product_id      String   @db.Uuid
+  qty_requested   Decimal  @db.Decimal(18, 4)
+  uom_id          String   @db.Uuid
+  estimated_price Decimal? @db.Decimal(18, 4)
+  notes           String?  @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  purchase_request PurchaseRequest @relation(fields: [pr_id], references: [id])
+  product          Product         @relation(fields: [product_id], references: [id])
+  uom              UnitOfMeasure   @relation(fields: [uom_id], references: [id])
+
+  @@map("purchase_request_lines")
+}
+
+model PurchaseOrder {
+  id                     String    @id @default(uuid()) @db.Uuid
+  po_number              String    @unique @db.VarChar(30)
+  pr_id                  String?   @db.Uuid
+  supplier_id            String    @db.Uuid
+  branch_id              String    @db.Uuid
+  warehouse_id           String    @db.Uuid
+  status                 String    @default("DRAFT") @db.VarChar(30)
+  order_date             DateTime
+  expected_delivery_date DateTime?
+  currency               String    @default("IDR") @db.VarChar(10)
+  exchange_rate          Decimal   @default(1) @db.Decimal(18, 6)
+  subtotal               Decimal   @default(0) @db.Decimal(18, 2)
+  tax_amount             Decimal   @default(0) @db.Decimal(18, 2)
+  additional_cost        Decimal   @default(0) @db.Decimal(18, 2)
+  total_amount           Decimal   @default(0) @db.Decimal(18, 2)
+  approval_level         Int?
+  approved_by            String?   @db.Uuid
+  approved_at            DateTime?
+  notes                  String?   @db.Text
+  created_by             String    @db.Uuid
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  deleted_at             DateTime?
+
+  purchase_request PurchaseRequest?    @relation(fields: [pr_id], references: [id])
+  supplier         Supplier            @relation(fields: [supplier_id], references: [id])
+  branch           Branch              @relation(fields: [branch_id], references: [id])
+  warehouse        Warehouse           @relation(fields: [warehouse_id], references: [id])
+  approved_by_user User?               @relation("POApprovedBy", fields: [approved_by], references: [id])
+  created_by_user  User                @relation("POCreatedBy", fields: [created_by], references: [id])
+  lines            PurchaseOrderLine[]
+  goods_receipts   GoodsReceipt[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  po_id           String   @db.Uuid
+  product_id      String   @db.Uuid
+  description     String?  @db.Text
+  qty_ordered     Decimal  @db.Decimal(18, 4)
+  qty_received    Decimal  @default(0) @db.Decimal(18, 4)
+  uom_id          String   @db.Uuid
+  unit_price      Decimal  @db.Decimal(18, 4)
+  discount_pct    Decimal  @default(0) @db.Decimal(5, 2)
+  discount_amount Decimal  @default(0) @db.Decimal(18, 2)
+  tax_pct         Decimal  @default(0) @db.Decimal(5, 2)
+  tax_amount      Decimal  @default(0) @db.Decimal(18, 2)
+  line_total      Decimal  @default(0) @db.Decimal(18, 2)
+  line_status     String   @default("OPEN") @db.VarChar(20)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  purchase_order PurchaseOrder      @relation(fields: [po_id], references: [id])
+  product        Product            @relation(fields: [product_id], references: [id])
+  uom            UnitOfMeasure      @relation(fields: [uom_id], references: [id])
+  gr_lines       GoodsReceiptLine[]
+
+  @@map("purchase_order_lines")
+}
+
+model GoodsReceipt {
+  id           String    @id @default(uuid()) @db.Uuid
+  gr_number    String    @unique @db.VarChar(30)
+  po_id        String    @db.Uuid
+  supplier_id  String    @db.Uuid
+  warehouse_id String    @db.Uuid
+  status       String    @default("DRAFT") @db.VarChar(20)
+  receipt_date DateTime
+  notes        String?   @db.Text
+  confirmed_by String?   @db.Uuid
+  confirmed_at DateTime?
+  created_by   String    @db.Uuid
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
+
+  purchase_order   PurchaseOrder      @relation(fields: [po_id], references: [id])
+  supplier         Supplier           @relation(fields: [supplier_id], references: [id])
+  warehouse        Warehouse          @relation(fields: [warehouse_id], references: [id])
+  confirmed_by_user User?             @relation("GRConfirmedBy", fields: [confirmed_by], references: [id])
+  created_by_user  User               @relation("GRCreatedBy", fields: [created_by], references: [id])
+  lines            GoodsReceiptLine[]
+
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id            String   @id @default(uuid()) @db.Uuid
+  gr_id         String   @db.Uuid
+  po_line_id    String   @db.Uuid
+  product_id    String   @db.Uuid
+  qty_received  Decimal  @db.Decimal(18, 4)
+  uom_id        String   @db.Uuid
+  unit_cost     Decimal  @db.Decimal(18, 4)
+  total_cost    Decimal  @db.Decimal(18, 2)
+  batch_number  String?  @db.VarChar(100)
+  serial_number String?  @db.VarChar(100)
+  notes         String?  @db.Text
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  goods_receipt  GoodsReceipt      @relation(fields: [gr_id], references: [id])
+  po_line        PurchaseOrderLine @relation(fields: [po_line_id], references: [id])
+  product        Product           @relation(fields: [product_id], references: [id])
+  uom            UnitOfMeasure     @relation(fields: [uom_id], references: [id])
+
+  @@map("goods_receipt_lines")
+}
+
+// ============================================================
+// INVENTORY TABLES
+// ============================================================
+
+model InventoryLedger {
+  id               String   @id @default(uuid()) @db.Uuid
+  product_id       String   @db.Uuid
+  warehouse_id     String   @db.Uuid
+  transaction_type String   @db.VarChar(30)
+  reference_type   String   @db.VarChar(30)
+  reference_id     String   @db.Uuid
+  reference_number String   @db.VarChar(50)
+  movement_date    DateTime
+  qty_in           Decimal  @default(0) @db.Decimal(18, 4)
+  qty_out          Decimal  @default(0) @db.Decimal(18, 4)
+  unit_cost        Decimal  @default(0) @db.Decimal(18, 4)
+  total_cost       Decimal  @default(0) @db.Decimal(18, 2)
+  running_qty      Decimal  @default(0) @db.Decimal(18, 4)
+  running_cost     Decimal  @default(0) @db.Decimal(18, 2)
+  batch_number     String?  @db.VarChar(100)
+  serial_number    String?  @db.VarChar(100)
+  notes            String?  @db.Text
+  created_by       String   @db.Uuid
+  created_at       DateTime @default(now())
+
+  // NO updated_at, NO deleted_at - append-only!
+  product          Product   @relation(fields: [product_id], references: [id])
+  warehouse        Warehouse @relation(fields: [warehouse_id], references: [id])
+  created_by_user  User      @relation(fields: [created_by], references: [id])
+
+  @@index([product_id, warehouse_id])
+  @@index([reference_type, reference_id])
+  @@index([movement_date(sort: Desc)])
+  @@map("inventory_ledger")
+}
+
+model StockTransfer {
+  id              String    @id @default(uuid()) @db.Uuid
+  transfer_number String    @unique @db.VarChar(30)
+  from_warehouse_id String  @db.Uuid
+  to_warehouse_id String    @db.Uuid
+  status          String    @default("DRAFT") @db.VarChar(20)
+  transfer_date   DateTime
+  notes           String?   @db.Text
+  approved_by     String?   @db.Uuid
+  approved_at     DateTime?
+  created_by      String    @db.Uuid
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  deleted_at      DateTime?
+
+  from_warehouse   Warehouse           @relation("StockTransferFrom", fields: [from_warehouse_id], references: [id])
+  to_warehouse     Warehouse           @relation("StockTransferTo", fields: [to_warehouse_id], references: [id])
+  approved_by_user User?               @relation("STApprovedBy", fields: [approved_by], references: [id])
+  created_by_user  User                @relation("STCreatedBy", fields: [created_by], references: [id])
+  lines            StockTransferLine[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  transfer_id String   @db.Uuid
+  product_id  String   @db.Uuid
+  qty         Decimal  @db.Decimal(18, 4)
+  uom_id      String   @db.Uuid
+  unit_cost   Decimal  @default(0) @db.Decimal(18, 4)
+  notes       String?  @db.Text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  stock_transfer StockTransfer @relation(fields: [transfer_id], references: [id])
+  product        Product       @relation(fields: [product_id], references: [id])
+  uom            UnitOfMeasure @relation(fields: [uom_id], references: [id])
+
+  @@map("stock_transfer_lines")
+}
+
+model StockAdjustment {
+  id                String    @id @default(uuid()) @db.Uuid
+  adjustment_number String    @unique @db.VarChar(30)
+  warehouse_id      String    @db.Uuid
+  adjustment_date   DateTime
+  reason            String    @db.VarChar(200)
+  notes             String?   @db.Text
+  status            String    @default("DRAFT") @db.VarChar(20)
+  approved_by       String?   @db.Uuid
+  approved_at       DateTime?
+  created_by        String    @db.Uuid
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+  deleted_at        DateTime?
+
+  warehouse        Warehouse             @relation(fields: [warehouse_id], references: [id])
+  approved_by_user User?                 @relation("SAApprovedBy", fields: [approved_by], references: [id])
+  created_by_user  User                  @relation("SACreatedBy", fields: [created_by], references: [id])
+  lines            StockAdjustmentLine[]
+
+  @@map("stock_adjustments")
+}
+
+model StockAdjustmentLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  adjustment_id  String   @db.Uuid
+  product_id     String   @db.Uuid
+  qty_system     Decimal  @db.Decimal(18, 4)
+  qty_actual     Decimal  @db.Decimal(18, 4)
+  qty_difference Decimal  @db.Decimal(18, 4)
+  unit_cost      Decimal  @default(0) @db.Decimal(18, 4)
+  notes          String?  @db.Text
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  stock_adjustment StockAdjustment @relation(fields: [adjustment_id], references: [id])
+  product          Product         @relation(fields: [product_id], references: [id])
+  uom              UnitOfMeasure   @relation(fields: [uom_id], references: [id])
+  uom_id           String          @db.Uuid
+
+  @@map("stock_adjustment_lines")
+}
+
+model StockOpname {
+  id             String    @id @default(uuid()) @db.Uuid
+  opname_number  String    @unique @db.VarChar(30)
+  warehouse_id   String    @db.Uuid
+  status         String    @default("INITIATED") @db.VarChar(20)
+  initiated_by   String    @db.Uuid
+  initiated_at   DateTime
+  finalized_by   String?   @db.Uuid
+  finalized_at   DateTime?
+  notes          String?   @db.Text
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  warehouse          Warehouse         @relation(fields: [warehouse_id], references: [id])
+  initiated_by_user  User              @relation("OpnameInitiatedBy", fields: [initiated_by], references: [id])
+  finalized_by_user  User?             @relation("OpnameFinalizedBy", fields: [finalized_by], references: [id])
+  lines              StockOpnameLine[]
+
+  @@map("stock_opnames")
+}
+
+model StockOpnameLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  opname_id      String   @db.Uuid
+  product_id     String   @db.Uuid
+  qty_system     Decimal  @db.Decimal(18, 4)
+  qty_counted    Decimal? @db.Decimal(18, 4)
+  qty_difference Decimal? @db.Decimal(18, 4)
+  status         String   @default("PENDING") @db.VarChar(20)
+  recount_reason String?  @db.Text
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  stock_opname StockOpname @relation(fields: [opname_id], references: [id])
+  product      Product     @relation(fields: [product_id], references: [id])
+
+  @@map("stock_opname_lines")
+}
+
+// ============================================================
+// SALES / POS TABLES
+// ============================================================
+
+model Shift {
+  id               String    @id @default(uuid()) @db.Uuid
+  shift_number     String    @unique @db.VarChar(30)
+  cashier_id       String    @db.Uuid
+  branch_id        String    @db.Uuid
+  warehouse_id     String    @db.Uuid
+  status           String    @default("OPEN") @db.VarChar(20)
+  opened_at        DateTime
+  closed_at        DateTime?
+  opening_balance  Decimal   @default(0) @db.Decimal(18, 2)
+  closing_balance  Decimal?  @db.Decimal(18, 2)
+  expected_balance Decimal?  @db.Decimal(18, 2)
+  difference       Decimal?  @db.Decimal(18, 2)
+  force_closed_by  String?   @db.Uuid
+  force_close_reason String? @db.Text
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  cashier           User             @relation("ShiftCashier", fields: [cashier_id], references: [id])
+  branch            Branch           @relation(fields: [branch_id], references: [id])
+  warehouse         Warehouse        @relation(fields: [warehouse_id], references: [id])
+  force_closed_user User?            @relation("ShiftForceClosed", fields: [force_closed_by], references: [id])
+  pos_transactions  PosTransaction[]
+
+  @@map("shifts")
+}
+
+model PosTransaction {
+  id                 String    @id @default(uuid()) @db.Uuid
+  transaction_number String    @unique @db.VarChar(40)
+  shift_id           String    @db.Uuid
+  cashier_id         String    @db.Uuid
+  customer_id        String?   @db.Uuid
+  transaction_date   DateTime
+  status             String    @default("OPEN") @db.VarChar(20)
+  subtotal           Decimal   @default(0) @db.Decimal(18, 2)
+  discount_amount    Decimal   @default(0) @db.Decimal(18, 2)
+  tax_amount         Decimal   @default(0) @db.Decimal(18, 2)
+  total_amount       Decimal   @default(0) @db.Decimal(18, 2)
+  paid_amount        Decimal   @default(0) @db.Decimal(18, 2)
+  change_amount      Decimal   @default(0) @db.Decimal(18, 2)
+  void_reason        String?   @db.Text
+  voided_by          String?   @db.Uuid
+  voided_at          DateTime?
+  version            Int       @default(0)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  shift          Shift                @relation(fields: [shift_id], references: [id])
+  cashier        User                 @relation("POSCashier", fields: [cashier_id], references: [id])
+  customer       Customer?            @relation(fields: [customer_id], references: [id])
+  voided_by_user User?                @relation("POSVoidedBy", fields: [voided_by], references: [id])
+  lines          PosTransactionLine[]
+  payments       PosPayment[]
+
+  @@index([shift_id, status])
+  @@index([transaction_date(sort: Desc)])
+  @@map("pos_transactions")
+}
+
+model PosTransactionLine {
+  id                String   @id @default(uuid()) @db.Uuid
+  transaction_id    String   @db.Uuid
+  product_id        String   @db.Uuid
+  qty               Decimal  @db.Decimal(18, 4)
+  uom_id            String   @db.Uuid
+  unit_price        Decimal  @db.Decimal(18, 4)
+  price_override    Boolean  @default(false)
+  price_override_by String?  @db.Uuid
+  discount_pct      Decimal  @default(0) @db.Decimal(5, 2)
+  discount_amount   Decimal  @default(0) @db.Decimal(18, 2)
+  tax_pct           Decimal  @default(0) @db.Decimal(5, 2)
+  tax_amount        Decimal  @default(0) @db.Decimal(18, 2)
+  line_total        Decimal  @default(0) @db.Decimal(18, 2)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  transaction        PosTransaction @relation(fields: [transaction_id], references: [id])
+  product            Product        @relation(fields: [product_id], references: [id])
+  uom                UnitOfMeasure  @relation(fields: [uom_id], references: [id])
+  price_override_user User?         @relation("POSPriceOverrideBy", fields: [price_override_by], references: [id])
+
+  @@map("pos_transaction_lines")
+}
+
+model PosPayment {
+  id                String   @id @default(uuid()) @db.Uuid
+  transaction_id    String   @db.Uuid
+  payment_method_id String   @db.Uuid
+  amount            Decimal  @db.Decimal(18, 2)
+  reference_number  String?  @db.VarChar(100)
+  created_at        DateTime @default(now())
+
+  transaction    PosTransaction @relation(fields: [transaction_id], references: [id])
+  payment_method PaymentMethod  @relation(fields: [payment_method_id], references: [id])
+
+  @@map("pos_payments")
+}
+
+model SalesOrder {
+  id                     String    @id @default(uuid()) @db.Uuid
+  so_number              String    @unique @db.VarChar(30)
+  customer_id            String    @db.Uuid
+  branch_id              String    @db.Uuid
+  warehouse_id           String    @db.Uuid
+  status                 String    @default("DRAFT") @db.VarChar(30)
+  order_date             DateTime
+  expected_delivery_date DateTime?
+  subtotal               Decimal   @default(0) @db.Decimal(18, 2)
+  discount_amount        Decimal   @default(0) @db.Decimal(18, 2)
+  tax_amount             Decimal   @default(0) @db.Decimal(18, 2)
+  total_amount           Decimal   @default(0) @db.Decimal(18, 2)
+  notes                  String?   @db.Text
+  approved_by            String?   @db.Uuid
+  approved_at            DateTime?
+  created_by             String    @db.Uuid
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  deleted_at             DateTime?
+
+  customer         Customer         @relation(fields: [customer_id], references: [id])
+  branch           Branch           @relation(fields: [branch_id], references: [id])
+  warehouse        Warehouse        @relation(fields: [warehouse_id], references: [id])
+  approved_by_user User?            @relation("SOApprovedBy", fields: [approved_by], references: [id])
+  created_by_user  User             @relation("SOCreatedBy", fields: [created_by], references: [id])
+  lines            SalesOrderLine[]
+  delivery_orders  DeliveryOrder[]
+
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id            String   @id @default(uuid()) @db.Uuid
+  so_id         String   @db.Uuid
+  product_id    String   @db.Uuid
+  qty_ordered   Decimal  @db.Decimal(18, 4)
+  qty_delivered Decimal  @default(0) @db.Decimal(18, 4)
+  uom_id        String   @db.Uuid
+  unit_price    Decimal  @db.Decimal(18, 4)
+  discount_pct  Decimal  @default(0) @db.Decimal(5, 2)
+  tax_pct       Decimal  @default(0) @db.Decimal(5, 2)
+  line_total    Decimal  @default(0) @db.Decimal(18, 2)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  sales_order SalesOrder    @relation(fields: [so_id], references: [id])
+  product     Product       @relation(fields: [product_id], references: [id])
+  uom         UnitOfMeasure @relation(fields: [uom_id], references: [id])
+
+  @@map("sales_order_lines")
+}
+
+model DeliveryOrder {
+  id           String    @id @default(uuid()) @db.Uuid
+  do_number    String    @unique @db.VarChar(30)
+  so_id        String    @db.Uuid
+  warehouse_id String    @db.Uuid
+  status       String    @default("DRAFT") @db.VarChar(20)
+  delivery_date DateTime
+  notes        String?   @db.Text
+  confirmed_by String?   @db.Uuid
+  confirmed_at DateTime?
+  created_by   String    @db.Uuid
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  deleted_at   DateTime?
+
+  sales_order      SalesOrder @relation(fields: [so_id], references: [id])
+  warehouse        Warehouse  @relation(fields: [warehouse_id], references: [id])
+  confirmed_by_user User?     @relation("DOConfirmedBy", fields: [confirmed_by], references: [id])
+  created_by_user  User       @relation("DOCreatedBy", fields: [created_by], references: [id])
+
+  @@map("delivery_orders")
+}
+
+model SalesReturn {
+  id             String    @id @default(uuid()) @db.Uuid
+  return_number  String    @unique @db.VarChar(30)
+  reference_type String    @db.VarChar(30)
+  reference_id   String    @db.Uuid
+  customer_id    String    @db.Uuid
+  warehouse_id   String    @db.Uuid
+  return_date    DateTime
+  reason         String    @db.VarChar(200)
+  status         String    @default("DRAFT") @db.VarChar(20)
+  total_amount   Decimal   @default(0) @db.Decimal(18, 2)
+  notes          String?   @db.Text
+  approved_by    String?   @db.Uuid
+  approved_at    DateTime?
+  created_by     String    @db.Uuid
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  deleted_at     DateTime?
+
+  customer         Customer          @relation(fields: [customer_id], references: [id])
+  warehouse        Warehouse         @relation(fields: [warehouse_id], references: [id])
+  approved_by_user User?             @relation("SRApprovedBy", fields: [approved_by], references: [id])
+  created_by_user  User              @relation("SRCreatedBy", fields: [created_by], references: [id])
+  lines            SalesReturnLine[]
+
+  @@map("sales_returns")
+}
+
+model SalesReturnLine {
+  id         String   @id @default(uuid()) @db.Uuid
+  return_id  String   @db.Uuid
+  product_id String   @db.Uuid
+  qty        Decimal  @db.Decimal(18, 4)
+  uom_id     String   @db.Uuid
+  unit_price Decimal  @db.Decimal(18, 4)
+  unit_cost  Decimal  @default(0) @db.Decimal(18, 4)
+  line_total Decimal  @default(0) @db.Decimal(18, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  sales_return SalesReturn   @relation(fields: [return_id], references: [id])
+  product      Product       @relation(fields: [product_id], references: [id])
+  uom          UnitOfMeasure @relation(fields: [uom_id], references: [id])
+
+  @@map("sales_return_lines")
+}
+
+// ============================================================
+// INVOICING TABLES
+// ============================================================
+
+model Invoice {
+  id                 String    @id @default(uuid()) @db.Uuid
+  invoice_number     String    @unique @db.VarChar(30)
+  invoice_type       String    @db.VarChar(20)
+  reference_type     String    @db.VarChar(30)
+  reference_id       String    @db.Uuid
+  customer_id        String?   @db.Uuid
+  supplier_id        String?   @db.Uuid
+  branch_id          String    @db.Uuid
+  invoice_date       DateTime
+  due_date           DateTime
+  status             String    @default("DRAFT") @db.VarChar(20)
+  subtotal           Decimal   @default(0) @db.Decimal(18, 2)
+  tax_amount         Decimal   @default(0) @db.Decimal(18, 2)
+  total_amount       Decimal   @default(0) @db.Decimal(18, 2)
+  paid_amount        Decimal   @default(0) @db.Decimal(18, 2)
+  outstanding_amount Decimal   @default(0) @db.Decimal(18, 2)
+  notes              String?   @db.Text
+  posted_by          String?   @db.Uuid
+  posted_at          DateTime?
+  created_by         String    @db.Uuid
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+  deleted_at         DateTime?
+
+  customer         Customer?           @relation(fields: [customer_id], references: [id])
+  supplier         Supplier?           @relation(fields: [supplier_id], references: [id])
+  branch           Branch              @relation(fields: [branch_id], references: [id])
+  posted_by_user   User?               @relation("InvoicePostedBy", fields: [posted_by], references: [id])
+  created_by_user  User                @relation("InvoiceCreatedBy", fields: [created_by], references: [id])
+  lines            InvoiceLine[]
+  allocations      InvoiceAllocation[]
+
+  @@index([customer_id, status])
+  @@index([supplier_id, status])
+  @@index([due_date, status])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id           String   @id @default(uuid()) @db.Uuid
+  invoice_id   String   @db.Uuid
+  product_id   String?  @db.Uuid
+  description  String   @db.VarChar(500)
+  qty          Decimal  @default(1) @db.Decimal(18, 4)
+  unit_price   Decimal  @db.Decimal(18, 4)
+  discount_pct Decimal  @default(0) @db.Decimal(5, 2)
+  tax_pct      Decimal  @default(0) @db.Decimal(5, 2)
+  line_total   Decimal  @default(0) @db.Decimal(18, 2)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  invoice Invoice  @relation(fields: [invoice_id], references: [id])
+  product Product? @relation(fields: [product_id], references: [id])
+
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id               String    @id @default(uuid()) @db.Uuid
+  payment_number   String    @unique @db.VarChar(30)
+  payment_type     String    @db.VarChar(20)
+  customer_id      String?   @db.Uuid
+  supplier_id      String?   @db.Uuid
+  branch_id        String    @db.Uuid
+  payment_date     DateTime
+  payment_method_id String   @db.Uuid
+  amount           Decimal   @db.Decimal(18, 2)
+  status           String    @default("DRAFT") @db.VarChar(20)
+  reference_number String?   @db.VarChar(100)
+  notes            String?   @db.Text
+  approved_by      String?   @db.Uuid
+  approved_at      DateTime?
+  posted_by        String?   @db.Uuid
+  posted_at        DateTime?
+  reversed_by      String?   @db.Uuid
+  reversed_at      DateTime?
+  reversal_reason  String?   @db.Text
+  created_by       String    @db.Uuid
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+  deleted_at       DateTime?
+
+  customer          Customer?           @relation(fields: [customer_id], references: [id])
+  supplier          Supplier?           @relation(fields: [supplier_id], references: [id])
+  branch            Branch              @relation(fields: [branch_id], references: [id])
+  payment_method    PaymentMethod       @relation(fields: [payment_method_id], references: [id])
+  approved_by_user  User?               @relation("PaymentApprovedBy", fields: [approved_by], references: [id])
+  posted_by_user    User?               @relation("PaymentPostedBy", fields: [posted_by], references: [id])
+  reversed_by_user  User?               @relation("PaymentReversedBy", fields: [reversed_by], references: [id])
+  created_by_user   User                @relation("PaymentCreatedBy", fields: [created_by], references: [id])
+  allocations       InvoiceAllocation[]
+  bank_statements   BankStatement[]
+
+  @@map("payments")
+}
+
+model InvoiceAllocation {
+  id               String   @id @default(uuid()) @db.Uuid
+  invoice_id       String   @db.Uuid
+  payment_id       String   @db.Uuid
+  allocated_amount Decimal  @db.Decimal(18, 2)
+  allocated_at     DateTime
+  created_by       String   @db.Uuid
+  created_at       DateTime @default(now())
+
+  invoice    Invoice @relation(fields: [invoice_id], references: [id])
+  payment    Payment @relation(fields: [payment_id], references: [id])
+  created_by_user User @relation(fields: [created_by], references: [id])
+
+  @@map("invoice_allocations")
+}
+
+model BankStatement {
+  id               String    @id @default(uuid()) @db.Uuid
+  bank_account_id  String    @db.Uuid
+  statement_date   DateTime
+  reference_number String    @db.VarChar(100)
+  description      String    @db.VarChar(500)
+  amount           Decimal   @db.Decimal(18, 2)
+  transaction_type String    @db.VarChar(10)
+  is_matched       Boolean   @default(false)
+  matched_payment_id String? @db.Uuid
+  matched_at       DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  bank_account    ChartOfAccount @relation(fields: [bank_account_id], references: [id])
+  matched_payment Payment?       @relation(fields: [matched_payment_id], references: [id])
+
+  @@map("bank_statements")
+}
+
+model BankReconciliation {
+  id              String    @id @default(uuid()) @db.Uuid
+  bank_account_id String    @db.Uuid
+  period_id       String    @db.Uuid
+  status          String    @default("DRAFT") @db.VarChar(20)
+  reconciled_by   String?   @db.Uuid
+  reconciled_at   DateTime?
+  notes           String?   @db.Text
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  bank_account    ChartOfAccount @relation(fields: [bank_account_id], references: [id])
+  period          FiscalPeriod   @relation(fields: [period_id], references: [id])
+  reconciled_by_user User?       @relation(fields: [reconciled_by], references: [id])
+
+  @@map("bank_reconciliations")
+}
+
+// ============================================================
+// ACCOUNTING TABLES
+// ============================================================
+
+model JournalEntry {
+  id               String    @id @default(uuid()) @db.Uuid
+  je_number        String    @unique @db.VarChar(30)
+  entry_date       DateTime
+  period_id        String    @db.Uuid
+  reference_type   String    @db.VarChar(30)
+  reference_id     String    @db.Uuid
+  reference_number String    @db.VarChar(50)
+  description      String    @db.VarChar(500)
+  total_debit      Decimal   @default(0) @db.Decimal(18, 2)
+  total_credit     Decimal   @default(0) @db.Decimal(18, 2)
+  status           String    @default("DRAFT") @db.VarChar(20)
+  is_auto_generated Boolean  @default(false)
+  reversed_by      String?   @db.Uuid
+  reversed_at      DateTime?
+  posted_by        String?   @db.Uuid
+  posted_at        DateTime?
+  created_by       String    @db.Uuid
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  period           FiscalPeriod       @relation(fields: [period_id], references: [id])
+  reversal_je      JournalEntry?      @relation("JEReversedBy", fields: [reversed_by], references: [id])
+  reversed_by_je   JournalEntry[]     @relation("JEReversedBy")
+  posted_by_user   User?              @relation("JEPostedBy", fields: [posted_by], references: [id])
+  created_by_user  User               @relation("JECreatedBy", fields: [created_by], references: [id])
+  lines            JournalEntryLine[]
+
+  @@index([period_id, status])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  je_id       String   @db.Uuid
+  line_number Int
+  account_id  String   @db.Uuid
+  cost_center_id String? @db.Uuid
+  description String?  @db.VarChar(500)
+  debit       Decimal  @default(0) @db.Decimal(18, 2)
+  credit      Decimal  @default(0) @db.Decimal(18, 2)
+  created_at  DateTime @default(now())
+
+  journal_entry JournalEntry   @relation(fields: [je_id], references: [id])
+  account       ChartOfAccount @relation(fields: [account_id], references: [id])
+
+  @@index([account_id, je_id])
+  @@map("journal_entry_lines")
+}
+
+model AutoJournalTemplate {
+  id               String   @id @default(uuid()) @db.Uuid
+  event_type       String   @unique @db.VarChar(50)
+  description      String   @db.VarChar(200)
+  debit_account_id String   @db.Uuid
+  credit_account_id String  @db.Uuid
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  debit_account  ChartOfAccount @relation("AutoJournalDebit", fields: [debit_account_id], references: [id])
+  credit_account ChartOfAccount @relation("AutoJournalCredit", fields: [credit_account_id], references: [id])
+
+  @@map("auto_journal_templates")
+}
+
+// ============================================================
+// GOVERNANCE TABLES
+// ============================================================
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  user_id     String   @db.Uuid
+  action      String   @db.VarChar(50)
+  entity_type String   @db.VarChar(100)
+  entity_id   String   @db.Uuid
+  data_before Json?
+  data_after  Json?
+  ip_address  String?  @db.VarChar(45)
+  user_agent  String?  @db.VarChar(500)
+  created_at  DateTime @default(now())
+
+  // NO updated_at, NO deleted_at - immutable!
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([entity_type, entity_id])
+  @@index([user_id, created_at(sort: Desc)])
+  @@map("audit_logs")
+}
+
+model ApprovalRequest {
+  id              String   @id @default(uuid()) @db.Uuid
+  document_type   String   @db.VarChar(50)
+  document_id     String   @db.Uuid
+  document_number String   @db.VarChar(50)
+  amount          Decimal? @db.Decimal(18, 2)
+  approval_level  Int
+  status          String   @default("PENDING") @db.VarChar(20)
+  submitted_by    String   @db.Uuid
+  submitted_at    DateTime
+  notes           String?  @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  submitted_by_user User                  @relation(fields: [submitted_by], references: [id])
+  steps             ApprovalRequestStep[]
+
+  @@map("approval_requests")
+}
+
+model ApprovalRequestStep {
+  id          String    @id @default(uuid()) @db.Uuid
+  request_id  String    @db.Uuid
+  step_number Int
+  approver_id String    @db.Uuid
+  status      String    @default("PENDING") @db.VarChar(20)
+  decision_at DateTime?
+  notes       String?   @db.Text
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  approval_request ApprovalRequest @relation(fields: [request_id], references: [id])
+  approver         User            @relation(fields: [approver_id], references: [id])
+
+  @@map("approval_request_steps")
 }

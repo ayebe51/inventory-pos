@@ -8,7 +8,7 @@
 - [x] 1.4 Implementasi standard API response envelope `APIResponse<T>` dan `APIError` dengan semua error codes
 - [x] 1.5 Konfigurasi global exception filter untuk mapping HTTP status codes sesuai spesifikasi
 - [x] 1.6 Setup Jest + fast-check untuk unit testing dan property-based testing
-- [ ] 1.7 Buat Prisma schema awal dengan semua 40+ tabel beserta indexes dan constraints
+- [x] 1.7 Buat Prisma schema awal dengan semua 40+ tabel beserta indexes dan constraints
 
 ## Task 2: Database Schema & Migrations
 
