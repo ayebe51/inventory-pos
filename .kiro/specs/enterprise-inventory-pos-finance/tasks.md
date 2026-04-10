@@ -2,8 +2,8 @@
 
 ## Task 1: Project Foundation & Infrastructure Setup
 
-- [ ] 1.1 Inisialisasi NestJS project dengan TypeScript, konfigurasi Prisma ORM, dan koneksi PostgreSQL primary + read replica
-- [ ] 1.2 Setup Redis 7+ Cluster untuk caching dengan TTL 5 menit untuk master data
+- [x] 1.1 Inisialisasi NestJS project dengan TypeScript, konfigurasi Prisma ORM, dan koneksi PostgreSQL primary + read replica
+- [x] 1.2 Setup Redis 7+ Cluster untuk caching dengan TTL 5 menit untuk master data
 - [ ] 1.3 Buat struktur folder domain: `src/modules/`, `src/services/`, `src/common/`, `src/config/`
 - [ ] 1.4 Implementasi standard API response envelope `APIResponse<T>` dan `APIError` dengan semua error codes
 - [ ] 1.5 Konfigurasi global exception filter untuk mapping HTTP status codes sesuai spesifikasi

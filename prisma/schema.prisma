@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE TABLES
+// ============================================================
+
+model Branch {
+  id          String    @id @default(uuid()) @db.Uuid
+  code        String    @unique @db.VarChar(20)
+  name        String    @db.VarChar(200)
+  address     String?   @db.Text
+  phone       String?   @db.VarChar(20)
+  is_active   Boolean   @default(true)
+  parent_id   String?   @db.Uuid
+  parent      Branch?   @relation("BranchHierarchy", fields: [parent_id], references: [id])
+  children    Branch[]  @relation("BranchHierarchy")
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  deleted_at  DateTime?
+
+  @@map("branches")
+}
