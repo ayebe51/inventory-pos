@@ -12,7 +12,7 @@
 
 ## Task 2: Database Schema & Migrations
 
-- [ ] 2.1 Buat migration untuk tabel core: `branches`, `warehouses`, `users`, `roles`, `permissions`, `role_permissions`, `user_roles`
+- [x] 2.1 Buat migration untuk tabel core: `branches`, `warehouses`, `users`, `roles`, `permissions`, `role_permissions`, `user_roles`
 - [ ] 2.2 Buat migration untuk tabel master data: `products`, `categories`, `brands`, `units_of_measure`, `customers`, `suppliers`, `price_lists`, `chart_of_accounts`, `fiscal_periods`, `payment_methods`
 - [ ] 2.3 Buat migration untuk tabel purchase: `purchase_requests`, `purchase_orders`, `purchase_order_lines`, `goods_receipts`, `goods_receipt_lines`
 - [ ] 2.4 Buat migration untuk tabel inventory: `inventory_ledger` (append-only, tanpa updated_at/deleted_at), `stock_transfers`, `stock_adjustments`, `stock_opnames`
