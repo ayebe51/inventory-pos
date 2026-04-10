@@ -13,6 +13,7 @@ import { InvoicingModule } from './modules/invoicing/invoicing.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { GovernanceModule } from './modules/governance/governance.module';
+import { AuthModule } from './services/auth/auth.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { GovernanceModule } from './modules/governance/governance.module';
     AccountingModule,
     ReportingModule,
     GovernanceModule,
+    AuthModule,
   ],
   providers: [PrismaService, PrismaReadService],
   exports: [PrismaService, PrismaReadService],
