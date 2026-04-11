@@ -142,10 +142,18 @@ export interface AccountingService {
   getAccountBalance(accountId: UUID, asOfDate: Date): Promise<AccountBalance>;
 }
 
+export interface JournalBalanceValidationResult {
+  isValid: boolean;
+  totalDebit: number;
+  totalCredit: number;
+  difference: number;
+}
+
 export interface AutoJournalEngine {
   processEvent(event: BusinessEvent): Promise<JournalEntry[]>;
   getJournalTemplate(eventType: JournalEventType): Promise<JournalTemplate>;
   validateBalance(entries: JournalLine[]): boolean;
+  validateJournalBalance(lines: JournalLine[]): JournalBalanceValidationResult;
 }
 
 export interface BankReconciliationService {
