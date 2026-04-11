@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../config/prisma.service';
 import { CacheService } from '../cache/cache.service';
+import { AuditService } from '../audit/audit.service';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     update: jest.fn(),
   },
+  $transaction: jest.fn(),
 };
 
 const mockJwtService = {
@@ -64,6 +66,10 @@ const mockCacheService = {
   delByPattern: jest.fn(),
 };
 
+const mockAuditService = {
+  record: jest.fn().mockResolvedValue({}),
+};
+
 // ── Test Suite ────────────────────────────────────────────────────────────────
 
 describe('AuthService', () => {
@@ -79,6 +85,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: CacheService, useValue: mockCacheService },
+        { provide: AuditService, useValue: mockAuditService },
       ],
     }).compile();
 
@@ -310,13 +317,18 @@ describe('AuthService', () => {
   describe('changePassword', () => {
     it('updates password hash and invalidates all sessions on success', async () => {
       const hash = await hashPassword('old-password');
+      const txUpdate = jest.fn().mockResolvedValue({});
+      const tx = { user: { update: txUpdate } };
       mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
-      mockPrisma.user.update.mockResolvedValue({});
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(
+        async (cb: (t: unknown) => Promise<unknown>) => cb(tx),
+      );
+      mockAuditService.record.mockResolvedValue({});
       mockCacheService.delByPattern.mockResolvedValue(undefined);
 
       await service.changePassword('user-uuid-1', 'old-password', 'new-password-123');
 
-      expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect(txUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'user-uuid-1' },
           data: expect.objectContaining({ password_hash: expect.any(String) }),
@@ -344,16 +356,47 @@ describe('AuthService', () => {
 
     it('stores new password with bcrypt cost factor 12', async () => {
       const hash = await hashPassword('old-password');
+      const txUpdate = jest.fn().mockResolvedValue({});
+      const tx = { user: { update: txUpdate } };
       mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
-      mockPrisma.user.update.mockResolvedValue({});
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(
+        async (cb: (t: unknown) => Promise<unknown>) => cb(tx),
+      );
+      mockAuditService.record.mockResolvedValue({});
       mockCacheService.delByPattern.mockResolvedValue(undefined);
 
       await service.changePassword('user-uuid-1', 'old-password', 'new-password-123');
 
-      const updateCall = (mockPrisma.user.update as jest.Mock).mock.calls[0][0];
+      const updateCall = (txUpdate as jest.Mock).mock.calls[0][0];
       const newHash: string = updateCall.data.password_hash;
       // bcrypt hash with cost 12 starts with $2b$12$
       expect(newHash).toMatch(/^\$2b\$12\$/);
+    });
+
+    it('writes audit log inside the same transaction as the password update', async () => {
+      const hash = await hashPassword('old-password');
+      const txUpdate = jest.fn().mockResolvedValue({});
+      const txAuditCreate = jest.fn().mockResolvedValue({});
+      const tx = {
+        user: { update: txUpdate },
+        auditLog: { create: txAuditCreate },
+      };
+      mockPrisma.user.findFirst.mockResolvedValue(buildUser({ password_hash: hash }));
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(
+        async (cb: (t: unknown) => Promise<unknown>) => cb(tx),
+      );
+      mockAuditService.record.mockImplementation(
+        (_event: unknown, txArg: unknown) => {
+          // Verify the tx client was forwarded to audit.record
+          expect(txArg).toBe(tx);
+          return Promise.resolve({});
+        },
+      );
+      mockCacheService.delByPattern.mockResolvedValue(undefined);
+
+      await service.changePassword('user-uuid-1', 'old-password', 'new-password-123');
+
+      expect(mockAuditService.record).toHaveBeenCalledTimes(1);
     });
   });
 });

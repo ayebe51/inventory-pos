@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { UUID } from '../../../common/types/uuid.type';
 import { PaginatedResult } from '../../../common/types/pagination.type';
 
@@ -89,7 +90,14 @@ export interface RBACService {
 }
 
 export interface AuditTrailService {
-  record(event: AuditEvent): Promise<AuditLog>;
+  /**
+   * Record an audit event.
+   *
+   * Pass `tx` to write the audit log inside the **same** DB transaction as the
+   * business operation (atomicity requirement — Req 1 AC 12).  When `tx` is
+   * omitted the service falls back to the regular PrismaService connection.
+   */
+  record(event: AuditEvent, tx?: Prisma.TransactionClient): Promise<AuditLog>;
   query(filters: AuditFilter): Promise<PaginatedResult<AuditLog>>;
 }
 

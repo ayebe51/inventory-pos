@@ -6,6 +6,7 @@ import { authenticator } from 'otplib';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../config/prisma.service';
 import { CacheService } from '../cache/cache.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface JwtPayload {
   sub: string;
@@ -56,6 +57,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly cacheService: CacheService,
+    private readonly auditService: AuditService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -370,6 +372,8 @@ export class AuthService {
     userId: string,
     currentPassword: string,
     newPassword: string,
+    ipAddress?: string,
+    userAgent?: string,
   ): Promise<void> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deleted_at: null },
@@ -386,9 +390,27 @@ export class AuthService {
 
     const newHash = await bcrypt.hash(newPassword, 12);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password_hash: newHash, updated_at: new Date() },
+    // Write the password update and the audit log in the same DB transaction
+    // so that if either fails, both are rolled back (Req 1 AC 12).
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { password_hash: newHash, updated_at: new Date() },
+      });
+
+      await this.auditService.record(
+        {
+          user_id: userId,
+          action: 'UPDATE',
+          entity_type: 'User',
+          entity_id: userId,
+          before_snapshot: { password_hash: '[REDACTED]' },
+          after_snapshot: { password_hash: '[REDACTED]' },
+          ip_address: ipAddress,
+          user_agent: userAgent,
+        },
+        tx,
+      );
     });
 
     // Invalidate all active sessions (requirement: AC-4)
