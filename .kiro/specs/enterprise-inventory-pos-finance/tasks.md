@@ -28,7 +28,7 @@
 - [x] 3.2 Implementasi token refresh, logout, dan invalidasi semua sesi saat password diubah
 - [x] 3.3 Implementasi MFA (TOTP) untuk role Owner, Finance_Manager, dan Auditor
 - [x] 3.4 Implementasi `RBACService.checkPermission()` dengan format `MODULE.ACTION` dan semua permission khusus
-- [ ] 3.5 Buat NestJS Guard untuk RBAC yang digunakan sebagai decorator di semua endpoint
+- [x] 3.5 Buat NestJS Guard untuk RBAC yang digunakan sebagai decorator di semua endpoint
 - [ ] 3.6 Seed data roles dan permissions untuk 10 persona: Owner, Sys_Admin, Finance_Manager, Finance_Staff, Warehouse_Manager, Warehouse_Staff, Cashier, Supervisor, Purchasing_Staff, Auditor
 - [ ] 3.7 Property-based test: untuk setiap kombinasi role-permission, verifikasi `checkPermission` konsisten dengan matriks akses
 
