@@ -1296,3 +1296,17 @@ model ApprovalRequestStep {
   @@index([approver_id, status])
   @@map("approval_request_steps")
 }
+
+// ============================================================
+// DOCUMENT SEQUENCES (Numbering Service)
+// ============================================================
+
+model DocumentSequence {
+  prefix     String   @db.VarChar(10)
+  period     String   @db.VarChar(10)
+  last_value BigInt   @default(0)
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@id([prefix, period])
+  @@map("document_sequences")
+}

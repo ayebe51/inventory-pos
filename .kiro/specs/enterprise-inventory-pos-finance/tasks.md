@@ -42,9 +42,9 @@
 
 ## Task 5: Domain Services — Document Numbering
 
-- [ ] 5.1 Implementasi `NumberingService` dengan format per dokumen: PR, PO, GR, INV, POS, RCV, PV, JE, SA, SO, CN, DN, TO
-- [ ] 5.2 Implementasi DB unique constraint + exponential backoff retry (max 3x) untuk race condition
-- [ ] 5.3 Property-based test: generate 1000 nomor dokumen secara concurrent, verifikasi tidak ada duplikat
+- [x] 5.1 Implementasi `NumberingService` dengan format per dokumen: PR, PO, GR, INV, POS, RCV, PV, JE, SA, SO, CN, DN, TO
+- [x] 5.2 Implementasi DB unique constraint + exponential backoff retry (max 3x) untuk race condition
+- [x] 5.3 Property-based test: generate 1000 nomor dokumen secara concurrent, verifikasi tidak ada duplikat
 
 ## Task 6: Domain Services — Auto Journal Engine
 
