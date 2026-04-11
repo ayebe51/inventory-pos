@@ -36,9 +36,9 @@
 
 - [x] 4.1 Implementasi `AuditTrailService.record()` yang mencatat user_id, action, entity_type, entity_id, snapshot before/after, IP address, user agent, timestamp
 - [x] 4.2 Pastikan audit log ditulis dalam transaksi DB yang sama dengan operasi bisnis (atomik)
-- [ ] 4.3 Implementasi `AuditTrailService.query()` dengan filter dan pagination
-- [ ] 4.4 Validasi bahwa tabel `audit_logs` tidak memiliki field `updated_at` atau `deleted_at` (immutable)
-- [ ] 4.5 Unit test: verifikasi audit log tidak bisa diupdate atau dihapus setelah dibuat
+- [x] 4.3 Implementasi `AuditTrailService.query()` dengan filter dan pagination
+- [x] 4.4 Validasi bahwa tabel `audit_logs` tidak memiliki field `updated_at` atau `deleted_at` (immutable)
+- [x] 4.5 Unit test: verifikasi audit log tidak bisa diupdate atau dihapus setelah dibuat
 
 ## Task 5: Domain Services — Document Numbering
 
