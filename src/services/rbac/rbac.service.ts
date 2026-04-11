@@ -27,6 +27,7 @@ export const SPECIAL_PERMISSIONS = new Set([
   'REPORT.EXECUTIVE',
   'ADMIN.SETTINGS',
   'ADMIN.USER',
+  'INVOICE.WRITE_OFF',
 ]);
 
 const CACHE_TTL_SECONDS = 5 * 60; // 5 minutes

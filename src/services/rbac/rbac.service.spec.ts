@@ -377,4 +377,234 @@ describe('RbacService', () => {
       );
     });
   });
+
+  // ── Access Matrix Property-Based Tests ───────────────────────────────────────
+
+  /**
+   * Access matrix from design.md — maps each role to its granted permissions.
+   * This is the ground truth used to verify checkPermission consistency.
+   *
+   * Validates: Requirements 3.4, 3.6
+   */
+  describe('checkPermission - access matrix consistency (Task 3.7)', () => {
+    // Full role → permission mapping derived from seed.ts / design.md
+    const ACCESS_MATRIX: Record<string, string[]> = {
+      Owner: [
+        'PURCHASE.READ', 'PURCHASE.APPROVE', 'PURCHASE.EXPORT',
+        'INVENTORY.READ', 'INVENTORY.EXPORT',
+        'SALES.READ', 'SALES.APPROVE', 'SALES.EXPORT',
+        'POS.READ', 'POS.EXPORT',
+        'INVOICE.READ', 'INVOICE.POST', 'INVOICE.EXPORT', 'INVOICE.WRITE_OFF',
+        'PAYMENT.READ', 'PAYMENT.APPROVE', 'PAYMENT.EXPORT',
+        'ACCOUNTING.READ', 'ACCOUNTING.POST', 'ACCOUNTING.EXPORT',
+        'REPORT.READ', 'REPORT.EXPORT',
+        'REPORT.FINANCIAL', 'REPORT.EXECUTIVE',
+        'JOURNAL.REVERSE',
+        'PERIOD.CLOSE',
+        'ADMIN.READ',
+      ],
+      Sys_Admin: [
+        'ADMIN.READ', 'ADMIN.CREATE', 'ADMIN.UPDATE', 'ADMIN.DELETE',
+        'ADMIN.SETTINGS', 'ADMIN.USER',
+        'PURCHASE.READ', 'INVENTORY.READ', 'SALES.READ', 'POS.READ',
+        'INVOICE.READ', 'PAYMENT.READ', 'ACCOUNTING.READ', 'REPORT.READ',
+      ],
+      Finance_Manager: [
+        'PURCHASE.READ', 'PURCHASE.APPROVE', 'PURCHASE.EXPORT',
+        'INVENTORY.READ', 'INVENTORY.EXPORT',
+        'SALES.READ', 'SALES.APPROVE', 'SALES.EXPORT',
+        'POS.READ', 'POS.EXPORT',
+        'INVOICE.READ', 'INVOICE.CREATE', 'INVOICE.UPDATE', 'INVOICE.POST',
+        'INVOICE.EXPORT', 'INVOICE.WRITE_OFF',
+        'PAYMENT.READ', 'PAYMENT.CREATE', 'PAYMENT.APPROVE', 'PAYMENT.POST', 'PAYMENT.EXPORT',
+        'ACCOUNTING.READ', 'ACCOUNTING.CREATE', 'ACCOUNTING.UPDATE', 'ACCOUNTING.POST', 'ACCOUNTING.EXPORT',
+        'REPORT.READ', 'REPORT.EXPORT',
+        'REPORT.FINANCIAL', 'REPORT.EXECUTIVE',
+        'JOURNAL.REVERSE',
+        'PERIOD.CLOSE',
+      ],
+      Finance_Staff: [
+        'PURCHASE.READ',
+        'INVENTORY.READ',
+        'SALES.READ',
+        'POS.READ',
+        'INVOICE.READ', 'INVOICE.CREATE', 'INVOICE.UPDATE', 'INVOICE.POST', 'INVOICE.EXPORT',
+        'PAYMENT.READ', 'PAYMENT.CREATE', 'PAYMENT.POST', 'PAYMENT.EXPORT',
+        'ACCOUNTING.READ', 'ACCOUNTING.CREATE', 'ACCOUNTING.UPDATE', 'ACCOUNTING.EXPORT',
+        'REPORT.READ', 'REPORT.EXPORT', 'REPORT.FINANCIAL',
+      ],
+      Warehouse_Manager: [
+        'PURCHASE.READ',
+        'INVENTORY.READ', 'INVENTORY.CREATE', 'INVENTORY.UPDATE', 'INVENTORY.LOCK', 'INVENTORY.EXPORT',
+        'SALES.READ',
+        'POS.READ',
+        'REPORT.READ',
+        'STOCK.ADJUST', 'STOCK.OPNAME',
+      ],
+      Warehouse_Staff: [
+        'PURCHASE.READ',
+        'INVENTORY.READ', 'INVENTORY.CREATE', 'INVENTORY.UPDATE',
+        'SALES.READ',
+        'POS.READ',
+      ],
+      Cashier: [
+        'POS.READ', 'POS.CREATE',
+        'INVENTORY.READ',
+        'SALES.READ',
+      ],
+      Supervisor: [
+        'POS.READ', 'POS.CREATE', 'POS.VOID',
+        'INVENTORY.READ',
+        'SALES.READ', 'SALES.APPROVE',
+        'PURCHASE.READ', 'PURCHASE.APPROVE',
+        'REPORT.READ',
+        'PRICE.OVERRIDE', 'DISCOUNT.OVERRIDE',
+      ],
+      Purchasing_Staff: [
+        'PURCHASE.READ', 'PURCHASE.CREATE', 'PURCHASE.UPDATE', 'PURCHASE.EXPORT',
+        'INVENTORY.READ',
+        'SALES.READ',
+        'REPORT.READ',
+      ],
+      Auditor: [
+        'PURCHASE.READ', 'PURCHASE.EXPORT',
+        'INVENTORY.READ', 'INVENTORY.EXPORT',
+        'SALES.READ', 'SALES.EXPORT',
+        'POS.READ', 'POS.EXPORT',
+        'INVOICE.READ', 'INVOICE.EXPORT',
+        'PAYMENT.READ', 'PAYMENT.EXPORT',
+        'ACCOUNTING.READ', 'ACCOUNTING.EXPORT',
+        'REPORT.READ', 'REPORT.EXPORT', 'REPORT.FINANCIAL',
+        'ADMIN.READ',
+      ],
+    };
+
+    const ALL_ROLES = Object.keys(ACCESS_MATRIX) as Array<keyof typeof ACCESS_MATRIX>;
+
+    // All permissions that appear anywhere in the matrix
+    const ALL_PERMISSIONS = Array.from(
+      new Set(Object.values(ACCESS_MATRIX).flat()),
+    );
+
+    /**
+     * Validates: Requirements 3.4, 3.6
+     * Property: For every (role, permission) pair, checkPermission returns true
+     * iff the permission is listed in the access matrix for that role.
+     */
+    it('checkPermission is consistent with the access matrix for all role-permission combinations', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.constantFrom(...ALL_ROLES),
+          fc.constantFrom(...ALL_PERMISSIONS),
+          async (role, permission) => {
+            jest.clearAllMocks();
+
+            // Simulate: user has exactly the permissions defined for this role
+            const rolePermissions = ACCESS_MATRIX[role];
+            mockCacheService.get.mockResolvedValue(rolePermissions);
+
+            const result = await service.checkPermission(`user-${role}`, permission);
+            const expected = rolePermissions.includes(permission);
+
+            return result === expected;
+          },
+        ),
+        { numRuns: 500 },
+      );
+    });
+
+    /**
+     * Validates: Requirements 3.4, 3.6
+     * Property: Roles NOT granted a permission must return false for that permission.
+     * Specifically tests the highlighted permissions from the design.md access matrix table.
+     */
+    it('roles without a permission always return false for that permission', async () => {
+      // Highlighted permissions from design.md matrix table
+      const HIGHLIGHTED_PERMISSIONS: Record<string, string[]> = {
+        'PURCHASE.APPROVE': ['Owner', 'Finance_Manager', 'Supervisor'],
+        'PURCHASE.CREATE':  ['Purchasing_Staff'],
+        'STOCK.OPNAME':     ['Warehouse_Manager'],
+        'POS.VOID':         ['Supervisor'],
+        'PRICE.OVERRIDE':   ['Supervisor'],
+        'PERIOD.CLOSE':     ['Finance_Manager', 'Owner'],
+        'JOURNAL.REVERSE':  ['Finance_Manager', 'Owner'],
+        'REPORT.FINANCIAL': ['Owner', 'Finance_Manager', 'Finance_Staff', 'Auditor'],
+        'REPORT.EXECUTIVE': ['Owner', 'Finance_Manager'],
+        'ADMIN.USER':       ['Sys_Admin'],
+      };
+
+      await fc.assert(
+        fc.asyncProperty(
+          fc.constantFrom(...Object.keys(HIGHLIGHTED_PERMISSIONS)),
+          fc.constantFrom(...ALL_ROLES),
+          async (permission, role) => {
+            jest.clearAllMocks();
+
+            const allowedRoles = HIGHLIGHTED_PERMISSIONS[permission];
+            const rolePermissions = ACCESS_MATRIX[role];
+            mockCacheService.get.mockResolvedValue(rolePermissions);
+
+            const result = await service.checkPermission(`user-${role}`, permission);
+
+            if (allowedRoles.includes(role)) {
+              // Role should have this permission
+              return result === true;
+            } else {
+              // Role should NOT have this permission
+              return result === false;
+            }
+          },
+        ),
+        { numRuns: 300 },
+      );
+    });
+
+    /**
+     * Validates: Requirements 3.4
+     * Property: A user with no roles has no permissions — checkPermission always returns false.
+     */
+    it('user with no roles is denied all permissions', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.constantFrom(...ALL_PERMISSIONS),
+          async (permission) => {
+            jest.clearAllMocks();
+            mockCacheService.get.mockResolvedValue([]);
+
+            const result = await service.checkPermission('user-no-roles', permission);
+            return result === false;
+          },
+        ),
+        { numRuns: 200 },
+      );
+    });
+
+    /**
+     * Validates: Requirements 3.4
+     * Property: checkPermission result is idempotent — calling it twice with the same
+     * (role, permission) always returns the same value.
+     */
+    it('checkPermission is idempotent for the same role-permission pair', async () => {
+      await fc.assert(
+        fc.asyncProperty(
+          fc.constantFrom(...ALL_ROLES),
+          fc.constantFrom(...ALL_PERMISSIONS),
+          async (role, permission) => {
+            const rolePermissions = ACCESS_MATRIX[role];
+
+            jest.clearAllMocks();
+            mockCacheService.get.mockResolvedValue(rolePermissions);
+            const first = await service.checkPermission(`user-${role}`, permission);
+
+            jest.clearAllMocks();
+            mockCacheService.get.mockResolvedValue(rolePermissions);
+            const second = await service.checkPermission(`user-${role}`, permission);
+
+            return first === second;
+          },
+        ),
+        { numRuns: 200 },
+      );
+    });
+  });
 });
