@@ -130,7 +130,7 @@ describe('AuthService', () => {
         .mockReturnValueOnce('refresh-token-value');
       mockCacheService.set.mockResolvedValue(undefined);
 
-      const result = await service.login('test@example.com', 'secret');
+      const result = await service.login('test@example.com', 'secret') as import('./auth.service').LoginResult;
 
       expect(result.accessToken).toBe('access-token-value');
       expect(result.refreshToken).toBe('refresh-token-value');

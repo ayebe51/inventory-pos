@@ -19,3 +19,16 @@ export const ChangePasswordSchema = z.object({
 });
 
 export type ChangePasswordDto = z.infer<typeof ChangePasswordSchema>;
+
+export const MfaVerifySchema = z.object({
+  mfaToken: z.string().min(1),
+  totpCode: z.string().length(6).regex(/^\d{6}$/),
+});
+
+export type MfaVerifyDto = z.infer<typeof MfaVerifySchema>;
+
+export const MfaSetupConfirmSchema = z.object({
+  totpCode: z.string().length(6).regex(/^\d{6}$/),
+});
+
+export type MfaSetupConfirmDto = z.infer<typeof MfaSetupConfirmSchema>;

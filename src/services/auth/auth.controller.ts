@@ -9,7 +9,13 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { LoginSchema, RefreshTokenSchema, ChangePasswordSchema } from './dto/login.dto';
+import {
+  LoginSchema,
+  RefreshTokenSchema,
+  ChangePasswordSchema,
+  MfaVerifySchema,
+  MfaSetupConfirmSchema,
+} from './dto/login.dto';
 import { successResponse } from '../../common/types/api-response.type';
 
 @Controller('api/v1/auth')
@@ -50,5 +56,44 @@ export class AuthController {
     const dto = ChangePasswordSchema.parse(body);
     await this.authService.changePassword(req.user.userId, dto.currentPassword, dto.newPassword);
     return successResponse(null, 'Password changed. All sessions have been invalidated.');
+  }
+
+  /**
+   * POST /api/v1/auth/mfa/setup
+   * Initiate MFA enrollment. Returns TOTP secret + otpauth URL for QR code.
+   * Requires a valid mfaToken issued during login (purpose: 'setup').
+   */
+  @Post('mfa/setup')
+  @HttpCode(HttpStatus.OK)
+  async mfaSetup(@Body() body: unknown) {
+    const { mfaToken } = MfaVerifySchema.pick({ mfaToken: true }).parse(body);
+    const result = await this.authService.setupMfa(mfaToken);
+    return successResponse(result, 'Scan the QR code with your authenticator app, then confirm with a TOTP code');
+  }
+
+  /**
+   * POST /api/v1/auth/mfa/setup/confirm
+   * Confirm MFA enrollment by verifying the first TOTP code.
+   * On success, returns full JWT tokens.
+   */
+  @Post('mfa/setup/confirm')
+  @HttpCode(HttpStatus.OK)
+  async mfaSetupConfirm(@Body() body: unknown) {
+    const { mfaToken, totpCode } = MfaVerifySchema.parse(body);
+    const result = await this.authService.confirmMfaSetup(mfaToken, totpCode);
+    return successResponse(result, 'MFA setup complete');
+  }
+
+  /**
+   * POST /api/v1/auth/mfa/verify
+   * Verify TOTP code for users with MFA already enrolled.
+   * On success, returns full JWT tokens.
+   */
+  @Post('mfa/verify')
+  @HttpCode(HttpStatus.OK)
+  async mfaVerify(@Body() body: unknown) {
+    const { mfaToken, totpCode } = MfaVerifySchema.parse(body);
+    const result = await this.authService.verifyMfa(mfaToken, totpCode);
+    return successResponse(result, 'MFA verified');
   }
 }
