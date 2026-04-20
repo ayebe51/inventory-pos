@@ -52,8 +52,8 @@
 - [x] 6.2 Implementasi `validateJournalBalance()`: `|SUM(debit) - SUM(credit)| <= 0.01` (BR-ACC-001)
 - [x] 6.3 Pastikan auto journal dan transaksi bisnis dalam satu DB transaction — rollback keduanya jika gagal
 - [ ] 6.4 Implementasi template journal untuk: Goods Receipt, Supplier Invoice, Purchase Payment, Sales Invoice, Sales Invoice COGS, POS Sale, POS Sale COGS, Sales Return, Sales Return Stock, Payment Receipt
-- [ ] 6.5 Implementasi template journal untuk: Stock Adjustment (+/-), Stock Opname Surplus/Defisit, Period Closing Revenue/Expense/Net, Depreciation, Bank Reconciliation Adj, Write-off AR
-- [ ] 6.6 Property-based test: untuk setiap event journal, verifikasi `SUM(debit) = SUM(credit)` selalu terpenuhi
+- [x] 6.5 Implementasi template journal untuk: Stock Adjustment (+/-), Stock Opname Surplus/Defisit, Period Closing Revenue/Expense/Net, Depreciation, Bank Reconciliation Adj, Write-off AR
+- [x] 6.6 Property-based test: untuk setiap event journal, verifikasi `SUM(debit) = SUM(credit)` selalu terpenuhi
 
 ## Task 7: Domain Services — Approval Engine & Period Manager
 
