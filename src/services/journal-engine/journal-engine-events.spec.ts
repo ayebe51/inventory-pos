@@ -3,6 +3,7 @@ import * as fc from 'fast-check';
 import { JournalEngineService } from './journal-engine.service';
 import { PrismaService } from '../../config/prisma.service';
 import { NumberingService } from '../numbering/numbering.service';
+import { PeriodManagerService } from '../period-manager/period-manager.service';
 import {
   JournalEventType,
   JournalLine,
@@ -50,6 +51,7 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
         JournalEngineService,
         { provide: PrismaService, useValue: {} },
         { provide: NumberingService, useValue: {} },
+        { provide: PeriodManagerService, useValue: { validatePeriodOpen: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

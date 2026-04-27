@@ -60,7 +60,7 @@
 - [x] 7.1 Implementasi `ApprovalMatrixService.getApprovalChain()` berdasarkan threshold: Level 1 < 5jt, Level 2 5-50jt, Level 3 > 50jt
 - [x] 7.2 Implementasi SOD enforcement: SOD-001 (pembuat PO ≠ approver), SOD-002 (pembuat payment ≠ approver), SOD-003 (kasir ≠ void sendiri)
 - [x] 7.3 Implementasi `PeriodManager`: buat, buka, tutup fiscal period dengan validasi urutan berurutan (BR-ACC-007)
-- [ ] 7.4 Implementasi period locking: tolak transaksi ke period CLOSED dengan error `PERIOD_LOCKED` (BR-ACC-002)
+- [x] 7.4 Implementasi period locking: tolak transaksi ke period CLOSED dengan error `PERIOD_LOCKED` (BR-ACC-002)
 - [ ] 7.5 Implementasi checklist period closing: validasi tidak ada open invoice, pending payment, unbalanced journal, incomplete reconciliation, incomplete opname
 
 ## Task 8: Master Data Module

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../config/prisma.service';
 import { NumberingService, DocumentType } from '../numbering/numbering.service';
+import { PeriodManagerService } from '../period-manager/period-manager.service';
 import { BusinessRuleException } from '../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../common/enums/error-codes.enum';
 import {
@@ -19,6 +20,7 @@ export class JournalEngineService implements AutoJournalEngine {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numbering: NumberingService,
+    private readonly periodManager: PeriodManagerService,
   ) {}
 
   /**
@@ -34,17 +36,8 @@ export class JournalEngineService implements AutoJournalEngine {
     // Use the provided tx client or fall back to the global prisma instance
     const client = tx ?? this.prisma;
 
-    // 1. Validate fiscal period is OPEN
-    const period = await client.fiscalPeriod.findUnique({
-      where: { id: event.period_id },
-    });
-
-    if (!period || period.status === 'CLOSED') {
-      throw new BusinessRuleException(
-        'Fiscal period is closed',
-        ErrorCode.PERIOD_LOCKED,
-      );
-    }
+    // 1. Validate fiscal period is OPEN (BR-ACC-002)
+    await this.periodManager.validatePeriodOpen(event.period_id);
 
     // 2. Fetch the auto journal template
     const template = await client.autoJournalTemplate.findUnique({

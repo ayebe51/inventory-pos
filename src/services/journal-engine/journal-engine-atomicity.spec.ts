@@ -19,6 +19,7 @@ import { Prisma } from '@prisma/client';
 import { JournalEngineService } from './journal-engine.service';
 import { PrismaService } from '../../config/prisma.service';
 import { NumberingService, DocumentType } from '../numbering/numbering.service';
+import { PeriodManagerService } from '../period-manager/period-manager.service';
 import { withJournal } from './with-journal.helper';
 import { BusinessRuleException } from '../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../common/enums/error-codes.enum';
@@ -107,15 +108,16 @@ const mockNumbering = {
   generate: jest.fn().mockResolvedValue('JE-202604-00001'),
 } as unknown as NumberingService;
 
+const mockPeriodManager = {
+  validatePeriodOpen: jest.fn().mockResolvedValue(undefined),
+} as unknown as PeriodManagerService;
+
 // Default happy-path stubs
 function setupHappyPathMocks(txOverrides: Partial<{
-  fiscalPeriod: unknown;
   template: unknown;
   jeCreate: unknown;
 }> = {}) {
-  mockFiscalPeriodFindUnique.mockResolvedValue(
-    txOverrides.fiscalPeriod ?? { id: 'period-uuid-1', status: 'OPEN' },
-  );
+  (mockPeriodManager.validatePeriodOpen as jest.Mock).mockResolvedValue(undefined);
   mockTemplateFindUnique.mockResolvedValue(
     txOverrides.template ?? {
       event_type: 'POS_SALE',
@@ -130,19 +132,19 @@ function setupHappyPathMocks(txOverrides: Partial<{
   );
 }
 
-// ── Test Suite ────────────────────────────────────────────────────────────────
-
 describe('JournalEngineService — atomicity (Task 6.3)', () => {
   let service: JournalEngineService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    (mockPeriodManager.validatePeriodOpen as jest.Mock).mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JournalEngineService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: NumberingService, useValue: mockNumbering },
+        { provide: PeriodManagerService, useValue: mockPeriodManager },
       ],
     }).compile();
 
@@ -154,7 +156,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
   describe('processEvent() with transaction client', () => {
     it('uses the provided tx client instead of the global prisma', async () => {
       const txJeCreate = jest.fn().mockResolvedValue(buildPrismaJeRow());
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -165,7 +166,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -185,7 +185,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
         async (cb: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
           cb({
             journalEntry: { create: mockJeCreate },
-            fiscalPeriod: { findUnique: mockFiscalPeriodFindUnique },
             autoJournalTemplate: { findUnique: mockTemplateFindUnique },
           } as unknown as Prisma.TransactionClient),
       );
@@ -200,7 +199,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
     it('passes correct journal entry data to the tx client', async () => {
       const txJeCreate = jest.fn().mockResolvedValue(buildPrismaJeRow());
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -211,7 +209,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -232,31 +229,39 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
       );
     });
 
-    it('throws PERIOD_LOCKED when fiscal period is CLOSED', async () => {
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'CLOSED' });
+    it('throws PERIOD_LOCKED when fiscal period is CLOSED (BR-ACC-002)', async () => {
+      const { BusinessRuleException: BRE } = await import('../../common/exceptions/business-rule.exception');
+      const periodLockedError = new BRE(
+        'BR-ACC-002: Transaksi tidak dapat diposting ke period yang sudah ditutup',
+        ErrorCode.PERIOD_LOCKED,
+      );
+      (mockPeriodManager.validatePeriodOpen as jest.Mock).mockRejectedValue(periodLockedError);
+
       const tx = {
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: jest.fn() },
         journalEntry: { create: jest.fn() },
       } as unknown as Prisma.TransactionClient;
 
       const event = buildBusinessEvent();
 
-      await expect(service.processEvent(event, tx)).rejects.toThrow(BusinessRuleException);
-
+      let caught: unknown;
       try {
         await service.processEvent(event, tx);
       } catch (e) {
-        const response = (e as BusinessRuleException).getResponse() as Record<string, unknown>;
-        expect((response['error'] as Record<string, unknown>)['code']).toBe(ErrorCode.PERIOD_LOCKED);
+        caught = e;
       }
+
+      expect(caught).toBeInstanceOf(BusinessRuleException);
+      const response = (caught as BusinessRuleException).getResponse() as Record<string, unknown>;
+      expect((response['error'] as Record<string, unknown>)['code']).toBe(ErrorCode.PERIOD_LOCKED);
+
+      // Reset mock back to default (pass) for subsequent tests
+      (mockPeriodManager.validatePeriodOpen as jest.Mock).mockResolvedValue(undefined);
     });
 
     it('throws NOT_FOUND when journal template is missing', async () => {
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue(null);
       const tx = {
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
         journalEntry: { create: jest.fn() },
       } as unknown as Prisma.TransactionClient;
@@ -274,7 +279,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
     });
 
     it('throws NOT_FOUND when journal template is inactive', async () => {
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: false,
@@ -282,7 +286,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
         credit_account_id: 'acc-revenue',
       });
       const tx = {
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
         journalEntry: { create: jest.fn() },
       } as unknown as Prisma.TransactionClient;
@@ -297,7 +300,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
   describe('withJournal() helper', () => {
     it('commits both business operation and journal entry when operation succeeds', async () => {
       const txJeCreate = jest.fn().mockResolvedValue(buildPrismaJeRow());
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -309,7 +311,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
         posTransaction: { update: txPosUpdate },
       } as unknown as Prisma.TransactionClient;
@@ -337,7 +338,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
       const txJeCreate = jest.fn();
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: jest.fn() },
         autoJournalTemplate: { findUnique: jest.fn() },
       } as unknown as Prisma.TransactionClient;
 
@@ -362,7 +362,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
     it('rolls back business operation when journal write throws', async () => {
       const txJeCreate = jest.fn().mockRejectedValue(new Error('DB write failed'));
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -374,7 +373,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
         posTransaction: { update: txPosUpdate },
       } as unknown as Prisma.TransactionClient;
@@ -396,14 +394,19 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
       expect(txPosUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it('rolls back both when fiscal period is CLOSED inside transaction', async () => {
+    it('rolls back both when fiscal period is CLOSED inside transaction (BR-ACC-002)', async () => {
+      const { BusinessRuleException: BRE } = await import('../../common/exceptions/business-rule.exception');
+      const periodLockedError = new BRE(
+        'BR-ACC-002: Transaksi tidak dapat diposting ke period yang sudah ditutup',
+        ErrorCode.PERIOD_LOCKED,
+      );
+      (mockPeriodManager.validatePeriodOpen as jest.Mock).mockRejectedValue(periodLockedError);
+
       const txJeCreate = jest.fn();
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'CLOSED' });
       const txPosUpdate = jest.fn().mockResolvedValue({ id: 'pos-uuid-1' });
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: jest.fn() },
         posTransaction: { update: txPosUpdate },
       } as unknown as Prisma.TransactionClient;
@@ -423,11 +426,13 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       // Journal entry must NOT have been written
       expect(txJeCreate).not.toHaveBeenCalled();
+
+      // Reset mock back to default
+      (mockPeriodManager.validatePeriodOpen as jest.Mock).mockResolvedValue(undefined);
     });
 
     it('passes journal event metadata correctly to processEvent()', async () => {
       const txJeCreate = jest.fn().mockResolvedValue(buildPrismaJeRow());
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'GOODS_RECEIPT',
         is_active: true,
@@ -438,7 +443,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -477,7 +481,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
     it('returns correct tuple [businessResult, journalEntries]', async () => {
       const txJeCreate = jest.fn().mockResolvedValue(buildPrismaJeRow());
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -488,7 +491,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -522,7 +524,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
         total_debit: 300_000,
         total_credit: 300_000,
       });
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'SALES_INVOICE',
         is_active: true,
@@ -533,7 +534,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: txJeCreate },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -555,7 +555,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
     });
 
     it('throws BUSINESS_RULE_VIOLATION when provided lines are unbalanced', async () => {
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'SALES_INVOICE',
         is_active: true,
@@ -566,7 +565,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx = {
         journalEntry: { create: jest.fn() },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
@@ -599,7 +597,6 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
       const txJeCreate1 = jest.fn().mockResolvedValue({ ...buildPrismaJeRow(), id: 'je-uuid-1' });
       const txJeCreate2 = jest.fn().mockResolvedValue({ ...buildPrismaJeRow(), id: 'je-uuid-2' });
 
-      const txFiscalPeriod = jest.fn().mockResolvedValue({ id: 'period-uuid-1', status: 'OPEN' });
       const txTemplate = jest.fn().mockResolvedValue({
         event_type: 'POS_SALE',
         is_active: true,
@@ -610,13 +607,11 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
 
       const tx1 = {
         journalEntry: { create: txJeCreate1 },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 
       const tx2 = {
         journalEntry: { create: txJeCreate2 },
-        fiscalPeriod: { findUnique: txFiscalPeriod },
         autoJournalTemplate: { findUnique: txTemplate },
       } as unknown as Prisma.TransactionClient;
 

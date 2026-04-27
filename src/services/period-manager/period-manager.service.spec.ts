@@ -371,6 +371,7 @@ describe('PeriodManagerService', () => {
       const body = (caught as BusinessRuleException).getResponse() as Record<string, unknown>;
       const error = body.error as Record<string, unknown>;
       expect(error.code).toBe(ErrorCode.PERIOD_LOCKED);
+      expect(String(error.message)).toContain('BR-ACC-002');
       expect(String(error.message)).toContain('Januari 2025');
     });
 

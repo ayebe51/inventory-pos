@@ -13,7 +13,6 @@ import { PrismaService } from '../../config/prisma.service';
 import { UUID } from '../../common/types/uuid.type';
 import {
   BusinessRuleException,
-  PeriodLockedException,
 } from '../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../common/enums/error-codes.enum';
 
@@ -260,7 +259,10 @@ export class PeriodManagerService {
     const period = await this.findPeriodOrThrow(periodId);
 
     if (period.status === 'CLOSED') {
-      throw new PeriodLockedException(period.period_name);
+      throw new BusinessRuleException(
+        `BR-ACC-002: Transaksi tidak dapat diposting ke period yang sudah ditutup (${period.period_name})`,
+        ErrorCode.PERIOD_LOCKED,
+      );
     }
   }
 
