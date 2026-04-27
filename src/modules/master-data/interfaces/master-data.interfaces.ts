@@ -69,8 +69,9 @@ export interface Warehouse {
 
 export interface PriceList {
   id: UUID;
+  code: string;
   name: string;
-  currency: string;
+  customer_id: UUID | null;
   is_active: boolean;
   valid_from: Date;
   valid_to: Date | null;
@@ -78,15 +79,18 @@ export interface PriceList {
   updated_at: Date;
 }
 
+export type PriceSource = 'PRICE_LIST_CUSTOMER' | 'PRICE_LIST_GENERAL' | 'PRODUCT_DEFAULT';
+
 export interface PriceResult {
   price: number;
-  price_list_id: UUID;
-  currency: string;
+  /** null when source is PRODUCT_DEFAULT */
+  price_list_id: UUID | null;
+  source: PriceSource;
 }
 
 export interface PriceItem {
   product_id: UUID;
-  price: number;
+  unit_price: number;
 }
 
 export interface ProductFilter {
@@ -118,10 +122,12 @@ export interface CreateWarehouseDTO {
 }
 
 export interface CreatePriceListDTO {
+  code: string;
   name: string;
-  currency: string;
+  customer_id?: UUID | null;
   valid_from: Date;
-  valid_to?: Date;
+  valid_to?: Date | null;
+  is_active?: boolean;
 }
 
 export interface ProductService {
@@ -140,7 +146,7 @@ export interface WarehouseService {
 }
 
 export interface PriceListService {
-  getActivePrice(productId: UUID, customerId: UUID, date: Date): Promise<PriceResult>;
+  getActivePrice(productId: UUID, customerId: UUID | null, date: Date): Promise<PriceResult>;
   createPriceList(data: CreatePriceListDTO): Promise<PriceList>;
   updatePrices(priceListId: UUID, items: PriceItem[]): Promise<void>;
 }
