@@ -15,11 +15,16 @@ model Branch {
   id         String    @id @default(uuid()) @db.Uuid
   code       String    @unique @db.VarChar(20)
   name       String    @db.VarChar(200)
+  type       String    @default("BRANCH") @db.VarChar(20)
+  parent_id  String?   @db.Uuid
   address    String?   @db.Text
   is_active  Boolean   @default(true)
   created_at DateTime  @default(now())
   updated_at DateTime  @updatedAt
   deleted_at DateTime?
+
+  parent   Branch?  @relation("BranchHierarchy", fields: [parent_id], references: [id])
+  children Branch[] @relation("BranchHierarchy")
 
   warehouses        Warehouse[]
   users             User[]

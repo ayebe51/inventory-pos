@@ -1,6 +1,25 @@
 import { UUID } from '../../../common/types/uuid.type';
 import { PaginatedResult } from '../../../common/types/pagination.type';
 
+export type BranchType = 'HEAD_OFFICE' | 'BRANCH';
+
+export interface Branch {
+  id: UUID;
+  code: string;
+  name: string;
+  type: BranchType;
+  parent_id: UUID | null;
+  address: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
+export interface BranchNode extends Branch {
+  children: BranchNode[];
+}
+
 export interface Product {
   id: UUID;
   code: string;
