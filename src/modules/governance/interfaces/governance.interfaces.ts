@@ -31,11 +31,21 @@ export interface AuditLog {
   // NO updated_at, NO deleted_at — immutable
 }
 
-export interface ApprovalChain {
-  document_type: DocumentType;
-  levels: ApprovalChainLevel[];
+export interface ApproverInfo {
+  id: UUID;
+  full_name: string;
+  email: string;
 }
 
+export interface ApprovalChain {
+  level: 1 | 2 | 3;
+  requiredRole: string;
+  thresholdMin: number;
+  thresholdMax: number | null;
+  approvers: ApproverInfo[];
+}
+
+/** @deprecated Use ApprovalChain directly */
 export interface ApprovalChainLevel {
   level: number;
   approver_role: string;
