@@ -6,6 +6,14 @@
  * Business Rules enforced:
  *   BR-ACC-002: No transactions in a closed period (PERIOD_LOCKED)
  *   BR-ACC-007: Fiscal periods must be closed in sequential order
+ *   BR-ACC-008: Bank reconciliation must be complete before period closing
+ *
+ * Period Closing Checklist (Req 8, AC 9-11):
+ *   1. No open invoices (OPEN, PARTIAL, OVERDUE)
+ *   2. No pending payments (DRAFT, PENDING_APPROVAL, APPROVED)
+ *   3. No unbalanced journal entries (|debit - credit| > 0.01)
+ *   4. All bank reconciliations completed
+ *   5. No incomplete stock opnames (INITIATED, IN_PROGRESS)
  */
 
 import { Injectable } from '@nestjs/common';
@@ -26,6 +34,24 @@ export interface CreateFiscalPeriodDTO {
   end_date: Date;
 }
 
+export interface ChecklistItemResult {
+  passed: boolean;
+  message: string;
+  count?: number;
+}
+
+export interface PeriodClosingChecklistResult {
+  canClose: boolean;
+  items: {
+    noOpenInvoices: ChecklistItemResult;
+    noPendingPayments: ChecklistItemResult;
+    noUnbalancedJournals: ChecklistItemResult;
+    bankReconciliationComplete: ChecklistItemResult;
+    noIncompleteOpnames: ChecklistItemResult;
+  };
+  failedItems: string[];
+}
+
 export interface FiscalPeriod {
   id: string;
   period_name: string;
@@ -39,6 +65,15 @@ export interface FiscalPeriod {
   created_at: Date;
   updated_at: Date;
 }
+
+// Statuses that indicate an invoice is not yet settled
+const OPEN_INVOICE_STATUSES = ['OPEN', 'PARTIAL', 'OVERDUE'];
+
+// Statuses that indicate a payment has not yet been posted
+const PENDING_PAYMENT_STATUSES = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED'];
+
+// Statuses that indicate a stock opname is still in progress
+const INCOMPLETE_OPNAME_STATUSES = ['INITIATED', 'IN_PROGRESS'];
 
 // ── Service ───────────────────────────────────────────────────────────────────
 
@@ -151,7 +186,7 @@ export class PeriodManagerService {
    * Transition a period from OPEN → CLOSED.
    *
    * Enforces BR-ACC-007: all earlier periods (by year/month) must already be CLOSED.
-   * Also runs a basic checklist (bank reconciliation check per BR-ACC-008).
+   * Runs the full closing checklist (Req 8, AC 9-11) — rejects if any item fails.
    */
   async closePeriod(periodId: UUID, userId: UUID): Promise<FiscalPeriod> {
     const period = await this.findPeriodOrThrow(periodId);
@@ -184,18 +219,14 @@ export class PeriodManagerService {
       );
     }
 
-    // BR-ACC-008: Bank reconciliation must be complete
-    const incompleteRecon = await this.prisma.bankReconciliation.findFirst({
-      where: {
-        period_id: periodId,
-        status: { not: 'COMPLETED' },
-      },
-    });
+    // Run the full closing checklist
+    const checklist = await this.validatePeriodClosingChecklist(periodId);
 
-    if (incompleteRecon) {
+    if (!checklist.canClose) {
       throw new BusinessRuleException(
-        `BR-ACC-008: Cannot close period '${period.period_name}'. Bank reconciliation is not complete.`,
+        `Cannot close period '${period.period_name}': the following checklist items are incomplete: ${checklist.failedItems.join(', ')}`,
         ErrorCode.BUSINESS_RULE_VIOLATION,
+        { checklistFailures: checklist.failedItems },
       );
     }
 
@@ -209,6 +240,133 @@ export class PeriodManagerService {
     });
 
     return updated as FiscalPeriod;
+  }
+
+  /**
+   * Validate the period closing checklist.
+   *
+   * Checks (Req 8, AC 9):
+   *   1. No open invoices (OPEN, PARTIAL, OVERDUE) within the period's date range
+   *   2. No pending payments (DRAFT, PENDING_APPROVAL, APPROVED) within the period's date range
+   *   3. All journal entries in the period are balanced (|debit - credit| <= 0.01) — BR-ACC-001
+   *   4. All bank reconciliations for the period are COMPLETED — BR-ACC-008
+   *   5. No stock opnames in INITIATED or IN_PROGRESS status for warehouses in the period's branch scope
+   *
+   * Returns a structured result with each item's pass/fail status and a summary.
+   */
+  async validatePeriodClosingChecklist(periodId: UUID): Promise<PeriodClosingChecklistResult> {
+    const period = await this.findPeriodOrThrow(periodId);
+
+    // ── 1. No open invoices ──────────────────────────────────────────────────
+    const openInvoiceCount = await this.prisma.invoice.count({
+      where: {
+        status: { in: OPEN_INVOICE_STATUSES },
+        invoice_date: {
+          gte: period.start_date,
+          lte: period.end_date,
+        },
+      },
+    });
+
+    const noOpenInvoices: ChecklistItemResult = {
+      passed: openInvoiceCount === 0,
+      message: openInvoiceCount === 0
+        ? 'No open invoices'
+        : `${openInvoiceCount} open invoice(s) with status OPEN/PARTIAL/OVERDUE`,
+      count: openInvoiceCount,
+    };
+
+    // ── 2. No pending payments ───────────────────────────────────────────────
+    const pendingPaymentCount = await this.prisma.payment.count({
+      where: {
+        status: { in: PENDING_PAYMENT_STATUSES },
+        payment_date: {
+          gte: period.start_date,
+          lte: period.end_date,
+        },
+      },
+    });
+
+    const noPendingPayments: ChecklistItemResult = {
+      passed: pendingPaymentCount === 0,
+      message: pendingPaymentCount === 0
+        ? 'No pending payments'
+        : `${pendingPaymentCount} pending payment(s) with status DRAFT/PENDING_APPROVAL/APPROVED`,
+      count: pendingPaymentCount,
+    };
+
+    // ── 3. No unbalanced journal entries (BR-ACC-001) ────────────────────────
+    // Fetch all journal entries for the period and check balance in application layer
+    // (Prisma does not support ABS() or computed WHERE clauses natively)
+    const journalEntries = await this.prisma.journalEntry.findMany({
+      where: { period_id: periodId },
+      select: { id: true, je_number: true, total_debit: true, total_credit: true },
+    });
+
+    const unbalancedEntries = journalEntries.filter((je) => {
+      const diff = Math.abs(Number(je.total_debit) - Number(je.total_credit));
+      return diff > 0.01;
+    });
+
+    const noUnbalancedJournals: ChecklistItemResult = {
+      passed: unbalancedEntries.length === 0,
+      message: unbalancedEntries.length === 0
+        ? 'All journal entries are balanced'
+        : `${unbalancedEntries.length} unbalanced journal entry/entries (|debit - credit| > 0.01)`,
+      count: unbalancedEntries.length,
+    };
+
+    // ── 4. Bank reconciliation complete (BR-ACC-008) ─────────────────────────
+    const incompleteReconCount = await this.prisma.bankReconciliation.count({
+      where: {
+        period_id: periodId,
+        status: { not: 'COMPLETED' },
+      },
+    });
+
+    const bankReconciliationComplete: ChecklistItemResult = {
+      passed: incompleteReconCount === 0,
+      message: incompleteReconCount === 0
+        ? 'All bank reconciliations are completed'
+        : `${incompleteReconCount} incomplete bank reconciliation(s)`,
+      count: incompleteReconCount,
+    };
+
+    // ── 5. No incomplete stock opnames ───────────────────────────────────────
+    // Scope: warehouses belonging to branches that have invoices/journals in this period.
+    // Since FiscalPeriod is global (no branch_id), we check all warehouses system-wide.
+    const incompleteOpnameCount = await this.prisma.stockOpname.count({
+      where: {
+        status: { in: INCOMPLETE_OPNAME_STATUSES },
+      },
+    });
+
+    const noIncompleteOpnames: ChecklistItemResult = {
+      passed: incompleteOpnameCount === 0,
+      message: incompleteOpnameCount === 0
+        ? 'No incomplete stock opnames'
+        : `${incompleteOpnameCount} incomplete stock opname(s) in INITIATED/IN_PROGRESS status`,
+      count: incompleteOpnameCount,
+    };
+
+    // ── Aggregate result ─────────────────────────────────────────────────────
+    const items = {
+      noOpenInvoices,
+      noPendingPayments,
+      noUnbalancedJournals,
+      bankReconciliationComplete,
+      noIncompleteOpnames,
+    };
+
+    const failedItems = Object.entries(items)
+      .filter(([, v]) => !v.passed)
+      .map(([, v]) => v.message);
+
+    return {
+      canClose: failedItems.length === 0,
+      items,
+      failedItems,
+    };
   }
 
   /**
