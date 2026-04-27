@@ -65,7 +65,7 @@
 
 ## Task 8: Master Data Module
 
-- [ ] 8.1 Implementasi `ProductService`: CRUD produk dengan validasi (kode max 50 char, nama max 200 char, cost >= 0, price >= 0)
+- [x] 8.1 Implementasi `ProductService`: CRUD produk dengan validasi (kode max 50 char, nama max 200 char, cost >= 0, price >= 0)
 - [ ] 8.2 Implementasi soft delete produk via `deleted_at`, search dengan filter dan pagination
 - [ ] 8.3 Implementasi `WarehouseService`: CRUD gudang, validasi kode unik per branch, lock/unlock warehouse
 - [ ] 8.4 Implementasi hierarki organisasi: Head Office → Branch → Warehouse → Outlet dengan validasi parent-child
