@@ -70,7 +70,7 @@
 - [x] 8.3 Implementasi `WarehouseService`: CRUD gudang, validasi kode unik per branch, lock/unlock warehouse
 - [x] 8.4 Implementasi hierarki organisasi: Head Office → Branch → Warehouse → Outlet dengan validasi parent-child
 - [x] 8.5 Implementasi `PriceListService.getActivePrice()`: resolusi harga berdasarkan produk, customer, dan tanggal
-- [ ] 8.6 Implementasi COA management: hierarki 5 level, format kode X.XXX.XXX, validasi is_header tidak bisa diposting (BR-ACC-006)
+- [x] 8.6 Implementasi COA management: hierarki 5 level, format kode X.XXX.XXX, validasi is_header tidak bisa diposting (BR-ACC-006)
 - [ ] 8.7 Implementasi Customer dan Supplier CRUD dengan credit limit
 - [ ] 8.8 Redis caching untuk master data (TTL 5 menit), invalidasi cache saat data diupdate
 - [ ] 8.9 REST API endpoints untuk semua master data dengan RBAC guard

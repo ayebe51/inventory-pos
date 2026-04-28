@@ -1,5 +1,6 @@
 import { UUID } from '../../../common/types/uuid.type';
 import { PaginatedResult } from '../../../common/types/pagination.type';
+import { AccountType } from '../dto/coa.dto';
 
 export type BranchType = 'HEAD_OFFICE' | 'BRANCH';
 
@@ -149,4 +150,28 @@ export interface PriceListService {
   getActivePrice(productId: UUID, customerId: UUID | null, date: Date): Promise<PriceResult>;
   createPriceList(data: CreatePriceListDTO): Promise<PriceList>;
   updatePrices(priceListId: UUID, items: PriceItem[]): Promise<void>;
+}
+
+// ── Chart of Accounts ─────────────────────────────────────────────────────────
+
+export interface ChartOfAccount {
+  id: UUID;
+  account_code: string;
+  account_name: string;
+  account_type: AccountType;
+  account_category: string | null;
+  parent_id: UUID | null;
+  level: number;
+  is_header: boolean;
+  normal_balance: 'DEBIT' | 'CREDIT';
+  is_active: boolean;
+  is_system: boolean;
+  branch_id: UUID | null;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
+export interface ChartOfAccountNode extends ChartOfAccount {
+  children: ChartOfAccountNode[];
 }

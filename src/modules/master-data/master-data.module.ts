@@ -7,12 +7,14 @@ import { ProductService } from './services/product.service';
 import { WarehouseService } from './services/warehouse.service';
 import { OrganizationService } from './services/organization.service';
 import { PriceListService } from './services/price-list.service';
+import { CoaService } from './services/coa.service';
 import { WarehouseController } from './controllers/warehouse.controller';
 import { OrganizationController } from './controllers/organization.controller';
+import { CoaController } from './controllers/coa.controller';
 
 @Module({
   imports: [ConfigModule],
-  controllers: [WarehouseController, OrganizationController],
+  controllers: [WarehouseController, OrganizationController, CoaController],
   providers: [
     PrismaService,
     AuditService,
@@ -21,7 +23,8 @@ import { OrganizationController } from './controllers/organization.controller';
     WarehouseService,
     OrganizationService,
     PriceListService,
+    CoaService,
   ],
-  exports: [ProductService, WarehouseService, OrganizationService, PriceListService],
+  exports: [ProductService, WarehouseService, OrganizationService, PriceListService, CoaService],
 })
 export class MasterDataModule {}
