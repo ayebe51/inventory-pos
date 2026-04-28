@@ -8,6 +8,8 @@ import { WarehouseService } from './services/warehouse.service';
 import { OrganizationService } from './services/organization.service';
 import { PriceListService } from './services/price-list.service';
 import { CoaService } from './services/coa.service';
+import { CustomerService } from './services/customer.service';
+import { SupplierService } from './services/supplier.service';
 import { WarehouseController } from './controllers/warehouse.controller';
 import { OrganizationController } from './controllers/organization.controller';
 import { CoaController } from './controllers/coa.controller';
@@ -24,7 +26,17 @@ import { CoaController } from './controllers/coa.controller';
     OrganizationService,
     PriceListService,
     CoaService,
+    CustomerService,
+    SupplierService,
   ],
-  exports: [ProductService, WarehouseService, OrganizationService, PriceListService, CoaService],
+  exports: [
+    ProductService,
+    WarehouseService,
+    OrganizationService,
+    PriceListService,
+    CoaService,
+    CustomerService,
+    SupplierService,
+  ],
 })
 export class MasterDataModule {}

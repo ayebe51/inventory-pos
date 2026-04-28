@@ -175,3 +175,36 @@ export interface ChartOfAccount {
 export interface ChartOfAccountNode extends ChartOfAccount {
   children: ChartOfAccountNode[];
 }
+
+// ── Customer ──────────────────────────────────────────────────────────────────
+
+export interface Customer {
+  id: UUID;
+  code: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  credit_limit: number;
+  outstanding_balance: number;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
+// ── Supplier ──────────────────────────────────────────────────────────────────
+
+export interface Supplier {
+  id: UUID;
+  code: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  payment_terms_days: number;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
