@@ -10,6 +10,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CoaService } from './coa.service';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { validateAccountCodeFormat, getAccountCodeLevel } from '../dto/coa.dto';
@@ -68,6 +69,13 @@ const mockAuditService = {
   record: jest.fn().mockResolvedValue({}),
 };
 
+const mockCacheService = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+  delByPattern: jest.fn().mockResolvedValue(undefined),
+};
+
 function setupTransactionMock() {
   mockPrismaService.$transaction.mockImplementation(async (fn: (tx: any) => Promise<any>) => {
     const txClient = {
@@ -89,6 +97,7 @@ describe('CoaService', () => {
         CoaService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AuditService, useValue: mockAuditService },
+        { provide: CacheService, useValue: mockCacheService },
       ],
     }).compile();
 

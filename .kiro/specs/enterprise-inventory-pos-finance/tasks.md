@@ -74,7 +74,7 @@
 - [x] 8.7 Implementasi Customer dan Supplier CRUD dengan credit limit
 - [x] 8.8 Redis caching untuk master data (TTL 5 menit), invalidasi cache saat data diupdate
 - [x] 8.9 REST API endpoints untuk semua master data dengan RBAC guard
-- [ ] 8.10 Unit test untuk semua validasi business rules master data
+- [x] 8.10 Unit test untuk semua validasi business rules master data
 
 ## Task 9: Purchase / Procurement Module
 

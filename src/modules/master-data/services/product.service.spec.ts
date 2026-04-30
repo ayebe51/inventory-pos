@@ -12,6 +12,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProductService } from './product.service';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 
@@ -70,6 +71,13 @@ const mockAuditService = {
   record: jest.fn().mockResolvedValue({}),
 };
 
+const mockCacheService = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+  delByPattern: jest.fn().mockResolvedValue(undefined),
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -97,6 +105,7 @@ describe('ProductService', () => {
         ProductService,
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AuditService, useValue: mockAuditService },
+        { provide: CacheService, useValue: mockCacheService },
       ],
     }).compile();
 
