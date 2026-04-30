@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { withAudit } from '../../../services/audit/with-audit.helper';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
@@ -16,6 +17,14 @@ import {
   UpdateCustomerDTO,
   CustomerFilter,
 } from '../dto/customer.dto';
+
+// ── Cache key helpers ─────────────────────────────────────────────────────────
+
+const CACHE_TTL = 300; // 5 minutes
+
+function customerCacheKey(id: string): string {
+  return `customer:${id}`;
+}
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -56,12 +65,14 @@ export class CustomerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
    * Create a new customer.
    * Validates code uniqueness across all non-deleted customers.
    * credit_limit >= 0 enforced by DTO schema.
+   * Invalidates cache on creation.
    */
   async create(data: CreateCustomerDTO, userId: UUID): Promise<Customer> {
     const validated = CreateCustomerSchema.parse(data);
@@ -102,6 +113,9 @@ export class CustomerService {
       },
     );
 
+    // Invalidate related caches
+    await this.cache.delByPattern('customer:*');
+
     return mapCustomer(customer);
   }
 
@@ -109,6 +123,7 @@ export class CustomerService {
    * Update an existing customer.
    * Validates code uniqueness if code is being changed.
    * credit_limit >= 0 enforced by DTO schema.
+   * Invalidates cache on update.
    */
   async update(id: UUID, data: UpdateCustomerDTO, userId: UUID): Promise<Customer> {
     const validated = UpdateCustomerSchema.parse(data);
@@ -163,14 +178,25 @@ export class CustomerService {
       },
     );
 
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(customerCacheKey(id)),
+      this.cache.delByPattern('active_price:*'), // Customer changes affect price resolution
+    ]);
+
     return mapCustomer(updated);
   }
 
   /**
    * Find a customer by ID.
    * Throws NOT_FOUND if customer doesn't exist or is soft-deleted.
+   * Uses Redis cache (TTL 5 min).
    */
   async findById(id: UUID): Promise<Customer> {
+    const cacheKey = customerCacheKey(id);
+    const cached = await this.cache.get<Customer>(cacheKey);
+    if (cached) return cached;
+
     const customer = await this.prisma.customer.findFirst({
       where: { id, deleted_at: null },
     });
@@ -180,7 +206,10 @@ export class CustomerService {
         ErrorCode.NOT_FOUND,
       );
     }
-    return mapCustomer(customer);
+
+    const result = mapCustomer(customer);
+    await this.cache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 
   /**
@@ -223,6 +252,7 @@ export class CustomerService {
   /**
    * Soft-delete a customer by setting deleted_at.
    * Throws NOT_FOUND if customer doesn't exist or is already deleted.
+   * Invalidates cache on deletion.
    */
   async deactivate(id: UUID, userId: UUID): Promise<void> {
     const existing = await this.prisma.customer.findFirst({
@@ -252,6 +282,12 @@ export class CustomerService {
         });
       },
     );
+
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(customerCacheKey(id)),
+      this.cache.delByPattern('active_price:*'),
+    ]);
   }
 
   /**

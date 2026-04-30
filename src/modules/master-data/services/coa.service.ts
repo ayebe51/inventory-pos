@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { withAudit } from '../../../services/audit/with-audit.helper';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
@@ -18,6 +19,18 @@ import {
   AccountType,
   getAccountCodeLevel,
 } from '../dto/coa.dto';
+
+// ── Cache key helpers ─────────────────────────────────────────────────────────
+
+const CACHE_TTL = 300; // 5 minutes
+
+function coaCacheKey(id: string): string {
+  return `coa:${id}`;
+}
+
+function coaTreeCacheKey(branchId: string | undefined): string {
+  return `coa:tree:${branchId ?? 'all'}`;
+}
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -87,11 +100,13 @@ export class CoaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
    * Create a new COA account.
    * Validates account_code format, level 1-5, parent hierarchy, and uniqueness.
+   * Invalidates cache on creation.
    */
   async create(data: CreateCOADTO, userId: UUID): Promise<ChartOfAccount> {
     const validated = CreateCOASchema.parse(data);
@@ -180,12 +195,16 @@ export class CoaService {
       },
     );
 
+    // Invalidate tree caches
+    await this.cache.delByPattern('coa:tree:*');
+
     return mapCOA(coa);
   }
 
   /**
    * Update an existing COA account.
    * Cannot change account_type if account has journal history.
+   * Invalidates cache on update.
    */
   async update(id: UUID, data: UpdateCOADTO, userId: UUID): Promise<ChartOfAccount> {
     const validated = UpdateCOASchema.parse(data);
@@ -257,13 +276,24 @@ export class CoaService {
       },
     );
 
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(coaCacheKey(id)),
+      this.cache.delByPattern('coa:tree:*'),
+    ]);
+
     return mapCOA(updated);
   }
 
   /**
    * Find a COA account by ID, including its children.
+   * Uses Redis cache (TTL 5 min).
    */
   async findById(id: UUID): Promise<ChartOfAccount & { children: ChartOfAccount[] }> {
+    const cacheKey = coaCacheKey(id);
+    const cached = await this.cache.get<ChartOfAccount & { children: ChartOfAccount[] }>(cacheKey);
+    if (cached) return cached;
+
     const coa = await this.prisma.chartOfAccount.findFirst({
       where: { id, deleted_at: null },
       include: {
@@ -280,10 +310,12 @@ export class CoaService {
       );
     }
 
-    return {
+    const result = {
       ...mapCOA(coa),
       children: coa.children.map(mapCOA),
     };
+    await this.cache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 
   /**
@@ -334,6 +366,7 @@ export class CoaService {
    * Soft-delete a COA account.
    * BR-ACC-005: Cannot delete if has journal history (soft delete only).
    * is_system=true: block entirely.
+   * Invalidates cache on deletion.
    */
   async softDelete(id: UUID, userId: UUID): Promise<void> {
     const existing = await this.prisma.chartOfAccount.findFirst({
@@ -381,6 +414,12 @@ export class CoaService {
         });
       },
     );
+
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(coaCacheKey(id)),
+      this.cache.delByPattern('coa:tree:*'),
+    ]);
   }
 
   /**
@@ -410,8 +449,13 @@ export class CoaService {
 
   /**
    * Return full COA tree hierarchy, optionally filtered by branch.
+   * Uses Redis cache (TTL 5 min).
    */
   async getTree(branchId?: UUID): Promise<ChartOfAccountNode[]> {
+    const cacheKey = coaTreeCacheKey(branchId);
+    const cached = await this.cache.get<ChartOfAccountNode[]>(cacheKey);
+    if (cached) return cached;
+
     const where: Prisma.ChartOfAccountWhereInput = {
       deleted_at: null,
       is_active: true,
@@ -425,6 +469,8 @@ export class CoaService {
       orderBy: { account_code: 'asc' },
     });
 
-    return buildTree(rows.map(mapCOA));
+    const result = buildTree(rows.map(mapCOA));
+    await this.cache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 }

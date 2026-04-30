@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { withAudit } from '../../../services/audit/with-audit.helper';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
@@ -16,6 +17,14 @@ import {
   UpdateSupplierDTO,
   SupplierFilter,
 } from '../dto/supplier.dto';
+
+// ── Cache key helpers ─────────────────────────────────────────────────────────
+
+const CACHE_TTL = 300; // 5 minutes
+
+function supplierCacheKey(id: string): string {
+  return `supplier:${id}`;
+}
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -54,11 +63,13 @@ export class SupplierService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
    * Create a new supplier.
    * Validates code uniqueness across all non-deleted suppliers.
+   * Invalidates cache on creation.
    */
   async create(data: CreateSupplierDTO, userId: UUID): Promise<Supplier> {
     const validated = CreateSupplierSchema.parse(data);
@@ -99,12 +110,16 @@ export class SupplierService {
       },
     );
 
+    // Invalidate related caches
+    await this.cache.delByPattern('supplier:*');
+
     return mapSupplier(supplier);
   }
 
   /**
    * Update an existing supplier.
    * Validates code uniqueness if code is being changed.
+   * Invalidates cache on update.
    */
   async update(id: UUID, data: UpdateSupplierDTO, userId: UUID): Promise<Supplier> {
     const validated = UpdateSupplierSchema.parse(data);
@@ -161,14 +176,22 @@ export class SupplierService {
       },
     );
 
+    // Invalidate cache
+    await this.cache.del(supplierCacheKey(id));
+
     return mapSupplier(updated);
   }
 
   /**
    * Find a supplier by ID.
    * Throws NOT_FOUND if supplier doesn't exist or is soft-deleted.
+   * Uses Redis cache (TTL 5 min).
    */
   async findById(id: UUID): Promise<Supplier> {
+    const cacheKey = supplierCacheKey(id);
+    const cached = await this.cache.get<Supplier>(cacheKey);
+    if (cached) return cached;
+
     const supplier = await this.prisma.supplier.findFirst({
       where: { id, deleted_at: null },
     });
@@ -178,7 +201,10 @@ export class SupplierService {
         ErrorCode.NOT_FOUND,
       );
     }
-    return mapSupplier(supplier);
+
+    const result = mapSupplier(supplier);
+    await this.cache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 
   /**
@@ -221,6 +247,7 @@ export class SupplierService {
   /**
    * Soft-delete a supplier by setting deleted_at.
    * Throws NOT_FOUND if supplier doesn't exist or is already deleted.
+   * Invalidates cache on deletion.
    */
   async deactivate(id: UUID, userId: UUID): Promise<void> {
     const existing = await this.prisma.supplier.findFirst({
@@ -250,5 +277,8 @@ export class SupplierService {
         });
       },
     );
+
+    // Invalidate cache
+    await this.cache.del(supplierCacheKey(id));
   }
 }

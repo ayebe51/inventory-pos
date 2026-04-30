@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
+import { CacheService } from '../../../services/cache/cache.service';
 import { withAudit } from '../../../services/audit/with-audit.helper';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
@@ -16,6 +17,14 @@ import {
   UpdateProductDTO,
   ProductFilter,
 } from '../dto/product.dto';
+
+// ── Cache key helpers ─────────────────────────────────────────────────────────
+
+const CACHE_TTL = 300; // 5 minutes
+
+function productCacheKey(id: string): string {
+  return `product:${id}`;
+}
 
 // ── Mapper ────────────────────────────────────────────────────────────────────
 
@@ -88,12 +97,14 @@ export class ProductService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   /**
    * Create a new product.
    * Validates uniqueness of code across all non-deleted products (AC1).
    * Records audit log in the same transaction (AC1).
+   * Invalidates cache on creation.
    */
   async create(data: CreateProductDTO, userId: UUID): Promise<Product> {
     const validated = CreateProductSchema.parse(data);
@@ -153,6 +164,9 @@ export class ProductService {
       },
     );
 
+    // Invalidate related caches
+    await this.cache.delByPattern('product:*');
+
     return mapProduct(product);
   }
 
@@ -161,6 +175,7 @@ export class ProductService {
    * Throws NOT_FOUND if product doesn't exist or is soft-deleted.
    * Validates code uniqueness if code is being changed (AC1).
    * Records audit log in the same transaction.
+   * Invalidates cache on update.
    */
   async update(id: UUID, data: UpdateProductDTO, userId: UUID): Promise<Product> {
     const validated = UpdateProductSchema.parse(data);
@@ -233,14 +248,25 @@ export class ProductService {
       },
     );
 
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(productCacheKey(id)),
+      this.cache.delByPattern('active_price:*'), // Product price changes affect price resolution
+    ]);
+
     return mapProduct(updated);
   }
 
   /**
    * Find a product by ID.
    * Throws NOT_FOUND if product doesn't exist or is soft-deleted (AC3).
+   * Uses Redis cache (TTL 5 min).
    */
   async findById(id: UUID): Promise<Product> {
+    const cacheKey = productCacheKey(id);
+    const cached = await this.cache.get<Product>(cacheKey);
+    if (cached) return cached;
+
     const product = await this.prisma.product.findFirst({
       where: { id, deleted_at: null },
     });
@@ -250,7 +276,10 @@ export class ProductService {
         ErrorCode.NOT_FOUND,
       );
     }
-    return mapProduct(product);
+
+    const result = mapProduct(product);
+    await this.cache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 
   /**
@@ -296,6 +325,7 @@ export class ProductService {
    * Soft-delete a product by setting deleted_at (AC3).
    * Throws NOT_FOUND if product doesn't exist or is already deleted.
    * Records audit log in the same transaction.
+   * Invalidates cache on deletion.
    */
   async deactivate(id: UUID, userId: UUID): Promise<void> {
     const existing = await this.prisma.product.findFirst({
@@ -325,5 +355,11 @@ export class ProductService {
         });
       },
     );
+
+    // Invalidate caches
+    await Promise.all([
+      this.cache.del(productCacheKey(id)),
+      this.cache.delByPattern('active_price:*'),
+    ]);
   }
 }
