@@ -1,5 +1,40 @@
 import { UUID } from '../../../common/types/uuid.type';
 
+// ── Purchase Request ──────────────────────────────────────────────────────────
+
+export type PRStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface PurchaseRequest {
+  id: UUID;
+  pr_number: string;
+  branch_id: UUID;
+  warehouse_id: UUID;
+  status: PRStatus;
+  requested_by: UUID;
+  notes: string | null;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+}
+
+export interface PurchaseRequestLine {
+  id: UUID;
+  pr_id: UUID;
+  product_id: UUID;
+  qty_requested: number;
+  uom_id: UUID;
+  estimated_price: number | null;
+  notes: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface PurchaseRequestWithLines extends PurchaseRequest {
+  lines: PurchaseRequestLine[];
+}
+
+// ── Purchase Order ────────────────────────────────────────────────────────────
+
 export type POStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
@@ -57,6 +92,8 @@ export interface GoodsReceipt {
   updated_at: Date;
 }
 
+// ── DTOs ──────────────────────────────────────────────────────────────────────
+
 export interface CreatePODTO {
   supplier_id: UUID;
   branch_id: UUID;
@@ -89,6 +126,16 @@ export interface GoodsReceiptLineDTO {
 }
 
 export interface CreateGRDTO extends GoodsReceiptDTO {}
+
+// ── Service Interfaces ────────────────────────────────────────────────────────
+
+export interface PurchaseRequestService {
+  create(data: any, userId: UUID): Promise<PurchaseRequestWithLines>;
+  findById(id: UUID): Promise<PurchaseRequestWithLines | null>;
+  search(filters: any): Promise<any>;
+  update(id: UUID, data: any, userId: UUID): Promise<PurchaseRequestWithLines>;
+  delete(id: UUID, userId: UUID): Promise<void>;
+}
 
 export interface PurchaseOrderService {
   create(data: CreatePODTO): Promise<PurchaseOrder>;
