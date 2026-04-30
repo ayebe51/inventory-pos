@@ -13,10 +13,22 @@ import { SupplierService } from './services/supplier.service';
 import { WarehouseController } from './controllers/warehouse.controller';
 import { OrganizationController } from './controllers/organization.controller';
 import { CoaController } from './controllers/coa.controller';
+import { ProductController } from './controllers/product.controller';
+import { CustomerController } from './controllers/customer.controller';
+import { SupplierController } from './controllers/supplier.controller';
+import { PriceListController } from './controllers/price-list.controller';
 
 @Module({
   imports: [ConfigModule],
-  controllers: [WarehouseController, OrganizationController, CoaController],
+  controllers: [
+    WarehouseController,
+    OrganizationController,
+    CoaController,
+    ProductController,
+    CustomerController,
+    SupplierController,
+    PriceListController,
+  ],
   providers: [
     PrismaService,
     AuditService,
