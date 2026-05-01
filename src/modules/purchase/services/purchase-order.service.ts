@@ -1,8 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
+import { RbacService } from '../../../services/rbac/rbac.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
@@ -100,6 +101,7 @@ export class PurchaseOrderService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly numbering: NumberingService,
+    private readonly rbac: RbacService,
   ) {}
 
   /**
@@ -355,7 +357,7 @@ export class PurchaseOrderService {
 
   /**
    * Approve PO (PENDING_APPROVAL → APPROVED).
-   * Validates that approver is not the creator (SOD-001).
+   * Validates RBAC permission (PURCHASE.APPROVE) and SOD-001.
    *
    * @param id - Purchase order ID
    * @param approverId - User approving the PO
@@ -370,6 +372,18 @@ export class PurchaseOrderService {
 
     // Validate state transition
     this.validateTransition(existing.status, 'APPROVED');
+
+    // RBAC: Check PURCHASE.APPROVE permission
+    const hasPermission = await this.rbac.checkPermission(approverId, 'PURCHASE.APPROVE');
+    if (!hasPermission) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: ErrorCode.FORBIDDEN,
+          message: 'User does not have PURCHASE.APPROVE permission',
+        },
+      });
+    }
 
     // SOD-001: Pembuat PO tidak bisa menjadi approver PO yang sama
     if (existing.created_by === approverId) {
@@ -412,6 +426,7 @@ export class PurchaseOrderService {
 
   /**
    * Reject PO (PENDING_APPROVAL → REJECTED).
+   * Validates RBAC permission (PURCHASE.APPROVE).
    *
    * @param id - Purchase order ID
    * @param approverId - User rejecting the PO
@@ -433,6 +448,18 @@ export class PurchaseOrderService {
 
     // Validate state transition
     this.validateTransition(existing.status, 'REJECTED');
+
+    // RBAC: Check PURCHASE.APPROVE permission (same permission for approve/reject)
+    const hasPermission = await this.rbac.checkPermission(approverId, 'PURCHASE.APPROVE');
+    if (!hasPermission) {
+      throw new ForbiddenException({
+        success: false,
+        error: {
+          code: ErrorCode.FORBIDDEN,
+          message: 'User does not have PURCHASE.APPROVE permission',
+        },
+      });
+    }
 
     const result = await this.prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.update({
