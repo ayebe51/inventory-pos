@@ -79,7 +79,7 @@
 ## Task 9: Purchase / Procurement Module
 
 - [x] 9.1 Implementasi `PurchaseRequestService`: buat PR dengan nomor PR-YYYYMM-XXXXX, status DRAFT
-- [ ] 9.2 Implementasi `PurchaseOrderService`: buat PO dari PR, state machine DRAFT → PENDING_APPROVAL → APPROVED → PARTIALLY_RECEIVED/FULLY_RECEIVED → CLOSED/CANCELLED
+- [x] 9.2 Implementasi `PurchaseOrderService`: buat PO dari PR, state machine DRAFT → PENDING_APPROVAL → APPROVED → PARTIALLY_RECEIVED/FULLY_RECEIVED → CLOSED/CANCELLED
 - [ ] 9.3 Implementasi PO submit: tentukan approval level berdasarkan total amount termasuk pajak (BR-PUR-007)
 - [ ] 9.4 Implementasi PO approve/reject dengan validasi RBAC (PURCHASE.APPROVE) dan SOD-001
 - [ ] 9.5 Implementasi `GoodsReceiptService`: buat GR dari PO, validasi qty tidak melebihi PO qty × (1 + toleransi) (BR-PUR-003)

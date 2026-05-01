@@ -39,6 +39,7 @@ export type POStatus =
   | 'DRAFT'
   | 'PENDING_APPROVAL'
   | 'APPROVED'
+  | 'REJECTED'
   | 'PARTIALLY_RECEIVED'
   | 'FULLY_RECEIVED'
   | 'CANCELLED'
