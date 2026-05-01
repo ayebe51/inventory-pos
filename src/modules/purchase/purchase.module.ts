@@ -6,6 +6,7 @@ import { RbacService } from '../../services/rbac/rbac.service';
 import { CacheService } from '../../services/cache/cache.service';
 import { PurchaseRequestService } from './services/purchase-request.service';
 import { PurchaseOrderService } from './services/purchase-order.service';
+import { GoodsReceiptService } from './services/goods-receipt.service';
 import { PurchaseOrderController } from './controllers/purchase-order.controller';
 
 @Module({
@@ -18,7 +19,8 @@ import { PurchaseOrderController } from './controllers/purchase-order.controller
     CacheService,
     PurchaseRequestService,
     PurchaseOrderService,
+    GoodsReceiptService,
   ],
-  exports: [PurchaseRequestService, PurchaseOrderService],
+  exports: [PurchaseRequestService, PurchaseOrderService, GoodsReceiptService],
 })
 export class PurchaseModule {}

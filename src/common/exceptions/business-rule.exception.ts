@@ -18,6 +18,8 @@ export class BusinessRuleException extends HttpException {
       },
       HttpStatus.UNPROCESSABLE_ENTITY,
     );
+    // Set the message property for better error messages in tests
+    this.message = message;
   }
 }
 
