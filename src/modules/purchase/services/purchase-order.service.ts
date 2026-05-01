@@ -304,6 +304,7 @@ export class PurchaseOrderService {
 
   /**
    * Submit PO for approval (DRAFT → PENDING_APPROVAL).
+   * Recalculates approval level based on total amount including tax (BR-PUR-007).
    *
    * @param id - Purchase order ID
    * @param userId - User submitting the PO
@@ -318,10 +319,16 @@ export class PurchaseOrderService {
     // Validate state transition
     this.validateTransition(existing.status, 'PENDING_APPROVAL');
 
+    // BR-PUR-007: Determine approval level based on total amount including tax
+    const approvalLevel = this.getApprovalThreshold(existing.total_amount);
+
     const result = await this.prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.update({
         where: { id },
-        data: { status: 'PENDING_APPROVAL' },
+        data: {
+          status: 'PENDING_APPROVAL',
+          approval_level: approvalLevel,
+        },
       });
 
       await this.audit.record(
@@ -339,7 +346,9 @@ export class PurchaseOrderService {
       return po;
     });
 
-    this.logger.log(`Submitted Purchase Order ${result.po_number} for approval by user ${userId}`);
+    this.logger.log(
+      `Submitted Purchase Order ${result.po_number} for approval (Level ${approvalLevel}) by user ${userId}`,
+    );
 
     return mapPurchaseOrder(result);
   }
