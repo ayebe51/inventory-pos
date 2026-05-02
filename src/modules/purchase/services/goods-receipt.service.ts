@@ -269,19 +269,242 @@ export class GoodsReceiptService {
 
   /**
    * Confirm Goods Receipt (DRAFT → CONFIRMED).
-   * This will be implemented in task 9.6.
+   * Task 9.6 implementation:
    * - Updates PO line qty_received
    * - Updates PO status to PARTIALLY_RECEIVED or FULLY_RECEIVED
+   * - Records inventory movement (append-only ledger)
    * - Triggers WAC recalculation
    * - Triggers auto journal GR
+   * - All operations are atomic (single DB transaction)
    *
    * @param id - Goods Receipt ID
    * @param userId - User confirming the GR
    * @returns Confirmed goods receipt
    */
   async confirm(id: UUID, userId: UUID): Promise<GoodsReceipt> {
-    // TODO: Implement in task 9.6
-    throw new Error('Not implemented yet - will be implemented in task 9.6');
+    // Fetch GR with all related data
+    const gr = await this.prisma.goodsReceipt.findUnique({
+      where: { id },
+      include: {
+        lines: {
+          include: {
+            product: true,
+            po_line: true,
+          },
+        },
+        purchase_order: {
+          include: {
+            lines: true,
+          },
+        },
+        warehouse: true,
+      },
+    });
+
+    if (!gr || gr.deleted_at !== null) {
+      throw new NotFoundException(`Goods Receipt ${id} not found`);
+    }
+
+    // Validate GR is in DRAFT status
+    if (gr.status !== 'DRAFT') {
+      throw new BusinessRuleException(
+        `Cannot confirm Goods Receipt ${gr.gr_number}: current status is ${gr.status}. Only DRAFT GRs can be confirmed.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    // Validate warehouse is not locked (BR-INV-005)
+    if (gr.warehouse.is_locked) {
+      throw new BusinessRuleException(
+        `BR-INV-005: Warehouse ${gr.warehouse.name} is locked. Cannot confirm goods receipt.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    // Get fiscal period for the receipt date
+    const { PeriodManagerService } = await import('../../../services/period-manager/period-manager.service');
+    const periodManager = new PeriodManagerService(this.prisma);
+    const fiscalPeriod = await periodManager.getPeriodForDate(gr.receipt_date);
+
+    // Validate period is OPEN (BR-ACC-002)
+    await periodManager.validatePeriodOpen(fiscalPeriod.id);
+
+    // Execute all operations in a single transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. Update qty_received on each PO line
+      for (const grLine of gr.lines) {
+        const currentPoLine = await tx.purchaseOrderLine.findUnique({
+          where: { id: grLine.po_line_id },
+        });
+
+        if (!currentPoLine) {
+          throw new BusinessRuleException(
+            `PO line ${grLine.po_line_id} not found`,
+            ErrorCode.NOT_FOUND,
+          );
+        }
+
+        const newQtyReceived = Number(currentPoLine.qty_received) + Number(grLine.qty_received);
+
+        await tx.purchaseOrderLine.update({
+          where: { id: grLine.po_line_id },
+          data: {
+            qty_received: newQtyReceived,
+            line_status:
+              newQtyReceived >= Number(currentPoLine.qty_ordered)
+                ? 'CLOSED'
+                : 'PARTIAL',
+          },
+        });
+      }
+
+      // 2. Update PO status based on fulfillment
+      const updatedPoLines = await tx.purchaseOrderLine.findMany({
+        where: { po_id: gr.po_id },
+      });
+
+      const allLinesClosed = updatedPoLines.every(
+        (line) => Number(line.qty_received) >= Number(line.qty_ordered),
+      );
+      const anyLinePartial = updatedPoLines.some(
+        (line) =>
+          Number(line.qty_received) > 0 &&
+          Number(line.qty_received) < Number(line.qty_ordered),
+      );
+
+      let newPoStatus: string;
+      if (allLinesClosed) {
+        newPoStatus = 'FULLY_RECEIVED';
+      } else if (anyLinePartial || updatedPoLines.some((line) => Number(line.qty_received) > 0)) {
+        newPoStatus = 'PARTIALLY_RECEIVED';
+      } else {
+        newPoStatus = gr.purchase_order.status; // Keep current status
+      }
+
+      await tx.purchaseOrder.update({
+        where: { id: gr.po_id },
+        data: { status: newPoStatus },
+      });
+
+      // 3. Record inventory movements (append-only) and calculate WAC for each line
+      for (const grLine of gr.lines) {
+        // Get current stock balance and average cost
+        const currentBalance = await this.getStockBalance(
+          grLine.product_id,
+          gr.warehouse_id,
+          tx,
+        );
+
+        // Calculate new WAC using formula: WAC_baru = (nilai_stok_lama + nilai_masuk_baru) / (qty_stok_lama + qty_masuk_baru)
+        const currentQty = currentBalance.qty;
+        const currentValue = currentBalance.value;
+        const incomingQty = Number(grLine.qty_received);
+        const incomingValue = Number(grLine.qty_received) * Number(grLine.unit_cost);
+
+        const newTotalQty = currentQty + incomingQty;
+        const newTotalValue = currentValue + incomingValue;
+
+        // BR-INV-003: Average cost must be >= 0
+        const newAverageCost = newTotalQty > 0 ? newTotalValue / newTotalQty : 0;
+
+        if (newAverageCost < 0) {
+          throw new BusinessRuleException(
+            `BR-INV-003: Average cost cannot be negative. Product: ${grLine.product_id}, Warehouse: ${gr.warehouse_id}`,
+            ErrorCode.BUSINESS_RULE_VIOLATION,
+          );
+        }
+
+        // Record inventory ledger entry (append-only, BR-INV-002)
+        await tx.inventoryLedger.create({
+          data: {
+            product_id: grLine.product_id,
+            warehouse_id: gr.warehouse_id,
+            transaction_type: 'GR',
+            reference_type: 'GR',
+            reference_id: gr.id,
+            reference_number: gr.gr_number,
+            movement_date: gr.receipt_date,
+            qty_in: grLine.qty_received,
+            qty_out: 0,
+            unit_cost: newAverageCost, // Use new WAC
+            total_cost: incomingValue,
+            running_qty: newTotalQty,
+            running_cost: newTotalValue,
+            batch_number: grLine.batch_number,
+            serial_number: grLine.serial_number,
+            notes: grLine.notes,
+            created_by: userId,
+          },
+        });
+      }
+
+      // 4. Trigger auto journal for GR
+      const { JournalEngineService } = await import('../../../services/journal-engine/journal-engine.service');
+      const { NumberingService } = await import('../../../services/numbering/numbering.service');
+      const journalEngine = new JournalEngineService(
+        this.prisma,
+        new NumberingService(this.prisma),
+        periodManager,
+      );
+
+      // Calculate total amount for journal
+      const totalAmount = gr.lines.reduce(
+        (sum, line) => sum + Number(line.qty_received) * Number(line.unit_cost),
+        0,
+      );
+
+      // Create journal event for GOODS_RECEIPT
+      await journalEngine.processEvent(
+        {
+          event_type: 'GOODS_RECEIPT',
+          reference_type: 'GR',
+          reference_id: gr.id,
+          reference_number: gr.gr_number,
+          entry_date: gr.receipt_date,
+          period_id: fiscalPeriod.id,
+          amount: totalAmount,
+          created_by: userId,
+        },
+        tx,
+      );
+
+      // 5. Update GR status to CONFIRMED
+      const confirmedGr = await tx.goodsReceipt.update({
+        where: { id },
+        data: {
+          status: 'CONFIRMED',
+          confirmed_by: userId,
+          confirmed_at: new Date(),
+        },
+      });
+
+      // 6. Record audit log
+      await this.audit.record(
+        {
+          user_id: userId,
+          action: 'APPROVE',
+          entity_type: 'GoodsReceipt',
+          entity_id: gr.id,
+          before_snapshot: { status: 'DRAFT' },
+          after_snapshot: { status: 'CONFIRMED', confirmed_by: userId },
+        },
+        tx,
+      );
+
+      return confirmedGr;
+    });
+
+    this.logger.log(
+      `Confirmed Goods Receipt ${gr.gr_number} by user ${userId}. PO ${gr.purchase_order.po_number} status updated.`,
+    );
+
+    // Calculate total amount for response
+    const totalAmount = gr.lines.reduce(
+      (sum, line) => sum + Number(line.qty_received) * Number(line.unit_cost),
+      0,
+    );
+
+    return mapGoodsReceipt({ ...result, total_amount: totalAmount });
   }
 
   /**
@@ -299,21 +522,77 @@ export class GoodsReceiptService {
 
   /**
    * Update average cost for a product in a warehouse.
-   * This will be implemented in task 9.6 as part of GR confirmation.
+   * Calculates WAC using formula: WAC_baru = (nilai_stok_lama + nilai_masuk_baru) / (qty_stok_lama + qty_masuk_baru)
    *
    * @param productId - Product ID
    * @param warehouseId - Warehouse ID
    * @param newQty - New quantity received
-   * @param newCost - New cost value
+   * @param newCost - New cost value (total, not unit cost)
+   * @returns New average cost
    */
   async updateAverageCost(
     productId: UUID,
     warehouseId: UUID,
     newQty: number,
     newCost: number,
-  ): Promise<void> {
-    // TODO: Implement in task 9.6
-    throw new Error('Not implemented yet - will be implemented in task 9.6');
+  ): Promise<number> {
+    const balance = await this.getStockBalance(productId, warehouseId);
+
+    const currentQty = balance.qty;
+    const currentValue = balance.value;
+
+    const newTotalQty = currentQty + newQty;
+    const newTotalValue = currentValue + newCost;
+
+    // BR-INV-003: Average cost must be >= 0
+    const newAverageCost = newTotalQty > 0 ? newTotalValue / newTotalQty : 0;
+
+    if (newAverageCost < 0) {
+      throw new BusinessRuleException(
+        `BR-INV-003: Average cost cannot be negative. Product: ${productId}, Warehouse: ${warehouseId}`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    return newAverageCost;
+  }
+
+  /**
+   * Get current stock balance for a product in a warehouse.
+   * Calculates from inventory ledger: balance = SUM(qty_in) - SUM(qty_out)
+   *
+   * @param productId - Product ID
+   * @param warehouseId - Warehouse ID
+   * @param tx - Optional transaction client
+   * @returns Stock balance with qty and value
+   */
+  private async getStockBalance(
+    productId: UUID,
+    warehouseId: UUID,
+    tx?: any,
+  ): Promise<{ qty: number; value: number }> {
+    const client = tx ?? this.prisma;
+
+    const ledgerEntries = await client.inventoryLedger.findMany({
+      where: {
+        product_id: productId,
+        warehouse_id: warehouseId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 1,
+    });
+
+    if (ledgerEntries.length === 0) {
+      return { qty: 0, value: 0 };
+    }
+
+    const lastEntry = ledgerEntries[0];
+    return {
+      qty: Number(lastEntry.running_qty),
+      value: Number(lastEntry.running_cost),
+    };
   }
 
   /**

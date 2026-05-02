@@ -24,6 +24,12 @@ describe('GoodsReceiptService', () => {
     const mockPrisma = {
       purchaseOrder: {
         findUnique: jest.fn(),
+        update: jest.fn(),
+      },
+      purchaseOrderLine: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        findMany: jest.fn(),
       },
       product: {
         findMany: jest.fn(),
@@ -34,8 +40,22 @@ describe('GoodsReceiptService', () => {
       goodsReceipt: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
       goodsReceiptLine: {
+        create: jest.fn(),
+      },
+      inventoryLedger: {
+        findMany: jest.fn(),
+        create: jest.fn(),
+      },
+      fiscalPeriod: {
+        findFirst: jest.fn(),
+      },
+      autoJournalTemplate: {
+        findUnique: jest.fn(),
+      },
+      journalEntry: {
         create: jest.fn(),
       },
       $transaction: jest.fn((callback) => callback(mockPrisma)),
@@ -507,18 +527,198 @@ describe('GoodsReceiptService', () => {
   });
 
   describe('confirm', () => {
-    it('should throw error as not implemented yet', async () => {
+    const mockGrId = '00000000-0000-0000-0000-000000000003';
+    const mockPoId = '00000000-0000-0000-0000-000000000002';
+    const mockProductId = '00000000-0000-0000-0000-000000000004';
+    const mockWarehouseId = '00000000-0000-0000-0000-000000000011';
+    const mockPoLineId = '00000000-0000-0000-0000-000000000006';
+
+    const mockGR = {
+      id: mockGrId,
+      gr_number: 'GR-202501-00001',
+      po_id: mockPoId,
+      supplier_id: '00000000-0000-0000-0000-000000000010',
+      warehouse_id: mockWarehouseId,
+      receipt_date: new Date('2025-01-15'),
+      status: 'DRAFT',
+      notes: null,
+      confirmed_by: null,
+      confirmed_at: null,
+      created_by: mockUserId,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
+      lines: [
+        {
+          id: '00000000-0000-0000-0000-000000000030',
+          gr_id: mockGrId,
+          po_line_id: mockPoLineId,
+          product_id: mockProductId,
+          qty_received: 100,
+          uom_id: mockUomId,
+          unit_cost: 10000,
+          total_cost: 1000000,
+          batch_number: null,
+          serial_number: null,
+          notes: null,
+          product: {
+            id: mockProductId,
+            name: 'Test Product',
+          },
+          po_line: {
+            id: mockPoLineId,
+            qty_ordered: 100,
+            qty_received: 0,
+          },
+        },
+      ],
+      purchase_order: {
+        id: mockPoId,
+        po_number: 'PO-202501-00001',
+        status: 'APPROVED',
+        lines: [
+          {
+            id: mockPoLineId,
+            qty_ordered: 100,
+            qty_received: 0,
+          },
+        ],
+      },
+      warehouse: {
+        id: mockWarehouseId,
+        name: 'Main Warehouse',
+        is_locked: false,
+      },
+    };
+
+    it('should throw NotFoundException when GR not found', async () => {
+      (prisma.goodsReceipt.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when GR is soft deleted', async () => {
+      (prisma.goodsReceipt.findUnique as jest.Mock).mockResolvedValue({
+        ...mockGR,
+        deleted_at: new Date(),
+      } as any);
+
+      await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BusinessRuleException when GR is not in DRAFT status', async () => {
+      (prisma.goodsReceipt.findUnique as jest.Mock).mockResolvedValue({
+        ...mockGR,
+        status: 'CONFIRMED',
+      } as any);
+
+      await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(BusinessRuleException);
       await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(
-        /Not implemented yet/,
+        /Only DRAFT GRs can be confirmed/,
       );
+    });
+
+    it('should throw BusinessRuleException when warehouse is locked (BR-INV-005)', async () => {
+      (prisma.goodsReceipt.findUnique as jest.Mock).mockResolvedValue({
+        ...mockGR,
+        warehouse: { ...mockGR.warehouse, is_locked: true },
+      } as any);
+
+      await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(BusinessRuleException);
+      await expect(service.confirm(mockGrId, mockUserId)).rejects.toThrow(/BR-INV-005/);
     });
   });
 
   describe('updateAverageCost', () => {
-    it('should throw error as not implemented yet', async () => {
-      await expect(
-        service.updateAverageCost(mockProductId, 'warehouse-123', 100, 10000),
-      ).rejects.toThrow(/Not implemented yet/);
+    const mockProductId = '00000000-0000-0000-0000-000000000004';
+    const mockWarehouseId = '00000000-0000-0000-0000-000000000011';
+
+    beforeEach(() => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([]);
+    });
+
+    it('should calculate WAC correctly for zero initial stock', async () => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([]);
+
+      const newCost = await service.updateAverageCost(mockProductId, mockWarehouseId, 100, 1000000);
+
+      expect(newCost).toBe(10000); // 1000000 / 100
+    });
+
+    it('should calculate WAC correctly with existing stock', async () => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([
+        {
+          running_qty: 50,
+          running_cost: 450000,
+        },
+      ] as any);
+
+      const newCost = await service.updateAverageCost(mockProductId, mockWarehouseId, 100, 1000000);
+
+      // WAC = (450000 + 1000000) / (50 + 100) = 1450000 / 150 = 9666.67
+      expect(newCost).toBeCloseTo(9666.67, 2);
+    });
+
+    it('should return 0 when total qty is 0', async () => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([
+        {
+          running_qty: 0,
+          running_cost: 0,
+        },
+      ] as any);
+
+      const newCost = await service.updateAverageCost(mockProductId, mockWarehouseId, 0, 0);
+
+      expect(newCost).toBe(0);
+    });
+
+    it('should handle edge case of negative stock gracefully', async () => {
+      // This is a theoretical edge case - negative stock is an invalid state
+      // The system should handle it gracefully by returning 0 when total qty becomes 0
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([
+        {
+          running_qty: -10, // Invalid state
+          running_cost: -100000,
+        },
+      ] as any);
+
+      const wac = await service.updateAverageCost(mockProductId, mockWarehouseId, 10, 100000);
+
+      // When total qty is 0 (negative + positive), WAC should be 0
+      expect(wac).toBe(0);
+    });
+
+    it('should handle large numbers correctly', async () => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([
+        {
+          running_qty: 1000000,
+          running_cost: 10000000000,
+        },
+      ] as any);
+
+      const newCost = await service.updateAverageCost(
+        mockProductId,
+        mockWarehouseId,
+        500000,
+        5000000000,
+      );
+
+      // WAC = (10000000000 + 5000000000) / (1000000 + 500000) = 15000000000 / 1500000 = 10000
+      expect(newCost).toBe(10000);
+    });
+
+    it('should handle decimal quantities correctly', async () => {
+      (prisma.inventoryLedger.findMany as jest.Mock).mockResolvedValue([
+        {
+          running_qty: 10.5,
+          running_cost: 105000,
+        },
+      ] as any);
+
+      const newCost = await service.updateAverageCost(mockProductId, mockWarehouseId, 5.5, 60500);
+
+      // WAC = (105000 + 60500) / (10.5 + 5.5) = 165500 / 16 = 10343.75
+      expect(newCost).toBeCloseTo(10343.75, 2);
     });
   });
 
