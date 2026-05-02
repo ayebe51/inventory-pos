@@ -154,3 +154,51 @@ export interface GoodsReceiptService {
   handleOverReceipt(grId: UUID, policy: OverReceiptPolicy): Promise<void>;
   updateAverageCost(productId: UUID, warehouseId: UUID, newQty: number, newCost: number): Promise<void>;
 }
+
+// ── 3-Way Matching ────────────────────────────────────────────────────────────
+
+export interface ThreeWayMatchingResult {
+  isValid: boolean;
+  violations: ThreeWayMatchingViolation[];
+  summary: ThreeWayMatchingSummary;
+}
+
+export interface ThreeWayMatchingViolation {
+  product_id: UUID;
+  product_code: string;
+  product_name: string;
+  po_qty: number;
+  gr_qty: number;
+  invoice_qty: number;
+  violation_type: 'QTY_MISMATCH' | 'AMOUNT_MISMATCH';
+  message: string;
+}
+
+export interface ThreeWayMatchingSummary {
+  po_id: UUID;
+  po_number: string;
+  total_po_amount: number;
+  total_gr_amount: number;
+  total_invoice_amount: number;
+  lines_checked: number;
+  lines_matched: number;
+  lines_violated: number;
+}
+
+export interface ThreeWayMatchingInput {
+  po_id: UUID;
+  invoice_lines: InvoiceLineInput[];
+}
+
+export interface InvoiceLineInput {
+  product_id: UUID;
+  qty: number;
+  unit_price: number;
+}
+
+export interface ThreeWayMatchingService {
+  validate(input: ThreeWayMatchingInput, tolerance?: number): Promise<ThreeWayMatchingResult>;
+  validateAndThrow(input: ThreeWayMatchingInput, tolerance?: number): Promise<void>;
+  getMatchingReport(poId: UUID): Promise<any>;
+  getTolerance(): number;
+}
