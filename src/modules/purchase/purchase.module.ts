@@ -8,10 +8,16 @@ import { PurchaseRequestService } from './services/purchase-request.service';
 import { PurchaseOrderService } from './services/purchase-order.service';
 import { GoodsReceiptService } from './services/goods-receipt.service';
 import { ThreeWayMatchingService } from './services/three-way-matching.service';
+import { PurchaseRequestController } from './controllers/purchase-request.controller';
 import { PurchaseOrderController } from './controllers/purchase-order.controller';
+import { GoodsReceiptController } from './controllers/goods-receipt.controller';
 
 @Module({
-  controllers: [PurchaseOrderController],
+  controllers: [
+    PurchaseRequestController,
+    PurchaseOrderController,
+    GoodsReceiptController,
+  ],
   providers: [
     PrismaService,
     AuditService,

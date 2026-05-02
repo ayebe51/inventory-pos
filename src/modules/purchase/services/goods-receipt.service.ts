@@ -639,4 +639,158 @@ export class GoodsReceiptService {
   getDefaultOverReceiptPolicy(): OverReceiptPolicy {
     return DEFAULT_OVER_RECEIPT_POLICY;
   }
+
+  /**
+   * Search goods receipts with filters and pagination.
+   *
+   * @param filters - Search filters
+   * @returns Paginated goods receipts
+   */
+  async search(filters: any): Promise<any> {
+    const page = filters.page || 1;
+    const perPage = filters.per_page || 20;
+    const skip = (page - 1) * perPage;
+
+    const where: any = {
+      deleted_at: null,
+      ...(filters.gr_number && { gr_number: { contains: filters.gr_number } }),
+      ...(filters.po_id && { po_id: filters.po_id }),
+      ...(filters.supplier_id && { supplier_id: filters.supplier_id }),
+      ...(filters.warehouse_id && { warehouse_id: filters.warehouse_id }),
+      ...(filters.status && { status: filters.status }),
+    };
+
+    if (filters.date_from || filters.date_to) {
+      where.receipt_date = {};
+      if (filters.date_from) {
+        where.receipt_date.gte = new Date(filters.date_from);
+      }
+      if (filters.date_to) {
+        where.receipt_date.lte = new Date(filters.date_to);
+      }
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.goodsReceipt.findMany({
+        where,
+        include: {
+          lines: true,
+          purchase_order: {
+            select: {
+              po_number: true,
+            },
+          },
+          supplier: {
+            select: {
+              name: true,
+            },
+          },
+          warehouse: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: { created_at: 'desc' },
+        skip,
+        take: perPage,
+      }),
+      this.prisma.goodsReceipt.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / perPage);
+
+    return {
+      data: items.map((gr) => {
+        const totalAmount = gr.lines.reduce(
+          (sum, line) => sum + Number(line.total_cost),
+          0,
+        );
+        return mapGoodsReceipt({ ...gr, total_amount: totalAmount });
+      }),
+      meta: {
+        page,
+        per_page: perPage,
+        total,
+        total_pages: totalPages,
+      },
+    };
+  }
+
+  /**
+   * Find goods receipts by Purchase Order ID.
+   *
+   * @param poId - Purchase Order ID
+   * @returns Array of goods receipts for the PO
+   */
+  async findByPurchaseOrder(poId: UUID): Promise<GoodsReceipt[]> {
+    const receipts = await this.prisma.goodsReceipt.findMany({
+      where: {
+        po_id: poId,
+        deleted_at: null,
+      },
+      include: {
+        lines: true,
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return receipts.map((gr) => {
+      const totalAmount = gr.lines.reduce(
+        (sum, line) => sum + Number(line.total_cost),
+        0,
+      );
+      return mapGoodsReceipt({ ...gr, total_amount: totalAmount });
+    });
+  }
+
+  /**
+   * Cancel a Goods Receipt (only in DRAFT status).
+   *
+   * @param id - Goods Receipt ID
+   * @param userId - User cancelling the GR
+   * @param reason - Cancellation reason
+   * @returns Updated goods receipt
+   */
+  async cancel(id: UUID, userId: UUID, reason: string): Promise<GoodsReceipt> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Goods Receipt ${id} not found`);
+    }
+
+    if (existing.status !== 'DRAFT') {
+      throw new BusinessRuleException(
+        `Cannot cancel Goods Receipt in ${existing.status} status. Only DRAFT GRs can be cancelled.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const gr = await tx.goodsReceipt.update({
+        where: { id },
+        data: {
+          notes: `${existing.notes || ''}\nCancellation: ${reason}`,
+          deleted_at: new Date(),
+        },
+      });
+
+      await this.audit.record(
+        {
+          user_id: userId,
+          action: 'DELETE',
+          entity_type: 'GoodsReceipt',
+          entity_id: id,
+          before_snapshot: { status: 'DRAFT' },
+          after_snapshot: { status: 'CANCELLED', cancelled_by: userId, reason },
+        },
+        tx,
+      );
+
+      return gr;
+    });
+
+    this.logger.log(`Cancelled Goods Receipt ${existing.gr_number} by user ${userId}: ${reason}`);
+
+    return mapGoodsReceipt({ ...result, total_amount: existing.total_amount });
+  }
 }

@@ -86,7 +86,7 @@
 - [x] 9.6 Implementasi GR confirm: update qty_received di PO lines, update status PO, trigger WAC recalculation, trigger auto journal GR
 - [x] 9.7 Implementasi 3-way matching: validasi PO qty vs GR qty vs supplier invoice qty dalam toleransi
 - [x] 9.8 Validasi supplier invoice tidak melebihi PO amount + 5% (BR-PUR-008)
-- [ ] 9.9 REST API endpoints untuk PR, PO, GR dengan RBAC guard
+- [x] 9.9 REST API endpoints untuk PR, PO, GR dengan RBAC guard
 - [ ] 9.10 Unit test state machine PO dan property-based test untuk approval threshold
 
 ## Task 10: Inventory Module

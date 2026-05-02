@@ -484,4 +484,216 @@ export class PurchaseRequestService {
 
     this.logger.log(`Deleted Purchase Request ${existing.pr_number} by user ${userId}`);
   }
+
+  /**
+   * Submit Purchase Request for approval (DRAFT → SUBMITTED).
+   *
+   * @param id - Purchase request ID
+   * @param userId - User submitting the PR
+   * @returns Updated purchase request
+   */
+  async submit(id: UUID, userId: UUID): Promise<PurchaseRequestWithLines> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Purchase Request ${id} not found`);
+    }
+
+    if (existing.status !== 'DRAFT') {
+      throw new BusinessRuleException(
+        `Cannot submit Purchase Request in ${existing.status} status. Only DRAFT PRs can be submitted.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const pr = await tx.purchaseRequest.update({
+        where: { id },
+        data: { status: 'SUBMITTED' },
+        include: { lines: true },
+      });
+
+      await this.audit.record(
+        {
+          user_id: userId,
+          action: 'UPDATE',
+          entity_type: 'PurchaseRequest',
+          entity_id: id,
+          before_snapshot: { status: 'DRAFT' },
+          after_snapshot: { status: 'SUBMITTED' },
+        },
+        tx,
+      );
+
+      return pr;
+    });
+
+    this.logger.log(`Submitted Purchase Request ${result.pr_number} by user ${userId}`);
+
+    return {
+      ...mapPurchaseRequest(result),
+      lines: result.lines.map(mapPurchaseRequestLine),
+    };
+  }
+
+  /**
+   * Approve Purchase Request (SUBMITTED → APPROVED).
+   *
+   * @param id - Purchase request ID
+   * @param approverId - User approving the PR
+   * @param notes - Optional approval notes
+   * @returns Updated purchase request
+   */
+  async approve(id: UUID, approverId: UUID, notes?: string): Promise<PurchaseRequestWithLines> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Purchase Request ${id} not found`);
+    }
+
+    if (existing.status !== 'SUBMITTED') {
+      throw new BusinessRuleException(
+        `Cannot approve Purchase Request in ${existing.status} status. Only SUBMITTED PRs can be approved.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const pr = await tx.purchaseRequest.update({
+        where: { id },
+        data: {
+          status: 'APPROVED',
+          notes: notes ? `${existing.notes || ''}\nApproval: ${notes}` : existing.notes,
+        },
+        include: { lines: true },
+      });
+
+      await this.audit.record(
+        {
+          user_id: approverId,
+          action: 'APPROVE',
+          entity_type: 'PurchaseRequest',
+          entity_id: id,
+          before_snapshot: { status: 'SUBMITTED' },
+          after_snapshot: { status: 'APPROVED', approved_by: approverId },
+        },
+        tx,
+      );
+
+      return pr;
+    });
+
+    this.logger.log(`Approved Purchase Request ${result.pr_number} by user ${approverId}`);
+
+    return {
+      ...mapPurchaseRequest(result),
+      lines: result.lines.map(mapPurchaseRequestLine),
+    };
+  }
+
+  /**
+   * Reject Purchase Request (SUBMITTED → REJECTED).
+   *
+   * @param id - Purchase request ID
+   * @param approverId - User rejecting the PR
+   * @param reason - Rejection reason
+   * @returns Updated purchase request
+   */
+  async reject(id: UUID, approverId: UUID, reason: string): Promise<PurchaseRequestWithLines> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Purchase Request ${id} not found`);
+    }
+
+    if (existing.status !== 'SUBMITTED') {
+      throw new BusinessRuleException(
+        `Cannot reject Purchase Request in ${existing.status} status. Only SUBMITTED PRs can be rejected.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const pr = await tx.purchaseRequest.update({
+        where: { id },
+        data: {
+          status: 'REJECTED',
+          notes: `${existing.notes || ''}\nRejection: ${reason}`,
+        },
+        include: { lines: true },
+      });
+
+      await this.audit.record(
+        {
+          user_id: approverId,
+          action: 'UPDATE',
+          entity_type: 'PurchaseRequest',
+          entity_id: id,
+          before_snapshot: { status: 'SUBMITTED' },
+          after_snapshot: { status: 'REJECTED', rejected_by: approverId, reason },
+        },
+        tx,
+      );
+
+      return pr;
+    });
+
+    this.logger.log(`Rejected Purchase Request ${result.pr_number} by user ${approverId}: ${reason}`);
+
+    return {
+      ...mapPurchaseRequest(result),
+      lines: result.lines.map(mapPurchaseRequestLine),
+    };
+  }
+
+  /**
+   * Cancel Purchase Request (DRAFT/SUBMITTED → CANCELLED).
+   *
+   * @param id - Purchase request ID
+   * @param userId - User cancelling the PR
+   * @param reason - Cancellation reason
+   * @returns Updated purchase request
+   */
+  async cancel(id: UUID, userId: UUID, reason: string): Promise<PurchaseRequestWithLines> {
+    const existing = await this.findById(id);
+    if (!existing) {
+      throw new NotFoundException(`Purchase Request ${id} not found`);
+    }
+
+    if (existing.status !== 'DRAFT' && existing.status !== 'SUBMITTED') {
+      throw new BusinessRuleException(
+        `Cannot cancel Purchase Request in ${existing.status} status. Only DRAFT or SUBMITTED PRs can be cancelled.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const pr = await tx.purchaseRequest.update({
+        where: { id },
+        data: {
+          status: 'CANCELLED',
+          notes: `${existing.notes || ''}\nCancellation: ${reason}`,
+        },
+        include: { lines: true },
+      });
+
+      await this.audit.record(
+        {
+          user_id: userId,
+          action: 'UPDATE',
+          entity_type: 'PurchaseRequest',
+          entity_id: id,
+          before_snapshot: { status: existing.status },
+          after_snapshot: { status: 'CANCELLED', cancelled_by: userId, reason },
+        },
+        tx,
+      );
+
+      return pr;
+    });
+
+    this.logger.log(`Cancelled Purchase Request ${result.pr_number} by user ${userId}: ${reason}`);
+
+    return {
+      ...mapPurchaseRequest(result),
+      lines: result.lines.map(mapPurchaseRequestLine),
+    };
+  }
 }
