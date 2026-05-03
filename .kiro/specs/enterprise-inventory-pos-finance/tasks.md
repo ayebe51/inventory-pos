@@ -91,7 +91,7 @@
 
 ## Task 10: Inventory Module
 
-- [ ] 10.1 Implementasi `InventoryService.recordMovement()`: append-only insert ke `inventory_ledger`, tidak ada UPDATE/DELETE (BR-INV-002)
+- [x] 10.1 Implementasi `InventoryService.recordMovement()`: append-only insert ke `inventory_ledger`, tidak ada UPDATE/DELETE (BR-INV-002)
 - [ ] 10.2 Implementasi `getStockBalance()`: `SUM(qty_in) - SUM(qty_out)` per (product_id, warehouse_id)
 - [ ] 10.3 Implementasi negative stock check: tolak transaksi jika balance akan negatif dengan error `INSUFFICIENT_STOCK` (BR-INV-001)
 - [ ] 10.4 Implementasi `calculateAverageCost()` dengan formula WAC: `ROUND((current_value + incoming_cost) / (current_qty + incoming_qty), 4)` (BR-INV-003)
