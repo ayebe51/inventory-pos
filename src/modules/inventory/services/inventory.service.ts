@@ -83,17 +83,89 @@ export class InventoryService implements IInventoryService {
   /**
    * Get current stock balance for a product in a warehouse
    * Calculates balance from inventory ledger: SUM(qty_in) - SUM(qty_out)
+   * Implements the core formula: balance = SUM(qty_in) - SUM(qty_out) per (product_id, warehouse_id)
    *
    * @param productId Product UUID
    * @param warehouseId Warehouse UUID
-   * @returns Stock balance
+   * @returns Stock balance with quantities and average cost
    */
   async getStockBalance(
     productId: UUID,
     warehouseId: UUID,
   ): Promise<StockBalance> {
-    // TODO: Implement in task 10.2
-    throw new Error('Not implemented yet');
+    this.logger.log(
+      `Getting stock balance for product ${productId} in warehouse ${warehouseId}`,
+    );
+
+    // Aggregate qty_in and qty_out from inventory_ledger
+    // This is the canonical source of truth for stock balance
+    const aggregateResult = await this.prisma.inventoryLedger.aggregate({
+      where: {
+        product_id: productId,
+        warehouse_id: warehouseId,
+      },
+      _sum: {
+        qty_in: true,
+        qty_out: true,
+      },
+    });
+
+    // Calculate balance: SUM(qty_in) - SUM(qty_out)
+    const totalQtyIn = aggregateResult._sum.qty_in
+      ? Number(aggregateResult._sum.qty_in)
+      : 0;
+    const totalQtyOut = aggregateResult._sum.qty_out
+      ? Number(aggregateResult._sum.qty_out)
+      : 0;
+    const balance = totalQtyIn - totalQtyOut;
+
+    // Get the latest ledger entry to retrieve running_cost for average cost calculation
+    const latestEntry = await this.prisma.inventoryLedger.findFirst({
+      where: {
+        product_id: productId,
+        warehouse_id: warehouseId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      select: {
+        running_qty: true,
+        running_cost: true,
+      },
+    });
+
+    // Calculate average cost and total value
+    const runningQty = latestEntry?.running_qty
+      ? Number(latestEntry.running_qty)
+      : 0;
+    const runningCost = latestEntry?.running_cost
+      ? Number(latestEntry.running_cost)
+      : 0;
+
+    // Average cost = total value / total quantity
+    const averageCost = runningQty > 0 ? runningCost / runningQty : 0;
+    const totalValue = balance * averageCost;
+
+    // For now, all stock is considered AVAILABLE
+    // Status tracking (RESERVED, COMMITTED, etc.) will be implemented in task 10.8
+    const stockBalance: StockBalance = {
+      product_id: productId,
+      warehouse_id: warehouseId,
+      qty_available: balance,
+      qty_reserved: 0,
+      qty_committed: 0,
+      qty_damaged: 0,
+      qty_quarantine: 0,
+      qty_in_transit: 0,
+      average_cost: Math.max(0, averageCost), // Ensure non-negative (BR-INV-003)
+      total_value: Math.max(0, totalValue), // Ensure non-negative
+    };
+
+    this.logger.log(
+      `Stock balance calculated: qty_available=${balance}, average_cost=${averageCost.toFixed(4)}, total_value=${totalValue.toFixed(2)}`,
+    );
+
+    return stockBalance;
   }
 
   /**

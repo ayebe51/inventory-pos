@@ -16,6 +16,7 @@ describe('InventoryService', () => {
       findMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      aggregate: jest.fn(),
     },
   };
 
@@ -500,13 +501,412 @@ describe('InventoryService', () => {
   });
 
   describe('getStockBalance', () => {
-    it('should throw not implemented error', async () => {
-      await expect(
-        service.getStockBalance(
-          '550e8400-e29b-41d4-a716-446655440001',
-          '550e8400-e29b-41d4-a716-446655440002',
-        ),
-      ).rejects.toThrow('Not implemented yet');
+    const productId = '550e8400-e29b-41d4-a716-446655440001';
+    const warehouseId = '550e8400-e29b-41d4-a716-446655440002';
+
+    it('should calculate stock balance using SUM(qty_in) - SUM(qty_out)', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 250, // Total qty in
+          qty_out: 100, // Total qty out
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 150, // 250 - 100
+        running_cost: 1500000, // Total value
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.product_id).toBe(productId);
+      expect(result.warehouse_id).toBe(warehouseId);
+      expect(result.qty_available).toBe(150); // 250 - 100
+      expect(result.average_cost).toBe(10000); // 1500000 / 150
+      expect(result.total_value).toBe(1500000); // 150 * 10000
+
+      // Verify aggregate was called with correct parameters
+      expect(
+        mockPrismaService.inventoryLedger.aggregate,
+      ).toHaveBeenCalledWith({
+        where: {
+          product_id: productId,
+          warehouse_id: warehouseId,
+        },
+        _sum: {
+          qty_in: true,
+          qty_out: true,
+        },
+      });
+    });
+
+    it('should return zero balance when no movements exist', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: null,
+          qty_out: null,
+        },
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null);
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(0);
+      expect(result.average_cost).toBe(0);
+      expect(result.total_value).toBe(0);
+      expect(result.qty_reserved).toBe(0);
+      expect(result.qty_committed).toBe(0);
+      expect(result.qty_damaged).toBe(0);
+      expect(result.qty_quarantine).toBe(0);
+      expect(result.qty_in_transit).toBe(0);
+    });
+
+    it('should handle only stock-in movements', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 500,
+          qty_out: 0,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 500,
+        running_cost: 5000000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(500);
+      expect(result.average_cost).toBe(10000); // 5000000 / 500
+      expect(result.total_value).toBe(5000000);
+    });
+
+    it('should handle equal qty_in and qty_out (zero balance)', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 300,
+          qty_out: 300,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 0,
+        running_cost: 0,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(0);
+      expect(result.average_cost).toBe(0);
+      expect(result.total_value).toBe(0);
+    });
+
+    it('should calculate correct average cost from running values', async () => {
+      // Arrange - Multiple movements with different costs
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 350, // 100@10k + 150@12k + 100@11k
+          qty_out: 50,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 300, // 350 - 50
+        running_cost: 3400000, // Weighted average cost calculation
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(300);
+      expect(result.average_cost).toBeCloseTo(11333.33, 2); // 3400000 / 300
+      expect(result.total_value).toBeCloseTo(3400000, 2);
+    });
+
+    it('should ensure average_cost is never negative (BR-INV-003)', async () => {
+      // Arrange - Edge case with potential negative cost
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 100,
+          qty_out: 50,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 50,
+        running_cost: -100, // Simulated edge case (should not happen in practice)
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert - BR-INV-003: average_cost must be >= 0
+      expect(result.average_cost).toBeGreaterThanOrEqual(0);
+      expect(result.total_value).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should ensure total_value is never negative', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 100,
+          qty_out: 80,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 20,
+        running_cost: 200000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.total_value).toBeGreaterThanOrEqual(0);
+      expect(result.total_value).toBe(200000); // 20 * 10000
+    });
+
+    it('should set all status quantities to zero (status tracking not yet implemented)', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 200,
+          qty_out: 50,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 150,
+        running_cost: 1500000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert - All stock is considered AVAILABLE for now (task 10.8 will implement status tracking)
+      expect(result.qty_available).toBe(150);
+      expect(result.qty_reserved).toBe(0);
+      expect(result.qty_committed).toBe(0);
+      expect(result.qty_damaged).toBe(0);
+      expect(result.qty_quarantine).toBe(0);
+      expect(result.qty_in_transit).toBe(0);
+    });
+
+    it('should handle large quantities correctly', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 1000000,
+          qty_out: 250000,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 750000,
+        running_cost: 7500000000, // 750k @ 10k
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(750000);
+      expect(result.average_cost).toBe(10000);
+      expect(result.total_value).toBe(7500000000);
+    });
+
+    it('should handle decimal quantities from Prisma correctly', async () => {
+      // Arrange - Prisma returns Decimal objects
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 123.5,
+          qty_out: 23.5,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 100,
+        running_cost: 1000000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      const result = await service.getStockBalance(productId, warehouseId);
+
+      // Assert
+      expect(result.qty_available).toBe(100); // 123.5 - 23.5
+      expect(result.average_cost).toBe(10000);
+    });
+
+    it('should query only the specific product and warehouse combination', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 100,
+        running_cost: 1000000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act
+      await service.getStockBalance(productId, warehouseId);
+
+      // Assert - Verify correct WHERE clause
+      expect(
+        mockPrismaService.inventoryLedger.aggregate,
+      ).toHaveBeenCalledWith({
+        where: {
+          product_id: productId,
+          warehouse_id: warehouseId,
+        },
+        _sum: {
+          qty_in: true,
+          qty_out: true,
+        },
+      });
+
+      expect(
+        mockPrismaService.inventoryLedger.findFirst,
+      ).toHaveBeenCalledWith({
+        where: {
+          product_id: productId,
+          warehouse_id: warehouseId,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          running_qty: true,
+          running_cost: true,
+        },
+      });
+    });
+
+    it('should return consistent balance across multiple calls', async () => {
+      // Arrange
+      const mockAggregateResult = {
+        _sum: {
+          qty_in: 200,
+          qty_out: 50,
+        },
+      };
+
+      const mockLatestEntry = {
+        running_qty: 150,
+        running_cost: 1500000,
+      };
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue(
+        mockAggregateResult,
+      );
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(
+        mockLatestEntry,
+      );
+
+      // Act - Call multiple times
+      const result1 = await service.getStockBalance(productId, warehouseId);
+      const result2 = await service.getStockBalance(productId, warehouseId);
+      const result3 = await service.getStockBalance(productId, warehouseId);
+
+      // Assert - All results should be identical
+      expect(result1.qty_available).toBe(result2.qty_available);
+      expect(result2.qty_available).toBe(result3.qty_available);
+      expect(result1.average_cost).toBe(result2.average_cost);
+      expect(result2.average_cost).toBe(result3.average_cost);
+      expect(result1.total_value).toBe(result2.total_value);
+      expect(result2.total_value).toBe(result3.total_value);
     });
   });
 
