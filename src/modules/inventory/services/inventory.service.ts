@@ -23,10 +23,12 @@ export class InventoryService implements IInventoryService {
   /**
    * Record inventory movement with append-only insert to inventory_ledger
    * Implements BR-INV-002: No UPDATE/DELETE allowed on inventory ledger
+   * Implements BR-INV-001: Negative stock check
    *
    * @param data Stock movement data
    * @returns Created inventory ledger entry
    * @throws BusinessRuleException if validation fails
+   * @throws InsufficientStockException if balance would become negative (BR-INV-001)
    */
   async recordMovement(data: StockMovementDTO): Promise<InventoryLedgerEntry> {
     this.logger.log(
@@ -45,6 +47,20 @@ export class InventoryService implements IInventoryService {
         data.qty_out,
         data.unit_cost,
       );
+
+    // BR-INV-001: Negative stock check
+    // Reject transaction if balance would become negative
+    if (running_qty < 0) {
+      this.logger.warn(
+        `BR-INV-001 violation: Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
+          `Current balance would be: ${running_qty}`,
+      );
+      throw new BusinessRuleException(
+        `Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
+          `Transaction would result in negative balance: ${running_qty}`,
+        ErrorCode.INSUFFICIENT_STOCK,
+      );
+    }
 
     // Calculate total cost for this movement
     const total_cost = data.qty_in > 0 ? data.qty_in * data.unit_cost : 0;

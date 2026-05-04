@@ -498,6 +498,434 @@ describe('InventoryService', () => {
       // Assert - BR-INV-003: running_cost must be >= 0
       expect(result.running_cost).toBeGreaterThanOrEqual(0);
     });
+
+    describe('BR-INV-001: Negative Stock Check', () => {
+      it('should reject transaction if balance would become negative', async () => {
+        // Arrange - Current stock is 50, trying to take out 100
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 100,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 50,
+          running_cost: 500000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        // Verify error code is INSUFFICIENT_STOCK
+        try {
+          await service.recordMovement(stockOutData);
+        } catch (error) {
+          expect(error).toBeInstanceOf(BusinessRuleException);
+          const response = (error as any).getResponse();
+          expect(response.error.code).toBe(ErrorCode.INSUFFICIENT_STOCK);
+        }
+
+        // Verify no database write occurred
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject transaction if balance would become exactly -1', async () => {
+        // Arrange - Current stock is 99, trying to take out 100
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 100,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 99,
+          running_cost: 990000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        // Verify the error message includes product and warehouse IDs
+        try {
+          await service.recordMovement(stockOutData);
+        } catch (error) {
+          const errorMessage = (error as Error).message;
+          expect(errorMessage).toContain(stockOutData.product_id);
+          expect(errorMessage).toContain(stockOutData.warehouse_id);
+          expect(errorMessage).toContain('-1'); // Expected negative balance
+        }
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should reject transaction if trying to take out from zero stock', async () => {
+        // Arrange - No stock available
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 1,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null); // No previous entries
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should allow transaction if balance would become exactly zero', async () => {
+        // Arrange - Current stock is 100, taking out exactly 100
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 100,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 100,
+          running_cost: 1000000,
+        });
+
+        const mockCreatedEntry = {
+          id: '550e8400-e29b-41d4-a716-446655440040',
+          ...stockOutData,
+          total_cost: 0,
+          running_qty: 0,
+          running_cost: 0,
+          batch_number: null,
+          serial_number: null,
+          created_at: new Date(),
+        };
+
+        mockPrismaService.inventoryLedger.create.mockResolvedValue(
+          mockCreatedEntry,
+        );
+
+        // Act
+        const result = await service.recordMovement(stockOutData);
+
+        // Assert - Should succeed with zero balance
+        expect(result.running_qty).toBe(0);
+        expect(result.running_cost).toBe(0);
+        expect(mockPrismaService.inventoryLedger.create).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('should allow transaction if balance remains positive', async () => {
+        // Arrange - Current stock is 100, taking out 50
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 50,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 100,
+          running_cost: 1000000,
+        });
+
+        const mockCreatedEntry = {
+          id: '550e8400-e29b-41d4-a716-446655440041',
+          ...stockOutData,
+          total_cost: 0,
+          running_qty: 50,
+          running_cost: 500000,
+          batch_number: null,
+          serial_number: null,
+          created_at: new Date(),
+        };
+
+        mockPrismaService.inventoryLedger.create.mockResolvedValue(
+          mockCreatedEntry,
+        );
+
+        // Act
+        const result = await service.recordMovement(stockOutData);
+
+        // Assert - Should succeed with positive balance
+        expect(result.running_qty).toBe(50);
+        expect(result.running_cost).toBe(500000);
+        expect(mockPrismaService.inventoryLedger.create).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('should reject large stock-out that exceeds available quantity', async () => {
+        // Arrange - Current stock is 10, trying to take out 1000
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 1000,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 10,
+          running_cost: 100000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        // Verify the error message shows the large negative balance
+        try {
+          await service.recordMovement(stockOutData);
+        } catch (error) {
+          const errorMessage = (error as Error).message;
+          expect(errorMessage).toContain('-990'); // 10 - 1000 = -990
+        }
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should check negative stock for TRANSFER_OUT transaction type', async () => {
+        // Arrange
+        const transferOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'TRANSFER_OUT',
+          qty_in: 0,
+          qty_out: 150,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 100,
+          running_cost: 1000000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(transferOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(transferOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should check negative stock for ADJUSTMENT transaction type (stock decrease)', async () => {
+        // Arrange
+        const adjustmentData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'ADJUSTMENT',
+          qty_in: 0,
+          qty_out: 75,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 50,
+          running_cost: 500000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(adjustmentData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(adjustmentData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should not check negative stock for stock-in transactions', async () => {
+        // Arrange - Stock-in should always be allowed regardless of current balance
+        const stockInData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'GR',
+          qty_in: 100,
+          qty_out: 0,
+        };
+
+        // Even with negative current balance (edge case), stock-in should work
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: -10, // Edge case: somehow negative
+          running_cost: 0,
+        });
+
+        const mockCreatedEntry = {
+          id: '550e8400-e29b-41d4-a716-446655440042',
+          ...stockInData,
+          total_cost: 1000000,
+          running_qty: 90, // -10 + 100
+          running_cost: 1000000,
+          batch_number: null,
+          serial_number: null,
+          created_at: new Date(),
+        };
+
+        mockPrismaService.inventoryLedger.create.mockResolvedValue(
+          mockCreatedEntry,
+        );
+
+        // Act
+        const result = await service.recordMovement(stockInData);
+
+        // Assert - Should succeed
+        expect(result.running_qty).toBe(90);
+        expect(mockPrismaService.inventoryLedger.create).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('should include product and warehouse IDs in error message', async () => {
+        // Arrange
+        const productId = '550e8400-e29b-41d4-a716-446655440099';
+        const warehouseId = '550e8400-e29b-41d4-a716-446655440088';
+
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          product_id: productId,
+          warehouse_id: warehouseId,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 100,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 50,
+          running_cost: 500000,
+        });
+
+        // Act & Assert
+        try {
+          await service.recordMovement(stockOutData);
+          fail('Should have thrown BusinessRuleException');
+        } catch (error) {
+          expect(error).toBeInstanceOf(BusinessRuleException);
+          const errorMessage = (error as Error).message;
+          expect(errorMessage).toContain(productId);
+          expect(errorMessage).toContain(warehouseId);
+          expect(errorMessage).toContain('Insufficient stock');
+          expect(errorMessage).toContain('-50'); // 50 - 100 = -50
+        }
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should log warning when negative stock is detected', async () => {
+        // Arrange
+        const loggerSpy = jest.spyOn((service as any).logger, 'warn');
+
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 200,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 100,
+          running_cost: 1000000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+
+        // Verify warning was logged
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringContaining('BR-INV-001 violation'),
+        );
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Insufficient stock'),
+        );
+
+        loggerSpy.mockRestore();
+      });
+
+      it('should handle decimal quantities in negative stock check', async () => {
+        // Arrange - Current stock is 10.5, trying to take out 11
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 11,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 10.5,
+          running_cost: 105000,
+        });
+
+        // Act & Assert
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          BusinessRuleException,
+        );
+        await expect(service.recordMovement(stockOutData)).rejects.toThrow(
+          /Insufficient stock/,
+        );
+
+        expect(mockPrismaService.inventoryLedger.create).not.toHaveBeenCalled();
+      });
+
+      it('should allow decimal quantities that result in positive balance', async () => {
+        // Arrange - Current stock is 10.5, taking out 10.25
+        const stockOutData: StockMovementDTO = {
+          ...validMovementData,
+          transaction_type: 'SO',
+          qty_in: 0,
+          qty_out: 10.25,
+        };
+
+        mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+          running_qty: 10.5,
+          running_cost: 105000,
+        });
+
+        const mockCreatedEntry = {
+          id: '550e8400-e29b-41d4-a716-446655440043',
+          ...stockOutData,
+          total_cost: 0,
+          running_qty: 0.25,
+          running_cost: 2500,
+          batch_number: null,
+          serial_number: null,
+          created_at: new Date(),
+        };
+
+        mockPrismaService.inventoryLedger.create.mockResolvedValue(
+          mockCreatedEntry,
+        );
+
+        // Act
+        const result = await service.recordMovement(stockOutData);
+
+        // Assert - Should succeed
+        expect(result.running_qty).toBeCloseTo(0.25, 2);
+        expect(mockPrismaService.inventoryLedger.create).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+    });
   });
 
   describe('getStockBalance', () => {

@@ -93,7 +93,7 @@
 
 - [x] 10.1 Implementasi `InventoryService.recordMovement()`: append-only insert ke `inventory_ledger`, tidak ada UPDATE/DELETE (BR-INV-002)
 - [x] 10.2 Implementasi `getStockBalance()`: `SUM(qty_in) - SUM(qty_out)` per (product_id, warehouse_id)
-- [ ] 10.3 Implementasi negative stock check: tolak transaksi jika balance akan negatif dengan error `INSUFFICIENT_STOCK` (BR-INV-001)
+- [x] 10.3 Implementasi negative stock check: tolak transaksi jika balance akan negatif dengan error `INSUFFICIENT_STOCK` (BR-INV-001)
 - [ ] 10.4 Implementasi `calculateAverageCost()` dengan formula WAC: `ROUND((current_value + incoming_cost) / (current_qty + incoming_qty), 4)` (BR-INV-003)
 - [ ] 10.5 Implementasi `transferStock()`: pessimistic locking (`SELECT FOR UPDATE NOWAIT`), atomik kurangi stok asal + tambah stok tujuan, verifikasi total stok tidak berubah
 - [ ] 10.6 Implementasi `adjustStock()`: validasi permission STOCK.ADJUST, wajib ada alasan, trigger auto journal
