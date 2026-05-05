@@ -146,7 +146,12 @@ export interface InventoryService {
   transferStock(data: StockTransferDTO): Promise<StockTransfer>;
   adjustStock(data: StockAdjustmentDTO, userId: UUID): Promise<StockAdjustment>;
   lockWarehouse(warehouseId: UUID, reason: string): Promise<void>;
-  calculateAverageCost(productId: UUID, warehouseId: UUID): Promise<number>;
+  calculateAverageCost(
+    productId: UUID,
+    warehouseId: UUID,
+    incomingQty?: number,
+    incomingCost?: number,
+  ): Promise<number>;
 }
 
 export interface StockOpnameService {

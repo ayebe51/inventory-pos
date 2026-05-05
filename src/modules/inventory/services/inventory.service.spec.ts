@@ -1380,13 +1380,551 @@ describe('InventoryService', () => {
   });
 
   describe('calculateAverageCost', () => {
-    it('should throw not implemented error', async () => {
+    const productId = '550e8400-e29b-41d4-a716-446655440001';
+    const warehouseId = '550e8400-e29b-41d4-a716-446655440002';
+
+    it('should calculate average cost correctly with single stock-in', async () => {
+      // Arrange - 100 units @ 10,000 = 1,000,000
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Average cost should be 10,000
+      expect(result).toBe(10000);
+    });
+
+    it('should calculate average cost correctly with multiple stock-ins (WAC formula)', async () => {
+      // Arrange - Example from design:
+      // Stok awal: 100 unit @ Rp 10.000 = Rp 1.000.000
+      // Penerimaan: 50 unit @ Rp 12.000 = Rp 600.000
+      // WAC baru: (1.000.000 + 600.000) / (100 + 50) = Rp 10.667
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 150,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 150,
+        running_cost: 1600000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Average cost should be 10,666.6667 rounded to 10666.6667
+      expect(result).toBeCloseTo(10666.6667, 4);
+    });
+
+    it('should return 0 when current quantity is 0', async () => {
+      // Arrange - No stock
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 100,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null);
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(0);
+    });
+
+    it('should return 0 when no ledger entries exist', async () => {
+      // Arrange - No entries at all
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: null,
+          qty_out: null,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null);
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(0);
+    });
+
+    it('should round result to 4 decimal places', async () => {
+      // Arrange - 100 units @ 10,000.123456 = 1,000,012.3456
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 1000012.3456,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Should be rounded to 4 decimal places
+      expect(result).toBe(10000.1235); // Rounded from 10000.123456
+    });
+
+    it('should ensure result is never negative (BR-INV-003)', async () => {
+      // Arrange - Edge case with very small negative value due to rounding
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: -0.0001, // Negative due to rounding error
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - BR-INV-003: result must be >= 0
+      expect(result).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should throw error if current quantity is negative (BR-INV-001)', async () => {
+      // Arrange - More qty_out than qty_in (should not happen in normal operation)
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 150,
+        },
+      });
+
+      // Act & Assert
       await expect(
-        service.calculateAverageCost(
-          '550e8400-e29b-41d4-a716-446655440001',
-          '550e8400-e29b-41d4-a716-446655440002',
-        ),
-      ).rejects.toThrow('Not implemented yet');
+        service.calculateAverageCost(productId, warehouseId),
+      ).rejects.toThrow(BusinessRuleException);
+      await expect(
+        service.calculateAverageCost(productId, warehouseId),
+      ).rejects.toThrow(/Negative stock detected/);
+
+      // Verify error code
+      try {
+        await service.calculateAverageCost(productId, warehouseId);
+      } catch (error) {
+        expect(error).toBeInstanceOf(BusinessRuleException);
+        const response = (error as any).getResponse();
+        expect(response.error.code).toBe(ErrorCode.BUSINESS_RULE_VIOLATION);
+      }
+    });
+
+    it('should handle decimal quantities correctly', async () => {
+      // Arrange - 100.5 units @ running_cost 1,000,525.125
+      // Average cost = 1,000,525.125 / 100.5 = 9955.4739...
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100.5,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100.5,
+        running_cost: 1000525.125,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - 1000525.125 / 100.5 = 9955.4739...
+      expect(result).toBeCloseTo(9955.4739, 4);
+    });
+
+    it('should calculate correctly after stock-out', async () => {
+      // Arrange - Started with 100 @ 10,000, sold 30
+      // Remaining: 70 @ 10,000 = 700,000
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 30,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 70,
+        running_cost: 700000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Average cost should still be 10,000
+      expect(result).toBe(10000);
+    });
+
+    it('should calculate correctly with multiple transfers', async () => {
+      // Arrange - Complex scenario with multiple movements
+      // 100 @ 10,000 + 50 @ 12,000 - 30 = 120 units
+      // Total value: 1,000,000 + 600,000 = 1,600,000
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 150,
+          qty_out: 30,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 120,
+        running_cost: 1200000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Average cost should be 10,000
+      expect(result).toBe(10000);
+    });
+
+    it('should handle very large quantities', async () => {
+      // Arrange - 1,000,000 units @ 100 = 100,000,000
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 1000000,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 1000000,
+        running_cost: 100000000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(100);
+    });
+
+    it('should handle very small quantities', async () => {
+      // Arrange - 0.001 units @ 10,000 = 10
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 0.001,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 0.001,
+        running_cost: 10,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(10000);
+    });
+
+    it('should handle zero cost correctly', async () => {
+      // Arrange - 100 units @ 0 cost (free goods)
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 0,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(0);
+    });
+
+    it('should query inventory_ledger with correct filters', async () => {
+      // Arrange
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Act
+      await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Verify correct filters were used
+      expect(mockPrismaService.inventoryLedger.aggregate).toHaveBeenCalledWith({
+        where: {
+          product_id: productId,
+          warehouse_id: warehouseId,
+        },
+        _sum: {
+          qty_in: true,
+          qty_out: true,
+        },
+      });
+
+      expect(mockPrismaService.inventoryLedger.findFirst).toHaveBeenCalledWith({
+        where: {
+          product_id: productId,
+          warehouse_id: warehouseId,
+        },
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          running_qty: true,
+          running_cost: true,
+        },
+      });
+    });
+
+    it('should log calculation details', async () => {
+      // Arrange
+      const loggerSpy = jest.spyOn((service as any).logger, 'log');
+
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Act
+      await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Verify logging
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Calculating average cost'),
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Average cost calculated'),
+      );
+
+      loggerSpy.mockRestore();
+    });
+
+    it('should handle null aggregate results gracefully', async () => {
+      // Arrange - Null values from aggregate
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: null,
+          qty_out: null,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null);
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBe(0);
+    });
+
+    it('should handle partial null values from aggregate', async () => {
+      // Arrange - Only qty_in is null, qty_out is 50 → balance = 0 - 50 = -50
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: null,
+          qty_out: 50,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue(null);
+
+      // Assert - Should throw because qty would be -50 (BR-INV-001)
+      await expect(
+        service.calculateAverageCost(productId, warehouseId),
+      ).rejects.toThrow(BusinessRuleException);
+    });
+
+    it('should calculate correctly with realistic WAC scenario', async () => {
+      // Arrange - Realistic scenario:
+      // Day 1: Receive 100 units @ Rp 10,000 = Rp 1,000,000
+      // Day 2: Receive 50 units @ Rp 12,000 = Rp 600,000
+      // Day 3: Sell 30 units
+      // Current: 120 units, value = Rp 1,600,000
+      // WAC = 1,600,000 / 120 = 13,333.3333
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 150,
+          qty_out: 30,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 120,
+        running_cost: 1600000,
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert
+      expect(result).toBeCloseTo(13333.3333, 4);
+    });
+
+    it('should handle precision with Decimal type from Prisma', async () => {
+      // Arrange - Simulate Decimal type from Prisma
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: { toString: () => '100.5555' },
+          qty_out: { toString: () => '0' },
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: { toString: () => '100.5555' },
+        running_cost: { toString: () => '1005555' },
+      });
+
+      // Act
+      const result = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - Should handle Decimal conversion
+      expect(typeof result).toBe('number');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    it('should return consistent results for same product/warehouse', async () => {
+      // Arrange
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValue({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValue({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Act - Call multiple times
+      const result1 = await service.calculateAverageCost(productId, warehouseId);
+      const result2 = await service.calculateAverageCost(productId, warehouseId);
+      const result3 = await service.calculateAverageCost(productId, warehouseId);
+
+      // Assert - All results should be identical
+      expect(result1).toBe(result2);
+      expect(result2).toBe(result3);
+    });
+
+    it('should calculate different averages for different products', async () => {
+      // Arrange
+      const productId2 = '550e8400-e29b-41d4-a716-446655440099';
+
+      // First call for productId
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValueOnce({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValueOnce({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Second call for productId2
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValueOnce({
+        _sum: {
+          qty_in: 50,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValueOnce({
+        running_qty: 50,
+        running_cost: 750000,
+      });
+
+      // Act
+      const result1 = await service.calculateAverageCost(productId, warehouseId);
+      const result2 = await service.calculateAverageCost(
+        productId2,
+        warehouseId,
+      );
+
+      // Assert - Different products should have different averages
+      expect(result1).toBe(10000);
+      expect(result2).toBe(15000);
+      expect(result1).not.toBe(result2);
+    });
+
+    it('should calculate different averages for different warehouses', async () => {
+      // Arrange
+      const warehouseId2 = '550e8400-e29b-41d4-a716-446655440088';
+
+      // First call for warehouseId
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValueOnce({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValueOnce({
+        running_qty: 100,
+        running_cost: 1000000,
+      });
+
+      // Second call for warehouseId2
+      mockPrismaService.inventoryLedger.aggregate.mockResolvedValueOnce({
+        _sum: {
+          qty_in: 100,
+          qty_out: 0,
+        },
+      });
+
+      mockPrismaService.inventoryLedger.findFirst.mockResolvedValueOnce({
+        running_qty: 100,
+        running_cost: 1200000,
+      });
+
+      // Act
+      const result1 = await service.calculateAverageCost(productId, warehouseId);
+      const result2 = await service.calculateAverageCost(productId, warehouseId2);
+
+      // Assert - Different warehouses should have different averages
+      expect(result1).toBe(10000);
+      expect(result2).toBe(12000);
+      expect(result1).not.toBe(result2);
     });
   });
 });

@@ -222,18 +222,134 @@ export class InventoryService implements IInventoryService {
   }
 
   /**
-   * Calculate weighted average cost for a product in a warehouse
+   * Calculate weighted average cost (WAC) for a product in a warehouse
+   *
+   * Implements the WAC algorithm from design.md:
+   * 1. Get current stock balance: currentQty = SUM(qty_in - qty_out) from inventory_ledger
+   * 2. Get current value: currentValue = currentQty * currentAverageCost
+   * 3. Validate currentQty >= 0 (BR-INV-001)
+   * 4. If incomingQty and incomingCost are provided, apply WAC formula:
+   *    ROUND((currentValue + incomingCost) / (currentQty + incomingQty), 4)
+   * 5. If totalQty = 0, return 0
+   * 6. Ensure result >= 0 (BR-INV-003)
+   *
+   * Example calculation:
+   * - Stok awal: 100 unit @ Rp 10.000 = Rp 1.000.000
+   * - Penerimaan: 50 unit @ Rp 12.000 = Rp 600.000
+   * - WAC baru: (1.000.000 + 600.000) / (100 + 50) = Rp 10.666,6667
    *
    * @param productId Product UUID
    * @param warehouseId Warehouse UUID
-   * @returns Average cost
+   * @param incomingQty Optional: quantity of incoming goods (> 0)
+   * @param incomingCost Optional: total cost of incoming goods (>= 0)
+   * @returns Weighted average cost rounded to 4 decimal places, >= 0
+   * @throws BusinessRuleException if currentQty < 0 (BR-INV-001)
    */
   async calculateAverageCost(
     productId: UUID,
     warehouseId: UUID,
+    incomingQty?: number,
+    incomingCost?: number,
   ): Promise<number> {
-    // TODO: Implement in task 10.4
-    throw new Error('Not implemented yet');
+    this.logger.log(
+      `Calculating average cost for product ${productId} in warehouse ${warehouseId}`,
+    );
+
+    // Step 1: Get current stock balance from inventory_ledger
+    // currentQty = SUM(qty_in) - SUM(qty_out)
+    const aggregateResult = await this.prisma.inventoryLedger.aggregate({
+      where: {
+        product_id: productId,
+        warehouse_id: warehouseId,
+      },
+      _sum: {
+        qty_in: true,
+        qty_out: true,
+      },
+    });
+
+    const totalQtyIn = aggregateResult._sum.qty_in
+      ? Number(aggregateResult._sum.qty_in)
+      : 0;
+    const totalQtyOut = aggregateResult._sum.qty_out
+      ? Number(aggregateResult._sum.qty_out)
+      : 0;
+    const currentQty = totalQtyIn - totalQtyOut;
+
+    // Step 3: Validate currentQty >= 0 (BR-INV-001)
+    if (currentQty < 0) {
+      this.logger.warn(
+        `BR-INV-001 violation: Negative stock detected for product ${productId} in warehouse ${warehouseId}. ` +
+          `Current balance: ${currentQty}`,
+      );
+      throw new BusinessRuleException(
+        `Negative stock detected for product ${productId} in warehouse ${warehouseId}. ` +
+          `Current balance: ${currentQty}`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    // Step 2: Get current value from the latest ledger entry
+    // currentValue = currentQty * currentAverageCost
+    const latestEntry = await this.prisma.inventoryLedger.findFirst({
+      where: {
+        product_id: productId,
+        warehouse_id: warehouseId,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      select: {
+        running_qty: true,
+        running_cost: true,
+      },
+    });
+
+    const runningQty = latestEntry?.running_qty
+      ? Number(latestEntry.running_qty)
+      : 0;
+    const runningCost = latestEntry?.running_cost
+      ? Number(latestEntry.running_cost)
+      : 0;
+
+    // Calculate current average cost from running values
+    const currentAverageCost = runningQty > 0 ? runningCost / runningQty : 0;
+    const currentValue = currentQty * currentAverageCost;
+
+    this.logger.debug(
+      `WAC calculation: currentQty=${currentQty}, currentValue=${currentValue}, currentAverageCost=${currentAverageCost}`,
+    );
+
+    // Apply WAC formula with incoming goods if provided
+    // Formula: ROUND((currentValue + incomingCost) / (currentQty + incomingQty), 4)
+    const effectiveIncomingQty =
+      incomingQty !== undefined && incomingQty !== null ? incomingQty : 0;
+    const effectiveIncomingCost =
+      incomingCost !== undefined && incomingCost !== null ? incomingCost : 0;
+
+    const totalQty = currentQty + effectiveIncomingQty;
+    const totalValue = currentValue + effectiveIncomingCost;
+
+    // Step 5: If totalQty = 0, return 0
+    if (totalQty === 0) {
+      this.logger.log(
+        `Average cost is 0 because total quantity is 0 for product ${productId} in warehouse ${warehouseId}`,
+      );
+      return 0;
+    }
+
+    // Step 4: Calculate WAC using formula
+    const averageCost = totalValue / totalQty;
+
+    // Step 6: Ensure result >= 0 (BR-INV-003)
+    const roundedAverageCost = Math.round(averageCost * 10000) / 10000; // Round to 4 decimal places
+    const finalAverageCost = Math.max(0, roundedAverageCost);
+
+    this.logger.log(
+      `Average cost calculated: ${finalAverageCost} for product ${productId} in warehouse ${warehouseId}`,
+    );
+
+    return finalAverageCost;
   }
 
   /**
