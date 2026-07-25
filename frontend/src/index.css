@@ -1,0 +1,123 @@
+/* Global overrides for Ant Design + Neon Cyber theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #0F0F13;
+}
+
+/* Neon glow effect on interactive elements on hover */
+.ant-btn-primary:hover {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.5) !important;
+}
+
+.ant-menu-item-selected {
+  position: relative;
+}
+
+.ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: #8B5CF6;
+  border-radius: 0 2px 2px 0;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0F0F13;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+/* Number display font */
+.number-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Ant Design overrides for neon glow on focus */
+.ant-input:focus,
+.ant-input-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+  border-color: #8B5CF6 !important;
+}
+
+/* Page layout utility */
+.page-container {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #E2E8F0;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+
+.page-subtitle {
+  color: #64748B;
+  font-size: 14px;
+}
+
+/* Status tag colors */
+.status-draft { color: #94A3B8; background: rgba(148, 163, 184, 0.1); border-color: rgba(148, 163, 184, 0.2); }
+.status-pending { color: #FBBF24; background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.2); }
+.status-approved { color: #34D399; background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.2); }
+.status-rejected { color: #F43F5E; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); }
+.status-active { color: #8B5CF6; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.2); }
+.status-closed { color: #94A3B8; background: rgba(148, 163, 184, 0.05); border-color: rgba(148, 163, 184, 0.1); }
+.status-paid { color: #34D399; background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.2); }
+.status-overdue { color: #F43F5E; background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); }
+.status-partial { color: #F97316; background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.2); }
+
+/* Stat card */
+.stat-card {
+  background: rgba(26, 26, 36, 0.8) !important;
+  border: 1px solid #2D2D3F !important;
+  border-radius: 12px !important;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 4px 24px rgba(139, 92, 246, 0.08) !important;
+}
+
+@media (max-width: 768px) {
+  .page-container { padding: 16px; }
+  .page-title { font-size: 20px; }
+}

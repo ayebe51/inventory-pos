@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
@@ -64,6 +65,7 @@ export class InvoiceService implements IInvoiceService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly numbering: NumberingService,
+    private readonly journalEngine: JournalEngineService,
   ) {}
 
   /**
@@ -387,7 +389,21 @@ export class InvoiceService implements IInvoiceService {
         },
       });
 
-      // TODO: Trigger auto journal entry (will be implemented in journal engine)
+      // Identify current open period
+      const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+      if (!period) throw new BusinessRuleException('No open fiscal period found', ErrorCode.VALIDATION_ERROR);
+
+      const eventType = existing.invoice_type === 'SALES' ? 'SALES_INVOICE' : 'SUPPLIER_INVOICE';
+      await this.journalEngine.processEvent({
+        event_type: eventType,
+        reference_type: 'INVOICE',
+        reference_id: id,
+        reference_number: existing.invoice_number,
+        entry_date: new Date(),
+        period_id: period.id,
+        amount: Number(existing.total_amount),
+        created_by: userId,
+      }, tx);
 
       await this.audit.record(
         {
@@ -589,7 +605,20 @@ export class InvoiceService implements IInvoiceService {
         },
       });
 
-      // TODO: Trigger auto journal entry for write-off (will be implemented in journal engine)
+      // Identify current open period
+      const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+      if (!period) throw new BusinessRuleException('No open fiscal period found', ErrorCode.VALIDATION_ERROR);
+
+      await this.journalEngine.processEvent({
+        event_type: 'WRITE_OFF_AR',
+        reference_type: 'INVOICE',
+        reference_id: id,
+        reference_number: existing.invoice_number,
+        entry_date: new Date(),
+        period_id: period.id,
+        amount: Number(existing.outstanding_amount),
+        created_by: userId,
+      }, tx);
 
       await this.audit.record(
         {
@@ -627,5 +656,43 @@ export class InvoiceService implements IInvoiceService {
     }
 
     return mapInvoice(invoice);
+  }
+
+  /**
+   * Search invoices with pagination and filters
+   */
+  async search(filters: {
+    invoice_type?: string;
+    status?: string;
+    customer_id?: string;
+    supplier_id?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const page = filters.page || 1;
+    const per_page = filters.per_page || 20;
+    const skip = (page - 1) * per_page;
+
+    const where: any = { deleted_at: null };
+
+    if (filters.invoice_type) where.invoice_type = filters.invoice_type;
+    if (filters.status) where.status = filters.status;
+    if (filters.customer_id) where.customer_id = filters.customer_id;
+    if (filters.supplier_id) where.supplier_id = filters.supplier_id;
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.invoice.findMany({
+        where,
+        skip,
+        take: per_page,
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return {
+      data: data.map(mapInvoice),
+      meta: { total, page, per_page },
+    };
   }
 }

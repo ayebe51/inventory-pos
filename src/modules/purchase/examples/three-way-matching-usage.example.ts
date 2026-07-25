@@ -178,7 +178,7 @@ export class InvoiceCreationExample {
       violations: any[];
     }>
   > {
-    const results = [];
+    const results: any[] = [];
 
     for (const invoice of invoices) {
       const result = await this.threeWayMatching.validate({

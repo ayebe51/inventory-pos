@@ -11,14 +11,18 @@ export enum DocumentType {
   PV = 'PV',   // Payment Voucher
   JE = 'JE',   // Journal Entry
   SA = 'SA',   // Stock Adjustment
-  SO = 'SO',   // Stock Opname
+  SOP = 'SOP', // Stock Opname
+  SO = 'SO',   // Sales Order
+  DO = 'DO',   // Delivery Order
+  SR = 'SR',   // Sales Return
   CN = 'CN',   // Credit Note
   DN = 'DN',   // Debit Note
   TO = 'TO',   // Transfer Order
+  SHF = 'SHF', // POS Shift
 }
 
 /** POS uses daily period (YYYYMMDD); all others use monthly (YYYYMM) */
-const DAILY_PERIOD_TYPES = new Set<DocumentType>([DocumentType.POS]);
+const DAILY_PERIOD_TYPES = new Set<DocumentType>([DocumentType.POS, DocumentType.SHF]);
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 50;

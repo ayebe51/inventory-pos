@@ -107,6 +107,7 @@ export interface ShiftReport {
 export interface OpenShiftDTO {
   cashier_id: UUID;
   branch_id: UUID;
+  warehouse_id: UUID;
   opening_balance: number;
 }
 
@@ -120,12 +121,14 @@ export interface POSLineItemDTO {
   uom_id: UUID;
   unit_price: number;
   discount_pct?: number;
+  version: number;
 }
 
 export interface PaymentMethodDTO {
   method: 'CASH' | 'CARD' | 'TRANSFER' | 'EDC';
   amount: number;
   reference?: string;
+  version: number;
 }
 
 export interface CreateSODTO {
@@ -169,10 +172,10 @@ export interface POSService {
   openShift(data: OpenShiftDTO): Promise<Shift>;
   createTransaction(shiftId: UUID, data: POSTransactionDTO): Promise<POSTransaction>;
   addItem(transactionId: UUID, item: POSLineItemDTO): Promise<POSTransaction>;
-  holdTransaction(transactionId: UUID): Promise<void>;
-  resumeTransaction(transactionId: UUID): Promise<POSTransaction>;
+  holdTransaction(transactionId: UUID, version: number): Promise<void>;
+  resumeTransaction(transactionId: UUID, version: number): Promise<POSTransaction>;
   applyPayment(transactionId: UUID, payments: PaymentMethodDTO[]): Promise<Receipt>;
-  voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string): Promise<void>;
+  voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version: number): Promise<void>;
   closeShift(shiftId: UUID, closingBalance: number): Promise<ShiftReport>;
 }
 

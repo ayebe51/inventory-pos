@@ -73,6 +73,29 @@ export class PurchaseOrderController {
   }
 
   /**
+   * Search Purchase Orders.
+   * GET /api/v1/purchase-orders
+   */
+  @Get()
+  @RequirePermissions('PURCHASE.READ')
+  async search(@Request() req: any) {
+    const query = req.query;
+    const filters = {
+      status: query.status,
+      supplier_id: query.supplier_id,
+      page: query.page ? parseInt(query.page) : 1,
+      per_page: query.per_page ? parseInt(query.per_page) : 20,
+    };
+    const result = await this.poService.search(filters);
+    return {
+      success: true,
+      data: result.data,
+      meta: result.meta,
+      message: 'OK',
+    };
+  }
+
+  /**
    * Submit PO for approval (DRAFT → PENDING_APPROVAL).
    * PUT /api/v1/purchase-orders/:id/submit
    */

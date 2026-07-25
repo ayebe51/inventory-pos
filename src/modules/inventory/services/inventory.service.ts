@@ -13,12 +13,16 @@ import {
   StockAdjustment,
 } from '../interfaces/inventory.interfaces';
 import { UUID } from '../../../common/types/uuid.type';
+import { DocumentType, NumberingService } from '../../../services/numbering/numbering.service';
 
 @Injectable()
 export class InventoryService implements IInventoryService {
   private readonly logger = new Logger(InventoryService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly numberingService: NumberingService,
+  ) {}
 
   /**
    * Record inventory movement with append-only insert to inventory_ledger
@@ -191,8 +195,155 @@ export class InventoryService implements IInventoryService {
    * @returns Created stock transfer
    */
   async transferStock(data: StockTransferDTO): Promise<StockTransfer> {
-    // TODO: Implement in task 10.5
-    throw new Error('Not implemented yet');
+    this.logger.log(
+      `Transferring stock from ${data.from_warehouse_id} to ${data.to_warehouse_id}`,
+    );
+
+    if (data.from_warehouse_id === data.to_warehouse_id) {
+      throw new BusinessRuleException(
+        'Source and destination warehouse cannot be the same',
+        ErrorCode.VALIDATION_ERROR,
+      );
+    }
+
+    let lastError: any;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const transferNumber = await this.numberingService.generate(DocumentType.TO, data.transfer_date);
+
+        return await this.prisma.$transaction(async (tx) => {
+          const sourceWarehouse = await tx.warehouse.findUnique({
+            where: { id: data.from_warehouse_id },
+          });
+          const destWarehouse = await tx.warehouse.findUnique({
+            where: { id: data.to_warehouse_id },
+          });
+
+          if (sourceWarehouse?.is_locked) {
+            throw new BusinessRuleException(`Source warehouse locked`, ErrorCode.BUSINESS_RULE_VIOLATION);
+          }
+          if (destWarehouse?.is_locked) {
+            throw new BusinessRuleException(`Destination warehouse locked`, ErrorCode.BUSINESS_RULE_VIOLATION);
+          }
+
+          const productIds = Array.from(new Set(data.lines.map((l) => l.product_id)));
+          productIds.sort();
+          for (const productId of productIds) {
+            await tx.$queryRawUnsafe(`SELECT id FROM products WHERE id = $1::uuid FOR UPDATE NOWAIT`, productId);
+          }
+
+          const transfer = await tx.stockTransfer.create({
+            data: {
+              transfer_number: transferNumber,
+              from_warehouse_id: data.from_warehouse_id,
+              to_warehouse_id: data.to_warehouse_id,
+              status: 'COMPLETED',
+              transfer_date: data.transfer_date,
+              created_by: data.created_by,
+              lines: {
+                create: data.lines.map((l) => ({
+                  product_id: l.product_id,
+                  qty: l.qty,
+                  uom_id: l.uom_id,
+                  unit_cost: l.unit_cost,
+                })),
+              },
+            },
+            include: { lines: true },
+          });
+
+          for (const line of data.lines) {
+            const aggSource = await tx.inventoryLedger.aggregate({
+              where: { product_id: line.product_id, warehouse_id: data.from_warehouse_id },
+              _sum: { qty_in: true, qty_out: true },
+            });
+            const srcQty = (Number(aggSource._sum.qty_in) || 0) - (Number(aggSource._sum.qty_out) || 0);
+
+            if (srcQty < line.qty) {
+              throw new BusinessRuleException(`Insufficient stock for product ${line.product_id}`, ErrorCode.INSUFFICIENT_STOCK);
+            }
+
+            const latestSrc = await tx.inventoryLedger.findFirst({
+              where: { product_id: line.product_id, warehouse_id: data.from_warehouse_id },
+              orderBy: { created_at: 'desc' },
+            });
+            const srcRunningCost = Number(latestSrc?.running_cost) || 0;
+            const srcRunningQty = Number(latestSrc?.running_qty) || 0;
+            const srcUnitCost = srcRunningQty > 0 ? srcRunningCost / srcRunningQty : 0;
+            
+            const srcNewQty = srcQty - line.qty;
+            const srcNewCost = srcRunningCost - line.qty * srcUnitCost;
+
+            const aggDest = await tx.inventoryLedger.aggregate({
+              where: { product_id: line.product_id, warehouse_id: data.to_warehouse_id },
+              _sum: { qty_in: true, qty_out: true },
+            });
+            const destQty = (Number(aggDest._sum.qty_in) || 0) - (Number(aggDest._sum.qty_out) || 0);
+
+            const latestDest = await tx.inventoryLedger.findFirst({
+              where: { product_id: line.product_id, warehouse_id: data.to_warehouse_id },
+              orderBy: { created_at: 'desc' },
+            });
+            const destRunningCost = Number(latestDest?.running_cost) || 0;
+            const destNewQty = destQty + line.qty;
+            const destNewCost = destRunningCost + line.qty * srcUnitCost;
+
+            if (srcNewQty + destNewQty !== srcQty + destQty) {
+              throw new Error("Invariant violated: Total stock changed!");
+            }
+
+            await tx.inventoryLedger.create({
+              data: {
+                product_id: line.product_id,
+                warehouse_id: data.from_warehouse_id,
+                transaction_type: 'TRANSFER_OUT',
+                reference_type: 'TO',
+                reference_id: transfer.id,
+                reference_number: transfer.transfer_number,
+                movement_date: data.transfer_date,
+                qty_in: 0,
+                qty_out: line.qty,
+                unit_cost: srcUnitCost,
+                total_cost: line.qty * srcUnitCost,
+                running_qty: srcNewQty,
+                running_cost: Math.max(0, srcNewCost),
+                created_by: data.created_by,
+              },
+            });
+
+            await tx.inventoryLedger.create({
+              data: {
+                product_id: line.product_id,
+                warehouse_id: data.to_warehouse_id,
+                transaction_type: 'TRANSFER_IN',
+                reference_type: 'TO',
+                reference_id: transfer.id,
+                reference_number: transfer.transfer_number,
+                movement_date: data.transfer_date,
+                qty_in: line.qty,
+                qty_out: 0,
+                unit_cost: srcUnitCost,
+                total_cost: line.qty * srcUnitCost,
+                running_qty: destNewQty,
+                running_cost: Math.max(0, destNewCost),
+                created_by: data.created_by,
+              },
+            });
+          }
+
+          return transfer as any;
+        });
+      } catch (err: any) {
+        lastError = err;
+        if (err.message && (err.message.includes('could not obtain lock') || err.message.includes('NOWAIT') || err.message.includes('deadlock'))) {
+          const delay = 50 * Math.pow(2, attempt - 1);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   /**
@@ -206,8 +357,116 @@ export class InventoryService implements IInventoryService {
     data: StockAdjustmentDTO,
     userId: UUID,
   ): Promise<StockAdjustment> {
-    // TODO: Implement in task 10.6
-    throw new Error('Not implemented yet');
+    if (!data.reason) {
+      throw new BusinessRuleException('Adjustment reason is required', ErrorCode.VALIDATION_ERROR);
+    }
+
+    let lastError: any;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const adjustmentNumber = await this.numberingService.generate(DocumentType.SA, data.adjustment_date);
+
+        return await this.prisma.$transaction(async (tx) => {
+          const warehouse = await tx.warehouse.findUnique({
+            where: { id: data.warehouse_id },
+          });
+
+          if (warehouse?.is_locked) {
+            throw new BusinessRuleException(`Warehouse locked`, ErrorCode.BUSINESS_RULE_VIOLATION);
+          }
+
+          const productIds = Array.from(new Set(data.lines.map((l) => l.product_id)));
+          productIds.sort();
+          for (const productId of productIds) {
+            await tx.$queryRawUnsafe(`SELECT id FROM products WHERE id = $1::uuid FOR UPDATE NOWAIT`, productId);
+          }
+
+          const adjustment = await tx.stockAdjustment.create({
+            data: {
+              adjustment_number: adjustmentNumber,
+              warehouse_id: data.warehouse_id,
+              adjustment_date: data.adjustment_date,
+              reason: data.reason,
+              status: 'POSTED',
+              created_by: userId,
+              lines: {
+                create: data.lines.map((l) => ({
+                  product_id: l.product_id,
+                  uom_id: l.uom_id,
+                  qty_system: l.qty_system,
+                  qty_actual: l.qty_actual,
+                  qty_difference: l.qty_actual - l.qty_system,
+                  unit_cost: l.unit_cost,
+                })),
+              },
+            },
+            include: { lines: true },
+          });
+
+          for (const line of data.lines) {
+            const diff = line.qty_actual - line.qty_system;
+            if (diff === 0) continue;
+
+            const isPositive = diff > 0;
+            const qtyIn = isPositive ? diff : 0;
+            const qtyOut = isPositive ? 0 : Math.abs(diff);
+
+            const agg = await tx.inventoryLedger.aggregate({
+              where: { product_id: line.product_id, warehouse_id: data.warehouse_id },
+              _sum: { qty_in: true, qty_out: true },
+            });
+            const currentQty = (Number(agg._sum.qty_in) || 0) - (Number(agg._sum.qty_out) || 0);
+
+            if (!isPositive && currentQty < Math.abs(diff)) {
+              throw new BusinessRuleException(`Insufficient stock for product ${line.product_id}`, ErrorCode.INSUFFICIENT_STOCK);
+            }
+
+            const latest = await tx.inventoryLedger.findFirst({
+              where: { product_id: line.product_id, warehouse_id: data.warehouse_id },
+              orderBy: { created_at: 'desc' },
+            });
+            const runningCost = Number(latest?.running_cost) || 0;
+            const runningQty = Number(latest?.running_qty) || 0;
+            
+            const currentUnitCost = runningQty > 0 ? runningCost / runningQty : 0;
+            const unitCost = isPositive ? line.unit_cost : currentUnitCost;
+            
+            const newQty = currentQty + diff;
+            const newCost = isPositive ? runningCost + (diff * unitCost) : runningCost - (Math.abs(diff) * currentUnitCost);
+
+            await tx.inventoryLedger.create({
+              data: {
+                product_id: line.product_id,
+                warehouse_id: data.warehouse_id,
+                transaction_type: 'ADJUSTMENT',
+                reference_type: 'SA',
+                reference_id: adjustment.id,
+                reference_number: adjustment.adjustment_number,
+                movement_date: data.adjustment_date,
+                qty_in: qtyIn,
+                qty_out: qtyOut,
+                unit_cost: unitCost,
+                total_cost: Math.abs(diff) * unitCost,
+                running_qty: newQty,
+                running_cost: Math.max(0, newCost),
+                created_by: userId,
+              },
+            });
+          }
+
+          return adjustment as any;
+        });
+      } catch (err: any) {
+        lastError = err;
+        if (err.message && (err.message.includes('could not obtain lock') || err.message.includes('NOWAIT') || err.message.includes('deadlock'))) {
+          const delay = 50 * Math.pow(2, attempt - 1);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
   }
 
   /**
@@ -217,8 +476,14 @@ export class InventoryService implements IInventoryService {
    * @param reason Reason for locking
    */
   async lockWarehouse(warehouseId: UUID, reason: string): Promise<void> {
-    // TODO: Implement in task 10.7
-    throw new Error('Not implemented yet');
+    await this.prisma.warehouse.update({
+      where: { id: warehouseId },
+      data: {
+        is_locked: true,
+        lock_reason: reason,
+        locked_at: new Date(),
+      }
+    });
   }
 
   /**

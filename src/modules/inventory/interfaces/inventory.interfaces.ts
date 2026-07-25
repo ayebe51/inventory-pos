@@ -115,6 +115,7 @@ export interface StockTransferDTO {
 
 export interface StockTransferLineDTO {
   product_id: UUID;
+  uom_id: UUID;
   qty: number;
   unit_cost: number;
 }
@@ -128,6 +129,7 @@ export interface StockAdjustmentDTO {
 
 export interface StockAdjustmentLineDTO {
   product_id: UUID;
+  uom_id: UUID;
   qty_system: number;
   qty_actual: number;
   unit_cost: number;

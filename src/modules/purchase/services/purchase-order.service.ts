@@ -884,4 +884,34 @@ export class PurchaseOrderService {
       );
     }
   }
+
+  async search(filters: {
+    status?: string;
+    supplier_id?: string;
+    page?: number;
+    per_page?: number;
+  }) {
+    const page = filters.page || 1;
+    const per_page = filters.per_page || 20;
+    const skip = (page - 1) * per_page;
+
+    const where: any = { deleted_at: null };
+    if (filters.status) where.status = filters.status;
+    if (filters.supplier_id) where.supplier_id = filters.supplier_id;
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.purchaseOrder.findMany({
+        where,
+        skip,
+        take: per_page,
+        orderBy: { created_at: 'desc' },
+      }),
+      this.prisma.purchaseOrder.count({ where }),
+    ]);
+
+    return {
+      data: data.map(mapPurchaseOrder),
+      meta: { total, page, per_page },
+    };
+  }
 }
