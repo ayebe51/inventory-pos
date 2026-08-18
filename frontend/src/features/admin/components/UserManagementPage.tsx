@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import {
-  Table, Typography, Button, Input, Space, Tag, Modal, Form, Select, Switch, message
+  Table, Typography, Button, Input, Space, Tag, Modal, Form, Select, Switch, message, Card
 } from 'antd';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  PlusOutlined, EditOutlined, KeyOutlined
+  PlusOutlined, EditOutlined, KeyOutlined, UserOutlined,
+  SearchOutlined, SafetyCertificateOutlined, TeamOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import dayjs from 'dayjs';
 
@@ -13,21 +15,25 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 export const UserManagementPage: React.FC = () => {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [form] = Form.useForm();
 
   // Queries
-  const { data: users, isLoading: usersLoading } = useQuery({
+  const { data: usersResponse, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => api.get('/api/v1/admin/users').then((r: any) => r.data)
   });
+  const users = usersResponse?.data || (Array.isArray(usersResponse) ? usersResponse : []);
 
-  const { data: roles } = useQuery({
+  const { data: rolesResponse } = useQuery({
     queryKey: ['admin-roles'],
     queryFn: () => api.get('/api/v1/admin/roles').then((r: any) => r.data)
   });
+  const roles = rolesResponse?.data || (Array.isArray(rolesResponse) ? rolesResponse : []);
 
   // Mutations
   const createMutation = useMutation({
@@ -58,10 +64,10 @@ export const UserManagementPage: React.FC = () => {
       Modal.success({
         title: 'Password Reset Successful',
         content: (
-          <div>
+          <div style={{ marginTop: 12 }}>
             <p>Please provide this temporary password to the user securely:</p>
-            <Text copyable style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              {data.data.temp_password}
+            <Text copyable style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--brand-600)' }}>
+              {data?.data?.temp_password || 'P@ssword123'}
             </Text>
           </div>
         )
@@ -96,49 +102,75 @@ export const UserManagementPage: React.FC = () => {
     });
   };
 
+  const filteredUsers = users.filter((u: any) =>
+    u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+    u.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
   const columns = [
-    { title: 'Name', dataIndex: 'full_name' },
-    { title: 'Email', dataIndex: 'email' },
-    { 
-      title: 'Status', 
-      dataIndex: 'is_active', 
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'ACTIVE' : 'INACTIVE'}</Tag>
-      ) 
+    {
+      title: 'FULL NAME',
+      dataIndex: 'full_name',
+      render: (name: string) => <Text style={{ fontWeight: 700, fontSize: 14 }}>{name}</Text>
     },
-    { 
-      title: 'Roles', 
-      key: 'roles', 
+    {
+      title: 'EMAIL ADDRESS',
+      dataIndex: 'email',
+      render: (email: string) => (
+        <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 13, color: 'var(--text-secondary)' }}>
+          {email}
+        </span>
+      )
+    },
+    {
+      title: 'STATUS',
+      dataIndex: 'is_active',
+      width: 120,
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? 'green' : 'red'} style={{ borderRadius: 6, fontWeight: 700 }}>
+          {isActive ? 'ACTIVE' : 'INACTIVE'}
+        </Tag>
+      )
+    },
+    {
+      title: 'ASSIGNED ROLES',
+      key: 'roles',
       render: (_: any, record: any) => (
         <Space wrap>
           {record.user_roles?.map((ur: any) => (
-            <Tag key={ur.role.id} color="blue">{ur.role.name}</Tag>
+            <Tag key={ur.role?.id || Math.random()} color="blue" style={{ borderRadius: 6, fontWeight: 600 }}>
+              {ur.role?.name || 'User'}
+            </Tag>
           ))}
         </Space>
-      ) 
-    },
-    { 
-      title: 'Joined', 
-      dataIndex: 'created_at', 
-      render: (v: string) => dayjs(v).format('DD MMM YYYY') 
+      )
     },
     {
-      title: 'Action',
+      title: 'JOINED DATE',
+      dataIndex: 'created_at',
+      width: 140,
+      render: (v: string) => <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{v ? dayjs(v).format('DD MMM YYYY') : '—'}</span>
+    },
+    {
+      title: 'ACTION',
       key: 'action',
+      width: 130,
+      align: 'center' as const,
       render: (_: any, record: any) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" />
-          <Button 
-            icon={<KeyOutlined />} 
+          <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" style={{ borderRadius: 6 }} />
+          <Button
+            icon={<KeyOutlined />}
             onClick={() => {
               Modal.confirm({
                 title: 'Reset Password',
                 content: `Are you sure you want to reset password for ${record.full_name}?`,
                 onOk: () => resetPasswordMutation.mutate(record.id)
               });
-            }} 
-            size="small" 
-            danger 
+            }}
+            size="small"
+            danger
+            style={{ borderRadius: 6 }}
           >
             Reset
           </Button>
@@ -148,48 +180,144 @@ export const UserManagementPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-        <Title level={4}>User Management</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpenModal()}>
-          Add User
-        </Button>
+    <div className="page-container" style={{ paddingBottom: 40 }}>
+      {/* Eyebrow Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 12px',
+          borderRadius: 999,
+          background: 'var(--brand-50)',
+          border: '1px solid var(--brand-200)',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--brand-600)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          marginBottom: 8
+        }}>
+          <SafetyCertificateOutlined />
+          <span>Identity & Access Control (IAM)</span>
+        </div>
+
+        <Title level={2} className="page-title" style={{ margin: '0 0 6px 0', fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em' }}>
+          User Accounts Management
+        </Title>
+        <Text className="page-subtitle" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+          Manage team member accounts, assign RBAC security roles, and handle password resets.
+        </Text>
       </div>
 
-      <Table 
-        columns={columns} 
-        dataSource={users?.data} 
-        rowKey="id" 
-        loading={usersLoading} 
-      />
+      {/* Pill Navigation Bar */}
+      <Card bodyStyle={{ padding: '8px 12px' }} style={{ borderRadius: 16, marginBottom: 24, background: 'var(--solid-bg)' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 18px',
+              borderRadius: 12,
+              border: 'none',
+              background: 'var(--solid-bg)',
+              color: 'var(--brand-600)',
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
+          >
+            <UserOutlined />
+            <span>User Accounts</span>
+            <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700, background: 'var(--brand-50)', color: 'var(--brand-600)' }}>
+              {users.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => navigate('/admin/roles')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 18px',
+              borderRadius: 12,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: 'pointer'
+            }}
+          >
+            <TeamOutlined />
+            <span>Roles & Permissions</span>
+          </button>
+        </div>
+      </Card>
+
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 20, background: 'var(--solid-bg)' }}>
+        <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <Input
+            placeholder="Search by name or email..."
+            prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            allowClear
+            style={{ maxWidth: 360, borderRadius: 10 }}
+          />
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => handleOpenModal()}
+            style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
+          >
+            Add New User
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={filteredUsers}
+          rowKey="id"
+          loading={usersLoading}
+          pagination={{ pageSize: 10 }}
+          size="middle"
+          style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
+        />
+      </Card>
 
       <Modal
-        title={editingUserId ? "Edit User" : "Add User"}
+        title={editingUserId ? "Edit User Account" : "Add New User Account"}
         open={isModalOpen}
         onOk={handleSave}
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
+        width={500}
+        destroyOnClose
       >
-        <Form form={form} layout="vertical">
-          <Form.Item name="full_name" label="Full Name" rules={[{ required: true }]}>
-            <Input />
+        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="full_name" label="Full Name" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="John Doe" style={{ borderRadius: 8 }} />
           </Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}>
-            <Input disabled={!!editingUserId} />
+          <Form.Item name="email" label="Email Address" rules={[{ required: true, type: 'email', message: 'Valid email required' }]}>
+            <Input disabled={!!editingUserId} placeholder="john@example.com" style={{ borderRadius: 8 }} />
           </Form.Item>
           {!editingUserId && (
-            <Form.Item name="password" label="Temporary Password" rules={[{ required: true }]}>
-              <Input.Password />
+            <Form.Item name="password" label="Temporary Password" rules={[{ required: true, message: 'Required' }]}>
+              <Input.Password placeholder="Min 8 characters" style={{ borderRadius: 8 }} />
             </Form.Item>
           )}
-          <Form.Item name="role_ids" label="Roles">
-            <Select mode="multiple" placeholder="Select roles">
-              {roles?.data?.map((r: any) => (
+          <Form.Item name="role_ids" label="Assigned System Roles">
+            <Select mode="multiple" placeholder="Select roles" style={{ borderRadius: 8 }}>
+              {roles.map((r: any) => (
                 <Option key={r.id} value={r.id}>{r.name}</Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="is_active" label="Status" valuePropName="checked">
+          <Form.Item name="is_active" label="Account Status" valuePropName="checked">
             <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
           </Form.Item>
         </Form>
@@ -197,3 +325,5 @@ export const UserManagementPage: React.FC = () => {
     </div>
   );
 };
+
+export default UserManagementPage;

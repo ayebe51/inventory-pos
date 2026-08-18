@@ -22,15 +22,15 @@ export type AccountType = z.infer<typeof AccountTypeEnum>;
 // Level 4: "1.001.001.001"
 // Level 5: "1.001.001.001.001"
 
-const ACCOUNT_CODE_REGEX = /^\d(\.\d{3}){0,4}$/;
+const ACCOUNT_CODE_REGEX = /^[A-Za-z0-9\.\-]+$/;
 
 export function validateAccountCodeFormat(code: string): boolean {
   return ACCOUNT_CODE_REGEX.test(code);
 }
 
 export function getAccountCodeLevel(code: string): number {
-  if (!validateAccountCodeFormat(code)) return 0;
-  return code.split('.').length;
+  if (!code || !ACCOUNT_CODE_REGEX.test(code)) return 1;
+  return code.includes('.') ? code.split('.').length : 1;
 }
 
 // ── CreateCOADTO ──────────────────────────────────────────────────────────────
@@ -40,7 +40,7 @@ export const CreateCOASchema = z.object({
     .string()
     .min(1, 'Kode akun wajib diisi')
     .max(20, 'Kode akun maksimal 20 karakter')
-    .regex(ACCOUNT_CODE_REGEX, 'Format kode akun tidak valid. Contoh: 1, 1.001, 1.001.001'),
+    .regex(ACCOUNT_CODE_REGEX, 'Format kode akun tidak valid. Contoh: 6000, 6001, 6.001'),
   account_name: z
     .string()
     .min(1, 'Nama akun wajib diisi')

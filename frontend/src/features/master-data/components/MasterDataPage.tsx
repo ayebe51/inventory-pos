@@ -1025,7 +1025,9 @@ const CoaManager: React.FC = () => {
       form.resetFields();
     },
     onError: (err: any) => {
-      message.error(err.response?.data?.message || 'Failed to create COA account');
+      const msg = err.response?.data?.message;
+      const detail = Array.isArray(msg) ? msg.join(', ') : (msg || 'Failed to create COA account');
+      message.error(detail);
     }
   });
 
