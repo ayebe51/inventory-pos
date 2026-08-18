@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../config/prisma.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
+import { PeriodManagerService } from '../../../services/period-manager/period-manager.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
@@ -25,6 +27,8 @@ export class POSService implements IPOSService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberingService: NumberingService,
+    private readonly journalEngine: JournalEngineService,
+    private readonly periodManager: PeriodManagerService,
   ) {}
 
   async openShift(data: OpenShiftDTO): Promise<Shift> {
@@ -270,6 +274,47 @@ export class POSService implements IPOSService {
         }
       });
 
+      // Post Auto-Journal Entries for POS Sale and POS Sale COGS
+      const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+      if (period) {
+        // 1. POS_SALE (Debit Cash/Bank, Credit Revenue & Tax)
+        await this.journalEngine.processEvent(
+          {
+            event_type: 'POS_SALE',
+            reference_type: 'POS_TRANSACTION',
+            reference_id: transactionId,
+            reference_number: updatedTx.transaction_number,
+            entry_date: new Date(),
+            period_id: period.id,
+            amount: Number(updatedTx.total_amount),
+            created_by: transaction.cashier_id,
+          },
+          tx,
+        );
+
+        // 2. POS_SALE_COGS (Debit COGS Expense, Credit Inventory Asset)
+        const ledgerEntries = await tx.inventoryLedger.findMany({
+          where: { reference_type: 'POS_TRANSACTION', reference_id: transactionId },
+        });
+        const totalCogs = ledgerEntries.reduce((sum, entry) => sum + Number(entry.total_cost), 0);
+
+        if (totalCogs > 0) {
+          await this.journalEngine.processEvent(
+            {
+              event_type: 'POS_SALE_COGS',
+              reference_type: 'POS_TRANSACTION',
+              reference_id: transactionId,
+              reference_number: updatedTx.transaction_number,
+              entry_date: new Date(),
+              period_id: period.id,
+              amount: totalCogs,
+              created_by: transaction.cashier_id,
+            },
+            tx,
+          );
+        }
+      }
+
       return {
         transaction_id: updatedTx.id,
         transaction_number: updatedTx.transaction_number,
@@ -481,8 +526,11 @@ export class POSService implements IPOSService {
     });
   }
 
-  async listShifts(query: { status?: string; page: number; per_page: number }): Promise<{ data: Shift[]; meta: { total: number; page: number; per_page: number } }> {
-    const where = query.status ? { status: query.status } : {};
+  async listShifts(query: { status?: string; branch_id?: string | null; page: number; per_page: number }): Promise<{ data: Shift[]; meta: { total: number; page: number; per_page: number } }> {
+    const where: any = {};
+    if (query.branch_id) where.branch_id = query.branch_id;
+    if (query.status) where.status = query.status;
+
     const total = await this.prisma.shift.count({ where });
     const data = await this.prisma.shift.findMany({
       where,
@@ -493,16 +541,20 @@ export class POSService implements IPOSService {
     return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
   }
 
-  async getShift(id: UUID): Promise<Shift> {
+  async getShift(id: UUID, user?: { branch_id?: string | null }): Promise<Shift> {
     const shift = await this.prisma.shift.findUnique({ where: { id } });
     if (!shift) throw new BusinessRuleException('Shift not found', ErrorCode.NOT_FOUND);
+    if (user && user.branch_id && shift.branch_id !== user.branch_id) {
+      throw new ForbiddenException('Access denied: Shift belongs to another branch');
+    }
     return shift as any;
   }
 
-  async listTransactions(query: { shift_id?: UUID; status?: string; page: number; per_page: number }): Promise<{ data: POSTransaction[]; meta: { total: number; page: number; per_page: number } }> {
+  async listTransactions(query: { shift_id?: UUID; status?: string; branch_id?: string | null; page: number; per_page: number }): Promise<{ data: POSTransaction[]; meta: { total: number; page: number; per_page: number } }> {
     const where: any = {};
     if (query.shift_id) where.shift_id = query.shift_id;
     if (query.status) where.status = query.status;
+    if (query.branch_id) where.shift = { branch_id: query.branch_id };
 
     const total = await this.prisma.posTransaction.count({ where });
     const data = await this.prisma.posTransaction.findMany({
@@ -515,20 +567,40 @@ export class POSService implements IPOSService {
     return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
   }
 
+  async listSalesReturns(query: { branch_id?: string | null; page: number; per_page: number }): Promise<{ data: any[]; meta: { total: number; page: number; per_page: number } }> {
+    const where: any = {};
+    if (query.branch_id) where.branch_id = query.branch_id;
+
+    const total = await this.prisma.salesReturn.count({ where });
+    const data = await this.prisma.salesReturn.findMany({
+      where,
+      skip: (query.page - 1) * query.per_page,
+      take: Number(query.per_page),
+      orderBy: { created_at: 'desc' },
+      include: { lines: true }
+    });
+    return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
+  }
+
   async processFullTransaction(data: { shift_id: UUID; cashier_id: UUID; customer_id?: UUID; items: any[]; payments: any[] }): Promise<Receipt> {
     const transaction = await this.createTransaction(data.shift_id, { customer_id: data.customer_id });
     
     // Using a for loop to process sequentially to avoid optimistic lock failures if processed concurrently
     for (const item of data.items) {
-      // Refresh transaction version inside addItem loop, but wait, addItem doesn't return version we easily pass, 
-      // let's fetch current version before adding item
+      let itemUomId = item.uom_id;
+      if (!itemUomId || itemUomId === '00000000-0000-0000-0000-000000000000') {
+        const prod = await this.prisma.product.findUnique({ where: { id: item.product_id } });
+        if (!prod) throw new BusinessRuleException(`Product ${item.product_id} not found`, ErrorCode.NOT_FOUND);
+        itemUomId = prod.uom_id;
+      }
+
       const currentTx = await this.prisma.posTransaction.findUnique({ where: { id: transaction.id } });
       await this.addItem(transaction.id, {
         product_id: item.product_id,
         qty: item.quantity,
         unit_price: item.unit_price,
         discount_pct: item.discount_pct || 0,
-        uom_id: item.uom_id || '00000000-0000-0000-0000-000000000000', // Mock UOM if not provided
+        uom_id: itemUomId,
         version: currentTx!.version
       });
     }
@@ -536,17 +608,6 @@ export class POSService implements IPOSService {
     const currentTxForPayment = await this.prisma.posTransaction.findUnique({ where: { id: transaction.id } });
     const payments = data.payments.map(p => ({ ...p, version: currentTxForPayment!.version }));
     return await this.applyPayment(transaction.id, payments);
-  }
-
-  async listSalesReturns(query: { page: number; per_page: number }): Promise<{ data: SalesReturn[]; meta: { total: number; page: number; per_page: number } }> {
-    const total = await this.prisma.salesReturn.count();
-    const data = await this.prisma.salesReturn.findMany({
-      skip: (query.page - 1) * query.per_page,
-      take: Number(query.per_page),
-      orderBy: { created_at: 'desc' },
-      include: { lines: true, customer: true, warehouse: true }
-    });
-    return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
   }
 
   async createSalesReturn(userId: UUID, data: SalesReturnDTO): Promise<SalesReturn> {
@@ -595,7 +656,13 @@ export class POSService implements IPOSService {
 
         const prevQty = lastLedger ? Number(lastLedger.running_qty) : 0;
         const prevCost = lastLedger ? Number(lastLedger.running_cost) : 0;
-        const unitCost = lastLedger && prevQty > 0 ? prevCost / prevQty : Number(line.unit_price);
+        let unitCost = 0;
+        if (lastLedger && prevQty > 0) {
+          unitCost = prevCost / prevQty;
+        } else {
+          const product = await tx.product.findUnique({ where: { id: line.product_id } });
+          unitCost = Number(product?.standard_cost) || 0;
+        }
         
         const returnedQty = Number(line.qty);
         const addedCost = returnedQty * unitCost;
@@ -619,6 +686,24 @@ export class POSService implements IPOSService {
             created_by: userId
           }
         });
+      }
+
+      // Post Auto-Journal Entry for Sales Return
+      const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+      if (period && Number(salesReturn.total_amount) > 0) {
+        await this.journalEngine.processEvent(
+          {
+            event_type: 'SALES_RETURN',
+            reference_type: 'SALES_RETURN',
+            reference_id: salesReturn.id,
+            reference_number: salesReturn.return_number,
+            entry_date: data.return_date,
+            period_id: period.id,
+            amount: Number(salesReturn.total_amount),
+            created_by: userId,
+          },
+          tx,
+        );
       }
 
       return salesReturn as any;

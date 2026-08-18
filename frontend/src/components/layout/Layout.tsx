@@ -35,62 +35,25 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Operations',
     items: [
-      {
-        key: 'inventory-group',
-        icon: <Package size={16} />,
-        label: 'Inventory',
-        children: [
-          { key: '/inventory',           label: 'Products & Stock' },
-          { key: '/inventory/transfers', label: 'Stock Transfer' },
-          { key: '/inventory/opname',    label: 'Stock Opname' },
-        ],
-      },
-      {
-        key: 'purchase-group',
-        icon: <Truck size={16} />,
-        label: 'Procurement',
-        children: [
-          { key: '/purchase/requests', label: 'Purchase Requests' },
-          { key: '/purchase',          label: 'Purchase Orders' },
-          { key: '/purchase/receipts', label: 'Goods Receipts' },
-        ],
-      },
-      {
-        key: 'sales-group',
-        icon: <Archive size={16} />,
-        label: 'Sales',
-        children: [
-          { key: '/sales',         label: 'Sales Orders' },
-          { key: '/sales/returns', label: 'Sales Returns' },
-        ],
-      },
+      { key: '/inventory',     icon: <Package size={16} />, label: 'Inventory' },
+      { key: '/purchase',      icon: <Truck size={16} />,   label: 'Procurement' },
+      { key: '/sales',         icon: <Archive size={16} />, label: 'Sales Orders' },
     ],
   },
   {
     label: 'Finance',
     items: [
-      {
-        key: 'finance-group',
-        icon: <DollarSign size={16} />,
-        label: 'Finance',
-        children: [
-          { key: '/finance',               label: 'Journal Entries' },
-          { key: '/finance/periods',       label: 'Fiscal Periods' },
-          { key: '/finance/assets',        label: 'Fixed Assets' },
-          { key: '/invoicing',             label: 'Invoicing (AR/AP)' },
-          { key: '/payment',               label: 'Payments' },
-          { key: '/bank-reconciliation',   label: 'Bank Reconciliation' },
-        ],
-      },
-      { key: '/reporting',   icon: <BarChart2   size={16} />, label: 'Reporting' },
-      { key: '/approvals',   icon: <Shield      size={16} />, label: 'Approvals' },
-      { key: '/audit',       icon: <BookOpen    size={16} />, label: 'Audit Trail' },
+      { key: '/invoicing',     icon: <DollarSign size={16} />, label: 'Invoicing & Billing' },
+      { key: '/finance',       icon: <DollarSign size={16} />, label: 'Finance & Accounting' },
+      { key: '/reporting',     icon: <BarChart2   size={16} />, label: 'Reporting' },
+      { key: '/approvals',     icon: <Shield      size={16} />, label: 'Approvals' },
+      { key: '/audit',         icon: <BookOpen    size={16} />, label: 'Audit Trail' },
     ],
   },
   {
     label: 'Configuration',
     items: [
-      { key: '/master-data', icon: <Layers size={16} />,  label: 'Master Data' },
+      { key: '/master-data',   icon: <Layers size={16} />,  label: 'Master Data' },
       {
         key: 'admin-group',
         icon: <Users size={16} />,

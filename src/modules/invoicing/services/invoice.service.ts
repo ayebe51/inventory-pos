@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
@@ -114,12 +114,12 @@ export class InvoiceService implements IInvoiceService {
     });
 
     // Calculate invoice totals
-    const subtotal = linesWithTotals.reduce((sum, line) => sum + line.line_total, 0);
+    const subtotal = linesWithTotals.reduce((sum, line) => sum + line.qty * line.unit_price, 0);
     const taxAmount = linesWithTotals.reduce(
       (sum, line) => sum + (line.qty * line.unit_price * line.tax_pct) / 100,
       0,
     );
-    const totalAmount = subtotal;
+    const totalAmount = subtotal + taxAmount;
 
     // Generate invoice number
     const invoiceNumber = await this.numbering.generate(DocumentType.INV);
@@ -235,12 +235,12 @@ export class InvoiceService implements IInvoiceService {
     });
 
     // Calculate invoice totals
-    const subtotal = linesWithTotals.reduce((sum, line) => sum + line.line_total, 0);
+    const subtotal = linesWithTotals.reduce((sum, line) => sum + line.qty * line.unit_price, 0);
     const taxAmount = linesWithTotals.reduce(
       (sum, line) => sum + (line.qty * line.unit_price * line.tax_pct) / 100,
       0,
     );
-    const totalAmount = subtotal;
+    const totalAmount = subtotal + taxAmount;
 
     // BR-PUR-008: Validate invoice amount does not exceed PO amount + 5%
     if (data.po_id) {
@@ -649,15 +649,20 @@ export class InvoiceService implements IInvoiceService {
    * Find an invoice by ID.
    *
    * @param id - Invoice ID
+   * @param user - User context for branch isolation check
    * @returns Invoice or null if not found
    */
-  async findById(id: UUID): Promise<Invoice | null> {
+  async findById(id: UUID, user?: { branch_id?: string | null }): Promise<Invoice | null> {
     const invoice = await this.prisma.invoice.findUnique({
       where: { id },
     });
 
     if (!invoice || invoice.deleted_at !== null) {
       return null;
+    }
+
+    if (user && user.branch_id && invoice.branch_id !== user.branch_id) {
+      throw new ForbiddenException(`Access denied: Invoice belongs to another branch`);
     }
 
     return mapInvoice(invoice);
@@ -671,6 +676,7 @@ export class InvoiceService implements IInvoiceService {
     status?: string;
     customer_id?: string;
     supplier_id?: string;
+    branch_id?: string | null;
     page?: number;
     per_page?: number;
   }) {
@@ -680,6 +686,7 @@ export class InvoiceService implements IInvoiceService {
 
     const where: any = { deleted_at: null };
 
+    if (filters.branch_id) where.branch_id = filters.branch_id;
     if (filters.invoice_type) where.invoice_type = filters.invoice_type;
     if (filters.status) where.status = filters.status;
     if (filters.customer_id) where.customer_id = filters.customer_id;

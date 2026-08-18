@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Input, Space, Tag, Tabs, Typography,
-  Card, Tooltip, Badge,
+  Table, Button, Input, Space, Tag, Typography,
+  Card, Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -19,7 +19,7 @@ const { Title, Text } = Typography;
 const PO_STATUS_COLORS: Record<string, string> = {
   DRAFT: '#94A3B8',
   PENDING_APPROVAL: '#FBBF24',
-  APPROVED: '#8B5CF6',
+  APPROVED: 'var(--brand-600)',
   PARTIALLY_RECEIVED: '#F97316',
   FULLY_RECEIVED: '#34D399',
   CANCELLED: '#F43F5E',
@@ -43,7 +43,7 @@ export const PurchasePage: React.FC = () => {
       title: 'PO Number',
       dataIndex: 'po_number',
       width: 180,
-      render: (num) => <Text code style={{ color: '#A78BFA' }}>{num}</Text>,
+      render: (num) => <Text code style={{ color: 'var(--brand-600)' }}>{num}</Text>,
     },
     {
       title: 'Supplier',
@@ -117,60 +117,12 @@ export const PurchasePage: React.FC = () => {
                 type="text"
                 size="small"
                 icon={<FileDoneOutlined />}
-                style={{ color: '#8B5CF6' }}
+                style={{ color: 'var(--brand-600)' }}
                 onClick={() => { setSelectedPO(record); setGrDrawerOpen(true); }}
               />
             </Tooltip>
           )}
         </Space>
-      ),
-    },
-  ];
-
-  const tabs = [
-    {
-      key: 'orders',
-      label: 'Purchase Orders',
-      children: (
-        <>
-          <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
-            <Input
-              placeholder="Search PO number or supplier..."
-              prefix={<SearchOutlined style={{ }} />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              allowClear
-              style={{ maxWidth: 400 }}
-            />
-            <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ color: '#94A3B8' }}>Refresh</Button>
-          </div>
-          <Table
-            columns={columns}
-            dataSource={data?.data}
-            loading={isLoading}
-            rowKey="id"
-            scroll={{ x: 900 }}
-            pagination={{ pageSize: 15, showTotal: (t) => `${t} purchase orders` }}
-          />
-        </>
-      ),
-    },
-    {
-      key: 'receipts',
-      label: (
-        <span>
-          Goods Receipts
-          <Badge count={3} size="small" style={{ marginLeft: 8, background: '#8B5CF6' }} />
-        </span>
-      ),
-      children: (
-        <div style={{ padding: '24px 0', textAlign: 'center' }}>
-          Goods Receipts will be shown here.
-          <br />
-          <Text style={{ color: '#475569', fontSize: 12 }}>
-            Create a GR by clicking the receipt icon on an Approved PO.
-          </Text>
-        </div>
       ),
     },
   ];
@@ -181,23 +133,153 @@ export const PurchasePage: React.FC = () => {
   };
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <Title level={3} className="page-title" style={{ marginBottom: 4 }}>
-            Purchasing
-          </Title>
-          <Text className="page-subtitle">Manage purchase orders, approvals, and goods receipts</Text>
+    <div className="page-container" style={{ paddingBottom: 40 }}>
+      {/* Eyebrow Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 12px',
+          borderRadius: 999,
+          background: 'var(--brand-50)',
+          border: '1px solid var(--brand-200)',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--brand-600)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          marginBottom: 8
+        }}>
+          <span>Procurement & Vendor Management</span>
         </div>
-        {activeKey === 'orders' && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
-            Create PO
-          </Button>
-        )}
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <Title level={2} className="page-title" style={{ margin: '0 0 6px 0', fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em' }}>
+              Procurement & Purchase
+            </Title>
+            <Text className="page-subtitle" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              Manage vendor purchase orders, approval workflows, and receiving goods (GR).
+            </Text>
+          </div>
+
+          {activeKey === 'orders' && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
+            >
+              Create PO
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Card className="stat-card">
-        <Tabs items={tabs} activeKey={activeKey} onChange={handleTabChange} />
+      <Card
+        bodyStyle={{ padding: 24 }}
+        style={{
+          borderRadius: 20,
+          border: '1px solid var(--solid-border)',
+          boxShadow: 'var(--shadow-sm)',
+          background: 'var(--solid-bg)'
+        }}
+      >
+        {/* Custom Pill Navigation Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: 6,
+          background: 'var(--solid-bg-subtle)',
+          border: '1px solid var(--solid-border)',
+          borderRadius: 14,
+          marginBottom: 24,
+          overflowX: 'auto'
+        }}>
+          <button
+            onClick={() => handleTabChange('orders')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 10,
+              border: 'none',
+              background: activeKey === 'orders' ? 'var(--solid-bg)' : 'transparent',
+              color: activeKey === 'orders' ? 'var(--brand-600)' : 'var(--text-secondary)',
+              fontWeight: activeKey === 'orders' ? 700 : 600,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: activeKey === 'orders' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>Purchase Orders</span>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('receipts')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 10,
+              border: 'none',
+              background: activeKey === 'receipts' ? 'var(--solid-bg)' : 'transparent',
+              color: activeKey === 'receipts' ? 'var(--brand-600)' : 'var(--text-secondary)',
+              fontWeight: activeKey === 'receipts' ? 700 : 600,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: activeKey === 'receipts' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>Goods Receipts</span>
+          </button>
+        </div>
+
+        {activeKey === 'orders' ? (
+          <>
+            <div style={{ marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Input
+                placeholder="Search PO number or supplier..."
+                prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                allowClear
+                style={{ maxWidth: 360, borderRadius: 10 }}
+              />
+              <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ borderRadius: 8 }}>
+                Refresh
+              </Button>
+            </div>
+            <Table
+              columns={columns}
+              dataSource={data?.data}
+              loading={isLoading}
+              rowKey="id"
+              scroll={{ x: 900 }}
+              pagination={{ pageSize: 10, showTotal: (t) => `${t} total purchase orders` }}
+              size="middle"
+              style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
+            />
+          </>
+        ) : (
+          <div style={{ padding: '40px 0', textAlign: 'center' }}>
+            <Text style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500 }}>
+              Goods receipts generated from approved Purchase Orders will appear here.
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+              To record a new delivery, click the receipt icon on an Approved PO in the Purchase Orders tab.
+            </Text>
+          </div>
+        )}
       </Card>
 
       <PurchaseDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />

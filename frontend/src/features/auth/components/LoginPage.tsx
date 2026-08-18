@@ -1,29 +1,38 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
-import { Mail, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Form, Input, Button, Alert } from 'antd';
+import { Mail, Lock, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useLogin } from '../hooks/useAuth';
 
 export const LoginPage: React.FC = () => {
   const [form] = Form.useForm();
   const login = useLogin();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
     try {
+      login.reset();
       setIsLoading(true);
       const values = await form.validateFields();
-      if (values.email === 'admin@kiro.com') {
-        message.info('MFA required for this account');
-        navigate('/verify-mfa');
-        return;
-      }
       login.mutate({ email: values.email, password: values.password });
     } catch (_) {
+      // Form validation error
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleFillDemo = () => {
+    login.reset();
+    form.setFieldsValue({
+      email: 'admin@example.com',
+      password: 'Admin@123456',
+    });
+  };
+
+  const getErrorMessage = () => {
+    if (!login.error) return null;
+    const err = login.error as any;
+    return err.response?.data?.message || err.response?.data?.error?.message || 'Invalid email or password. Please try again.';
   };
 
   return (
@@ -37,105 +46,146 @@ export const LoginPage: React.FC = () => {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Atmospheric orbs — subtle depth only */}
+      {/* Dynamic Background Glow Mesh */}
       <div style={{
         position: 'absolute',
-        top: '-10%', left: '-5%',
-        width: '50%', height: '60%',
-        background: 'radial-gradient(ellipse, rgba(79,70,229,0.07) 0%, transparent 70%)',
+        top: '-15%',
+        left: '20%',
+        width: '500px',
+        height: '500px',
+        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(79, 70, 229, 0.03) 50%, transparent 70%)',
+        filter: 'blur(60px)',
         pointerEvents: 'none',
       }} />
       <div style={{
         position: 'absolute',
-        bottom: '-10%', right: '-5%',
-        width: '45%', height: '55%',
-        background: 'radial-gradient(ellipse, rgba(99,102,241,0.05) 0%, transparent 70%)',
+        bottom: '-15%',
+        right: '20%',
+        width: '450px',
+        height: '450px',
+        background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, rgba(99, 102, 241, 0.02) 50%, transparent 70%)',
+        filter: 'blur(60px)',
         pointerEvents: 'none',
       }} />
 
-      {/* Login Card — SOLID, not glass (it's a form = workspace) */}
+      {/* Login Card */}
       <div style={{
         width: '100%',
-        maxWidth: 400,
+        maxWidth: 420,
         background: 'var(--solid-bg)',
         border: '1px solid var(--solid-border)',
         borderRadius: 24,
-        boxShadow: 'var(--shadow-lg)',
+        boxShadow: 'var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.05)',
         padding: '40px 36px',
         position: 'relative',
         zIndex: 1,
       }}>
-
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-          <div style={{
-            width: 42, height: 42,
-            borderRadius: 12,
-            background: 'var(--brand-gradient)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, fontWeight: 800, color: '#fff',
-            boxShadow: '0 4px 12px var(--brand-glow)',
-            letterSpacing: '-0.03em',
-            flexShrink: 0,
-          }}>
-            K
+        {/* Brand Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              borderRadius: 14,
+              background: 'var(--brand-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 800,
+              color: '#ffffff',
+              boxShadow: '0 4px 14px var(--brand-glow)',
+              letterSpacing: '-0.03em',
+              flexShrink: 0,
+            }}>
+              K
+            </div>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                Kiro ERP
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--brand-500)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+                Enterprise OS
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Kiro ERP
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase', fontWeight: 500 }}>
-              Enterprise
-            </div>
+
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: 'var(--brand-50)',
+            border: '1px solid var(--brand-200)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: 'var(--brand-600)',
+          }}>
+            <ShieldCheck size={13} />
+            <span>Secure SSL</span>
           </div>
         </div>
 
-        {/* Heading */}
+        {/* Title */}
         <div style={{ marginBottom: 28 }}>
           <h1 style={{
-            fontSize: 22, fontWeight: 700,
+            fontSize: 24,
+            fontWeight: 800,
             color: 'var(--text-primary)',
-            letterSpacing: '-0.025em',
-            margin: 0, marginBottom: 5,
-            lineHeight: 1.25,
+            letterSpacing: '-0.03em',
+            margin: '0 0 6px 0',
+            lineHeight: 1.2,
           }}>
-            Sign in to your account
+            Sign in to Workspace
           </h1>
-          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: 0 }}>
-            Enter your credentials to access the workspace.
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>
+            Enter your credentials to access inventory, POS, & financial analytics.
           </p>
         </div>
+
+        {/* Error Feedback */}
+        {login.isError && (
+          <Alert
+            type="error"
+            showIcon
+            message={getErrorMessage()}
+            style={{ marginBottom: 20, borderRadius: 10 }}
+          />
+        )}
 
         {/* Form */}
         <Form form={form} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
           <Form.Item
             name="email"
-            label="Work email"
+            label="Work Email"
             rules={[
-              { required: true, message: 'Email is required' },
-              { type: 'email', message: 'Enter a valid email' },
+              { required: true, message: 'Please enter your email' },
+              { type: 'email', message: 'Enter a valid email address' },
             ]}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 18 }}
           >
             <Input
-              prefix={<Mail size={14} style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="you@company.com"
+              prefix={<Mail size={16} style={{ color: 'var(--text-tertiary)', marginRight: 6 }} />}
+              placeholder="admin@example.com"
               size="large"
               autoComplete="email"
+              style={{ borderRadius: 10 }}
             />
           </Form.Item>
 
           <Form.Item
             name="password"
             label="Password"
-            rules={[{ required: true, message: 'Password is required' }]}
-            style={{ marginBottom: 24 }}
+            rules={[{ required: true, message: 'Please enter your password' }]}
+            style={{ marginBottom: 26 }}
           >
             <Input.Password
-              prefix={<Lock size={14} style={{ color: 'var(--text-tertiary)' }} />}
-              placeholder="••••••••••"
+              prefix={<Lock size={16} style={{ color: 'var(--text-tertiary)', marginRight: 6 }} />}
+              placeholder="••••••••••••"
               size="large"
               autoComplete="current-password"
+              style={{ borderRadius: 10 }}
             />
           </Form.Item>
 
@@ -145,40 +195,63 @@ export const LoginPage: React.FC = () => {
             block
             size="large"
             loading={login.isPending || isLoading}
-            style={{ height: 44, fontSize: 14, fontWeight: 600, borderRadius: 10 }}
+            style={{
+              height: 46,
+              fontSize: 15,
+              fontWeight: 700,
+              borderRadius: 12,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
           >
-            Sign in
+            <span>Sign In</span>
+            <ArrowRight size={16} />
           </Button>
         </Form>
 
-        {/* Divider */}
+        {/* Demo Credentials Box with 1-Click Auto Fill */}
         <div style={{
-          margin: '24px 0 0',
-          padding: '18px 16px',
+          marginTop: 24,
+          padding: '16px 18px',
           background: 'var(--solid-bg-subtle)',
           border: '1px solid var(--solid-border)',
-          borderRadius: 10,
+          borderRadius: 14,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 8 }}>
-            Demo credentials
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+              Demo Account
+            </span>
+            <Button
+              type="link"
+              size="small"
+              onClick={handleFillDemo}
+              icon={<Sparkles size={13} />}
+              style={{ padding: 0, height: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--brand-500)' }}
+            >
+              Fill Credentials
+            </Button>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email</span>
-              <code style={{ fontSize: 11 }}>admin@example.com</code>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email:</span>
+              <code style={{ fontSize: 12, color: 'var(--brand-600)', background: 'var(--brand-50)', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>admin@example.com</code>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Password</span>
-              <code style={{ fontSize: 11 }}>Admin@123456</code>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Password:</span>
+              <code style={{ fontSize: 12, color: 'var(--brand-600)', background: 'var(--brand-50)', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>Admin@123456</code>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', margin: '20px 0 0' }}>
-          Kiro ERP &copy; {new Date().getFullYear()} — All rights reserved
+        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', margin: '24px 0 0' }}>
+          Kiro ERP &copy; {new Date().getFullYear()} — Enterprise Inventory, POS & Finance
         </p>
       </div>
     </div>
   );
 };
+
+export default LoginPage;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Empty, Typography, Button, theme as antTheme } from 'antd';
+import { Typography, Button, theme as antTheme } from 'antd';
 import { FileSearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { useThemeStore } from '../../store/themeStore';
 

@@ -34,10 +34,9 @@ echo "[3/4] Waiting for Database to be ready..."
 # Docker-compose will handle the healthcheck, but we pause a bit to let Prisma connect
 sleep 15
 
-echo "[4/4] Running Database Migrations and Seeding..."
-# Run prisma migrate and seed inside the backend container
+echo "[4/4] Running Database Migrations..."
+# Run prisma migrate deploy inside the backend container (safe non-destructive schema migration)
 docker-compose exec -T backend npx prisma migrate deploy
-docker-compose exec -T backend npm run prisma:seed
 
 echo "=================================================="
 echo " Deployment Complete!"

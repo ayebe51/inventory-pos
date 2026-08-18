@@ -87,16 +87,16 @@
   --text-disabled:  #BAC2CF;
   --text-on-dark:   rgba(255,255,255,0.95);
 
-  /* ── Brand — Deep Blue ────────────────────────────────── */
-  --brand-50:  #EEF2FF;
-  --brand-100: #E0E7FF;
-  --brand-200: #C7D2FE;
-  --brand-400: #818CF8;
-  --brand-500: #4F46E5;
-  --brand-600: #4338CA;
-  --brand-700: #3730A3;
-  --brand-gradient: linear-gradient(135deg, #6366F1 0%, #4338CA 100%);
-  --brand-glow:     rgba(79,70,229,0.20);
+  /* ── Brand — Charcoal Graphite & Slate (Apple Pro Monochrome) ── */
+  --brand-50:  #F1F5F9;
+  --brand-100: #E2E8F0;
+  --brand-200: #CBD5E1;
+  --brand-400: #64748B;
+  --brand-500: #0F172A;
+  --brand-600: #1E293B;
+  --brand-700: #334155;
+  --brand-gradient: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  --brand-glow:     rgba(15,23,42,0.15);
 
   /* ── Status ───────────────────────────────────────────── */
   --success:        #059669;
@@ -164,15 +164,15 @@
   --text-on-dark:   rgba(255,255,255,0.95);
 
   /* Brand */
-  --brand-50:  rgba(99,102,241,0.08);
-  --brand-100: rgba(99,102,241,0.14);
-  --brand-200: rgba(99,102,241,0.22);
-  --brand-400: #818CF8;
-  --brand-500: #6366F1;
-  --brand-600: #4F46E5;
-  --brand-700: #4338CA;
-  --brand-gradient: linear-gradient(135deg, #6366F1 0%, #4338CA 100%);
-  --brand-glow: rgba(99,102,241,0.25);
+  --brand-50:  rgba(241,245,249,0.08);
+  --brand-100: rgba(226,232,240,0.12);
+  --brand-200: rgba(203,213,225,0.18);
+  --brand-400: #94A3B8;
+  --brand-500: #F8FAFC;
+  --brand-600: #E2E8F0;
+  --brand-700: #CBD5E1;
+  --brand-gradient: linear-gradient(135deg, #334155 0%, #1E293B 100%);
+  --brand-glow: rgba(255,255,255,0.12);
 
   /* Status */
   --success:        #10B981;
@@ -529,6 +529,14 @@ input:-webkit-autofill:focus {
   font-size: var(--fs-base) !important;
   transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease !important;
 }
+.ant-input-affix-wrapper .ant-input,
+.ant-input-affix-wrapper input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
 .ant-input:hover,
 .ant-input-affix-wrapper:hover,
 .ant-select-selector:hover,
@@ -657,13 +665,13 @@ input:-webkit-autofill:focus {
   border-top: 1px solid var(--glass-border) !important;
   padding: var(--sp-4) var(--sp-6) !important;
 }
-.ant-modal-mask { background: rgba(0,0,0,0.45) !important; backdrop-filter: blur(4px); }
+.ant-modal-mask { background: rgba(0,0,0,0.45) !important; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
 /* Drawers — glass */
 .ant-drawer-content {
   background: var(--glass-bg-raised) !important;
-  backdrop-filter: var(--blur-lg) !important;
   -webkit-backdrop-filter: var(--blur-lg) !important;
+  backdrop-filter: var(--blur-lg) !important;
   border-left: 1px solid var(--glass-border-strong) !important;
 }
 .ant-drawer-header {
@@ -674,7 +682,7 @@ input:-webkit-autofill:focus {
 .ant-drawer-title { color: var(--text-primary) !important; font-weight: 600 !important; font-size: var(--fs-xl) !important; }
 .ant-drawer-close { color: var(--text-tertiary) !important; border-radius: var(--r-md) !important; }
 .ant-drawer-close:hover { color: var(--text-primary) !important; background: var(--glass-bg-hover) !important; }
-.ant-drawer-mask { background: rgba(0,0,0,0.35) !important; backdrop-filter: blur(4px); }
+.ant-drawer-mask { background: rgba(0,0,0,0.35) !important; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
 /* Tooltips — glass */
 .ant-tooltip-inner {
@@ -889,11 +897,13 @@ code, kbd {
 
 /* Ant Design Global Overrides for Glass & Motion */
 .ant-modal-mask, .ant-drawer-mask {
+  -webkit-backdrop-filter: blur(8px) !important;
   backdrop-filter: blur(8px) !important;
   background-color: rgba(0, 0, 0, 0.25) !important;
 }
 
 .ant-modal-content, .ant-drawer-content-wrapper .ant-drawer-content {
+  -webkit-backdrop-filter: blur(24px) !important;
   backdrop-filter: blur(24px) !important;
   border: 1px solid var(--glass-border-strong) !important;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12) !important;
@@ -908,6 +918,7 @@ code, kbd {
 }
 
 .ant-message-notice-content {
+  -webkit-backdrop-filter: blur(16px) !important;
   backdrop-filter: blur(16px) !important;
   border: 1px solid var(--glass-border) !important;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1) !important;
@@ -917,14 +928,13 @@ code, kbd {
    §5  STAT CARD & ICONS
    ============================================================ */
 .stat-card {
-  transition: transform var(--dur-base) cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out) !important;
-  border: 1px solid var(--glass-border) !important;
-  cursor: pointer;
+  transition: border-color var(--dur-base) ease, box-shadow var(--dur-base) ease, background-color var(--dur-base) ease !important;
+  border: 1px solid var(--solid-border) !important;
+  border-radius: var(--r-lg) !important;
 }
 .stat-card:hover {
-  transform: translateY(-6px) scale(1.01);
-  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06) !important;
-  border-color: rgba(99, 102, 241, 0.4) !important;
+  border-color: rgba(15, 23, 42, 0.3) !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
 }
 
 .stat-icon {

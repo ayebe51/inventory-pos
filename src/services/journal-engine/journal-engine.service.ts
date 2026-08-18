@@ -278,9 +278,9 @@ export class JournalEngineService implements AutoJournalEngine {
   }
 
   validateBalance(lines: JournalLine[]): boolean {
-    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
-    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
-    return Math.abs(totalDebit - totalCredit) <= 0.01;
+    const totalDebitCents = lines.reduce((s, l) => s + Math.round(Number(l.debit) * 100), 0);
+    const totalCreditCents = lines.reduce((s, l) => s + Math.round(Number(l.credit) * 100), 0);
+    return Math.abs(totalDebitCents - totalCreditCents) <= 1;
   }
 
   /**

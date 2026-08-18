@@ -29,7 +29,7 @@ export const SalesOrderPage: React.FC = () => {
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/warehouses').then((r) => r.data),
   });
 
   const { data: salesOrdersData, isLoading } = useQuery({

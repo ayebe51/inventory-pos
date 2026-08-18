@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Input, List, Typography, theme as antTheme } from 'antd';
+import { Modal, Input, List } from 'antd';
 import { SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '../../store/themeStore';
@@ -7,8 +7,6 @@ import {
   LayoutDashboard, ShoppingCart, Package, Truck, BarChart2,
   Users, Shield, DollarSign, Archive, Layers, BookOpen
 } from 'lucide-react';
-
-const { Text } = Typography;
 
 interface CommandItem {
   id: string;
@@ -39,7 +37,6 @@ export const CommandPalette: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
-  const { token } = antTheme.useToken();
   const { isDarkMode } = useThemeStore();
 
   useEffect(() => {

@@ -33,9 +33,24 @@ export const DashboardPage: React.FC = () => {
   const { isDarkMode } = useThemeStore();
   const navigate = useNavigate();
 
+  const formatYAxisLabel = (v: number) => {
+    if (!v || Math.abs(v) < 1) return 'Rp 0';
+    const abs = Math.abs(v);
+    if (abs >= 1_000_000_000) {
+      return `Rp ${(v / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}B`;
+    }
+    if (abs >= 1_000_000) {
+      return `Rp ${(v / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}M`;
+    }
+    if (abs >= 1_000) {
+      return `Rp ${(v / 1_000).toLocaleString('id-ID', { maximumFractionDigits: 0 })}k`;
+    }
+    return `Rp ${Math.round(v).toLocaleString('id-ID')}`;
+  };
+
   const revenueChartOption = {
     backgroundColor: 'transparent',
-    grid: { top: 20, right: 20, bottom: 30, left: 60 },
+    grid: { top: 20, right: 20, bottom: 30, left: 85 },
     xAxis: {
       type: 'category',
       data: data?.salesTrend?.map((d: any) => d.date) || [],
@@ -45,7 +60,9 @@ export const DashboardPage: React.FC = () => {
     },
     yAxis: {
       type: 'value',
-      axisLabel: { fontSize: 12, color: token.colorTextSecondary, formatter: (v: number) => `Rp ${(v / 1_000_000)}M` },
+      min: 0,
+      minInterval: 100000,
+      axisLabel: { fontSize: 12, color: token.colorTextSecondary, formatter: formatYAxisLabel },
       axisLine: { show: false },
       splitLine: { lineStyle: { color: token.colorBorderSecondary, type: 'dashed' } },
     },
@@ -79,7 +96,8 @@ export const DashboardPage: React.FC = () => {
       textStyle: { color: token.colorText },
       formatter: (params: any[]) => {
         const p = params[0];
-        return `${p.name}<br/><span style="color:${token.colorPrimary}">●</span> Revenue: Rp ${Number(p.value).toLocaleString('id-ID')}`;
+        const val = Number(p?.value) || 0;
+        return `${p?.name || ''}<br/><span style="color:${token.colorPrimary}">●</span> Revenue: Rp ${val.toLocaleString('id-ID')}`;
       },
     },
   };

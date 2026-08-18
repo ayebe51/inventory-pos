@@ -16,6 +16,9 @@ export function validateRedisConfig(config: Record<string, unknown>): RedisEnvCo
   if (!result.success) {
     throw new Error(`Redis configuration validation failed:\n${result.error.toString()}`);
   }
+  if (process.env.NODE_ENV === 'production' && (!result.data.REDIS_PASSWORD || result.data.REDIS_PASSWORD.trim().length === 0)) {
+    throw new Error(`Redis configuration validation failed: REDIS_PASSWORD is required in production mode`);
+  }
   return result.data;
 }
 

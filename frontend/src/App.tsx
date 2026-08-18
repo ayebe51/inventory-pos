@@ -258,6 +258,7 @@ export const App: React.FC = () => {
                 {/* Public */}
                 <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
                 <Route path="/verify-mfa" element={<AuthGuard><MFAVerifyPage /></AuthGuard>} />
+                <Route path="/setup-mfa" element={<AuthGuard><MFASetupPage /></AuthGuard>} />
 
                 {/* Protected */}
                 <Route

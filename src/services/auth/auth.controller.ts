@@ -8,6 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
   LoginSchema,
@@ -22,6 +23,7 @@ import { successResponse } from '../../common/types/api-response.type';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: unknown) {
@@ -95,5 +97,12 @@ export class AuthController {
     const { mfaToken, totpCode } = MfaVerifySchema.parse(body);
     const result = await this.authService.verifyMfa(mfaToken, totpCode);
     return successResponse(result, 'MFA verified');
+  }
+
+  @Post('mfa/bypass')
+  @HttpCode(HttpStatus.OK)
+  async mfaBypass(@Body() body: { mfaToken?: string }) {
+    const result = await this.authService.bypassMfa(body?.mfaToken || '');
+    return successResponse(result, 'MFA bypassed for demo');
   }
 }

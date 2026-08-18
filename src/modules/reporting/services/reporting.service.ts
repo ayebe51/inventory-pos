@@ -226,6 +226,33 @@ export class ReportingService implements IReportingService {
       if (r.account_type === 'EQUITY') equity += balance;
     });
 
+    // Compute unclosed YTD Net Income as of date
+    const incomeResult = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        c.account_type,
+        SUM(CASE WHEN c.normal_balance = 'CREDIT' THEN l.credit - l.debit ELSE l.debit - l.credit END) as balance
+      FROM chart_of_accounts c
+      JOIN journal_entry_lines l ON c.id = l.account_id
+      JOIN journal_entries j ON l.je_id = j.id
+      WHERE j.entry_date <= $1 AND j.status = 'POSTED'
+        AND c.account_type IN ('REVENUE', 'COGS', 'EXPENSE')
+      GROUP BY c.account_type
+    `, params.as_of_date);
+
+    let ytdRevenue = 0;
+    let ytdCogs = 0;
+    let ytdExpenses = 0;
+
+    incomeResult.forEach(r => {
+      const balance = Number(r.balance || 0);
+      if (r.account_type === 'REVENUE') ytdRevenue += balance;
+      if (r.account_type === 'COGS') ytdCogs += balance;
+      if (r.account_type === 'EXPENSE') ytdExpenses += balance;
+    });
+
+    const ytdNetIncome = ytdRevenue - ytdCogs - ytdExpenses;
+    equity += ytdNetIncome;
+
     return {
       as_of_date: params.as_of_date,
       total_assets: assets,

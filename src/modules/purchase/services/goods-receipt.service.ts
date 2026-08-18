@@ -578,9 +578,10 @@ export class GoodsReceiptService {
         product_id: productId,
         warehouse_id: warehouseId,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy: [
+        { movement_date: 'desc' },
+        { created_at: 'desc' },
+      ],
       take: 1,
     });
 

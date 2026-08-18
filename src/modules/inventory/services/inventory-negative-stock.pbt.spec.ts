@@ -23,6 +23,8 @@ describe('InventoryService - BR-INV-001 Property-Based Tests', () => {
       findFirst: jest.fn(),
       aggregate: jest.fn(),
     },
+    $transaction: jest.fn((cb) => cb(mockPrismaService)),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
   };
 
   beforeEach(async () => {

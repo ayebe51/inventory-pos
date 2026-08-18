@@ -48,62 +48,69 @@ export class InventoryService implements IInventoryService {
     const qty_out_base = data.qty_out * rate;
     const unit_cost_base = rate > 0 ? data.unit_cost / rate : data.unit_cost;
 
-    // Calculate running balance and cost
-    const { running_qty, running_cost, average_cost } =
-      await this.calculateRunningBalance(
-        data.product_id,
-        data.warehouse_id,
-        qty_in_base,
-        qty_out_base,
-        unit_cost_base,
+    return await this.prisma.$transaction(async (tx) => {
+      // Pessimistic lock product row to serialize concurrent movements for this product
+      await tx.$queryRawUnsafe(`SELECT id FROM products WHERE id = $1::uuid FOR UPDATE`, data.product_id);
+
+      // Fetch latest running balance and cost using transaction client
+      const lastLedger = await tx.inventoryLedger.findFirst({
+        where: { product_id: data.product_id, warehouse_id: data.warehouse_id },
+        orderBy: [{ movement_date: 'desc' }, { created_at: 'desc' }],
+      });
+
+      const prevQty = lastLedger ? Number(lastLedger.running_qty) : 0;
+      const prevCost = lastLedger ? Number(lastLedger.running_cost) : 0;
+
+      const running_qty = prevQty + qty_in_base - qty_out_base;
+      const addedCost = qty_in_base > 0 ? qty_in_base * unit_cost_base : 0;
+      const removedCost = qty_out_base > 0 && prevQty > 0 ? (prevCost / prevQty) * qty_out_base : 0;
+      const running_cost = Math.max(0, prevCost + addedCost - removedCost);
+
+      // BR-INV-001: Negative stock check
+      if (running_qty < 0) {
+        this.logger.warn(
+          `BR-INV-001 violation: Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
+            `Current balance would be: ${running_qty}`,
+        );
+        throw new BusinessRuleException(
+          `Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
+            `Transaction would result in negative balance: ${running_qty}`,
+          ErrorCode.INSUFFICIENT_STOCK,
+        );
+      }
+
+      // Calculate total cost for this movement
+      const total_cost = qty_in_base > 0 ? qty_in_base * unit_cost_base : 0;
+
+      // Append-only insert to inventory_ledger
+      const ledgerEntry = await tx.inventoryLedger.create({
+        data: {
+          product_id: data.product_id,
+          warehouse_id: data.warehouse_id,
+          transaction_type: data.transaction_type,
+          reference_type: data.reference_type,
+          reference_id: data.reference_id,
+          reference_number: data.reference_number,
+          movement_date: data.movement_date,
+          qty_in: qty_in_base,
+          qty_out: qty_out_base,
+          unit_cost: unit_cost_base,
+          total_cost: total_cost,
+          running_qty: running_qty,
+          running_cost: running_cost,
+          batch_number: null,
+          serial_number: null,
+          notes: data.notes || null,
+          created_by: data.created_by,
+        },
+      });
+
+      this.logger.log(
+        `Inventory movement recorded: ${ledgerEntry.id}, running_qty: ${running_qty}, running_cost: ${running_cost}`,
       );
 
-    // BR-INV-001: Negative stock check
-    // Reject transaction if balance would become negative
-    if (running_qty < 0) {
-      this.logger.warn(
-        `BR-INV-001 violation: Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
-          `Current balance would be: ${running_qty}`,
-      );
-      throw new BusinessRuleException(
-        `Insufficient stock for product ${data.product_id} in warehouse ${data.warehouse_id}. ` +
-          `Transaction would result in negative balance: ${running_qty}`,
-        ErrorCode.INSUFFICIENT_STOCK,
-      );
-    }
-
-    // Calculate total cost for this movement
-    const total_cost = qty_in_base > 0 ? qty_in_base * unit_cost_base : 0;
-
-    // Append-only insert to inventory_ledger
-    // BR-INV-002: No UPDATE or DELETE operations allowed
-    const ledgerEntry = await this.prisma.inventoryLedger.create({
-      data: {
-        product_id: data.product_id,
-        warehouse_id: data.warehouse_id,
-        transaction_type: data.transaction_type,
-        reference_type: data.reference_type,
-        reference_id: data.reference_id,
-        reference_number: data.reference_number,
-        movement_date: data.movement_date,
-        qty_in: qty_in_base,
-        qty_out: qty_out_base,
-        unit_cost: unit_cost_base,
-        total_cost: total_cost,
-        running_qty: running_qty,
-        running_cost: running_cost,
-        batch_number: null, // TODO: Implement batch tracking
-        serial_number: null, // TODO: Implement serial tracking
-        notes: data.notes || null,
-        created_by: data.created_by,
-      },
+      return this.mapToInventoryLedgerEntry(ledgerEntry);
     });
-
-    this.logger.log(
-      `Inventory movement recorded: ${ledgerEntry.id}, running_qty: ${running_qty}, running_cost: ${running_cost}`,
-    );
-
-    return this.mapToInventoryLedgerEntry(ledgerEntry);
   }
 
   /**
@@ -151,9 +158,10 @@ export class InventoryService implements IInventoryService {
         product_id: productId,
         warehouse_id: warehouseId,
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy: [
+        { movement_date: 'desc' },
+        { created_at: 'desc' },
+      ],
       select: {
         running_qty: true,
         running_cost: true,

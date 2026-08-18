@@ -12,7 +12,7 @@ import {
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useInventory';
 import type { Product } from '../types/inventory.types';
 import { Typography } from 'antd';
-import { ActionableEmptyState } from '../../common/ActionableEmptyState';
+import { ActionableEmptyState } from '../../../components/common/ActionableEmptyState';
 
 const { Text } = Typography;
 const { Option } = Select;

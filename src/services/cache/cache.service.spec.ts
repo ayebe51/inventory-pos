@@ -7,6 +7,7 @@ const redisMock = {
   get: jest.fn(),
   set: jest.fn(),
   del: jest.fn(),
+  unlink: jest.fn(),
   scan: jest.fn(),
   quit: jest.fn().mockResolvedValue('OK'),
   on: jest.fn(),
@@ -119,13 +120,13 @@ describe('CacheService', () => {
   });
 
   describe('delByPattern', () => {
-    it('scans and deletes matching keys', async () => {
+    it('scans and unlinks matching keys', async () => {
       redisMock.scan
         .mockResolvedValueOnce(['0', ['master:product:1', 'master:product:2']]);
-      redisMock.del.mockResolvedValue(2);
+      redisMock.unlink.mockResolvedValue(2);
 
       await service.delByPattern('master:product:*');
-      expect(redisMock.del).toHaveBeenCalledWith('master:product:1', 'master:product:2');
+      expect(redisMock.unlink).toHaveBeenCalledWith('master:product:1', 'master:product:2');
     });
 
     it('does not throw on Redis error', async () => {

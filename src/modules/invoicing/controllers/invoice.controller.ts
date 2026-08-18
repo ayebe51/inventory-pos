@@ -6,6 +6,7 @@ import {
   Get,
   Request,
   UseGuards,
+  NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -17,7 +18,7 @@ import { UUID } from '../../../common/types/uuid.type';
 import { CreateSalesInvoiceDTO, CreatePurchaseInvoiceDTO } from '../dto/invoicing.dto';
 
 interface AuthRequest extends Request {
-  user: { sub: string };
+  user: { sub: string; branch_id?: string | null };
 }
 
 @ApiTags('Invoicing - Invoices')
@@ -90,13 +91,14 @@ export class InvoiceController {
 
   @Get()
   @RequirePermissions('INVOICE.READ')
-  async search(@Request() req: Request) {
+  async search(@Request() req: AuthRequest) {
     const query = (req as any).query;
     const filters = {
       invoice_type: query.invoice_type,
       status: query.status,
       customer_id: query.customer_id,
       supplier_id: query.supplier_id,
+      branch_id: req.user.branch_id,
       page: query.page ? parseInt(query.page) : 1,
       per_page: query.per_page ? parseInt(query.per_page) : 20,
     };
@@ -111,9 +113,11 @@ export class InvoiceController {
 
   @Get(':id')
   @RequirePermissions('INVOICE.READ')
-  async findById(@Param('id') id: string) {
-    const invoice = await this.invoiceService.findById(id as UUID);
-    if (!invoice) return { success: false, message: 'Not found', data: null };
+  async findById(@Param('id') id: string, @Request() req: AuthRequest) {
+    const invoice = await this.invoiceService.findById(id as UUID, req.user);
+    if (!invoice) {
+      throw new NotFoundException(`Invoice ${id} not found`);
+    }
     return successResponse(invoice);
   }
 }

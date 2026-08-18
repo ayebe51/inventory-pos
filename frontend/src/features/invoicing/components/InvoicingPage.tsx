@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
-  Tabs, Table, Tag, Button, Space, Typography, Card,
+  Table, Tag, Button, Space, Typography, Card,
   Drawer, Form, Input, Select,
-  Row, Col, Tooltip, Badge, message, Modal,
+  Row, Col, Tooltip, message, Modal,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -18,7 +18,7 @@ const { Title, Text } = Typography;
 
 const INVOICE_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   DRAFT:     { color: '#94A3B8', label: 'Draft' },
-  OPEN:      { color: '#8B5CF6', label: 'Open' },
+  OPEN:      { color: 'var(--brand-600)', label: 'Open' },
   PARTIAL:   { color: '#F97316', label: 'Partial' },
   PAID:      { color: '#34D399', label: 'Paid' },
   OVERDUE:   { color: '#F43F5E', label: 'Overdue' },
@@ -54,7 +54,7 @@ export const InvoicingPage: React.FC = () => {
       title: 'Invoice #',
       dataIndex: 'invoice_number',
       width: 180,
-      render: (v) => <Text code style={{ color: '#A78BFA' }}>{v}</Text>,
+      render: (v) => <Text code style={{ color: 'var(--brand-600)' }}>{v}</Text>,
     },
     {
       title: activeTab === 'sales' ? 'Customer' : 'Supplier',
@@ -109,7 +109,7 @@ export const InvoicingPage: React.FC = () => {
         <Space size={4}>
           {record.status === 'DRAFT' && (
             <Tooltip title="Post Invoice">
-              <Button type="text" size="small" icon={<SendOutlined />} style={{ color: '#8B5CF6' }}
+              <Button type="text" size="small" icon={<SendOutlined />} style={{ color: 'var(--brand-600)' }}
                 onClick={() => postInvoice.mutate(record.id)} />
             </Tooltip>
           )}
@@ -150,55 +150,143 @@ export const InvoicingPage: React.FC = () => {
     },
   ];
 
-  const tabs = [
-    {
-      key: 'sales',
-      label: (
-        <span>
-          Sales Invoices (AR)
-          <Badge count={data?.data?.filter((i: any) => i.status === 'OVERDUE').length} size="small" style={{ marginLeft: 8, background: '#F43F5E' }} />
-        </span>
-      ),
-    },
-    {
-      key: 'purchase',
-      label: 'Purchase Invoices (AP)',
-    },
-  ];
+  const overdueCount = data?.data?.filter((i: any) => i.status === 'OVERDUE').length || 0;
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <Title level={3} className="page-title" style={{ marginBottom: 4 }}>Invoicing</Title>
-          <Text className="page-subtitle">Manage accounts receivable and accounts payable</Text>
+    <div className="page-container" style={{ paddingBottom: 40 }}>
+      {/* Eyebrow Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '4px 12px',
+          borderRadius: 999,
+          background: 'var(--brand-50)',
+          border: '1px solid var(--brand-200)',
+          fontSize: 11,
+          fontWeight: 700,
+          color: 'var(--brand-600)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          marginBottom: 8
+        }}>
+          <span>Financial Billing & Invoicing</span>
         </div>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ color: '#94A3B8' }}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
-            Create Invoice
-          </Button>
-        </Space>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <Title level={2} className="page-title" style={{ margin: '0 0 6px 0', fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em' }}>
+              Invoicing & Billing
+            </Title>
+            <Text className="page-subtitle" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              Manage accounts receivable (AR) invoices, accounts payable (AP) vendor bills, and status tracking.
+            </Text>
+          </div>
+
+          <Space size="middle">
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()} style={{ borderRadius: 8 }}>
+              Refresh
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
+            >
+              Create Invoice
+            </Button>
+          </Space>
+        </div>
       </div>
 
-      <Card className="stat-card">
-        <Tabs
-          activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as any)}
-          items={tabs.map((tab) => ({
-            ...tab,
-            children: (
-              <Table
-                columns={columns}
-                dataSource={data?.data}
-                loading={isLoading}
-                rowKey="id"
-                scroll={{ x: 1000 }}
-                pagination={{ pageSize: 15, showTotal: (t) => `${t} invoices` }}
-                size="small"
-              />
-            ),
-          }))}
+      <Card
+        bodyStyle={{ padding: 24 }}
+        style={{
+          borderRadius: 20,
+          border: '1px solid var(--solid-border)',
+          boxShadow: 'var(--shadow-sm)',
+          background: 'var(--solid-bg)'
+        }}
+      >
+        {/* Custom Pill Navigation Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: 6,
+          background: 'var(--solid-bg-subtle)',
+          border: '1px solid var(--solid-border)',
+          borderRadius: 14,
+          marginBottom: 24,
+          overflowX: 'auto'
+        }}>
+          <button
+            onClick={() => setActiveTab('sales')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 10,
+              border: 'none',
+              background: activeTab === 'sales' ? 'var(--solid-bg)' : 'transparent',
+              color: activeTab === 'sales' ? 'var(--brand-600)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'sales' ? 700 : 600,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: activeTab === 'sales' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>Sales Invoices (AR)</span>
+            {overdueCount > 0 && (
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+                background: '#FEF2F2',
+                color: '#EF4444'
+              }}>
+                {overdueCount} Overdue
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('purchase')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 18px',
+              borderRadius: 10,
+              border: 'none',
+              background: activeTab === 'purchase' ? 'var(--solid-bg)' : 'transparent',
+              color: activeTab === 'purchase' ? 'var(--brand-600)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'purchase' ? 700 : 600,
+              fontSize: 14,
+              cursor: 'pointer',
+              boxShadow: activeTab === 'purchase' ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>Purchase Bills (AP)</span>
+          </button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={data?.data}
+          loading={isLoading}
+          rowKey="id"
+          scroll={{ x: 1000 }}
+          pagination={{ pageSize: 10, showTotal: (t) => `${t} total invoices` }}
+          size="middle"
+          style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
         />
       </Card>
 

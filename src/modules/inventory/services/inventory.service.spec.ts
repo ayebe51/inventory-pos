@@ -32,6 +32,7 @@ describe('InventoryService', () => {
     $transaction: jest.fn().mockImplementation(async (cb) => {
       return cb(mockPrismaService);
     }),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
   };
 
   beforeEach(async () => {
@@ -1307,9 +1308,10 @@ describe('InventoryService', () => {
           product_id: productId,
           warehouse_id: warehouseId,
         },
-        orderBy: {
-          created_at: 'desc',
-        },
+        orderBy: [
+          { movement_date: 'desc' },
+          { created_at: 'desc' },
+        ],
         select: {
           running_qty: true,
           running_cost: true,

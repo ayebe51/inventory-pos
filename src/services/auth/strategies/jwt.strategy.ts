@@ -7,10 +7,14 @@ import { JwtPayload } from '../auth.service';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(configService: ConfigService) {
+    const secret = configService.get<string>('app.jwt.accessSecret');
+    if (!secret) {
+      throw new Error('JWT access secret is missing in JwtStrategy');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('app.jwt.accessSecret') ?? '',
+      secretOrKey: secret,
     });
   }
 

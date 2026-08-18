@@ -7,8 +7,6 @@ import {
   Query,
   Request,
   UseGuards,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -20,7 +18,7 @@ import { UUID } from '../../../common/types/uuid.type';
 import { OpenShiftDTO, CloseShiftDTO, ProcessTransactionDTO, VoidTransactionDTO, SalesReturnDTO } from '../dto/pos.dto';
 
 interface AuthRequest extends Request {
-  user: { sub: string };
+  user: { sub: string; branch_id?: string | null };
 }
 
 /**
@@ -49,11 +47,16 @@ export class POSController {
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'per_page', required: false })
+  @ApiOperation({ summary: 'List shifts' })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
   @Get('shifts')
   @RequirePermissions('POS.READ')
-  async listShifts(@Query() query: { status?: string; page?: number; per_page?: number }) {
+  async listShifts(@Query() query: { status?: string; page?: number; per_page?: number }, @Request() req: AuthRequest) {
     const result = await this.posService.listShifts({
       status: query.status,
+      branch_id: req.user.branch_id,
       page: query.page ? Number(query.page) : 1,
       per_page: query.per_page ? Number(query.per_page) : 20,
     });
@@ -78,8 +81,8 @@ export class POSController {
   @ApiParam({ name: 'id', description: 'Shift ID' })
   @Get('shifts/:id')
   @RequirePermissions('POS.READ')
-  async getShift(@Param('id') id: string) {
-    const shift = await this.posService.getShift(id as UUID);
+  async getShift(@Param('id') id: string, @Request() req: AuthRequest) {
+    const shift = await this.posService.getShift(id as UUID, req.user);
     return successResponse(shift);
   }
 
@@ -88,7 +91,7 @@ export class POSController {
   @ApiBody({ type: CloseShiftDTO })
   @Post('shifts/:id/close')
   @RequirePermissions('POS.UPDATE')
-  async closeShift(@Param('id') id: string, @Body() body: CloseShiftDTO, @Request() req: AuthRequest) {
+  async closeShift(@Param('id') id: string, @Body() body: CloseShiftDTO) {
     const report = await this.posService.closeShift(id as UUID, body.closing_balance);
     return successResponse(report, 'Shift closed successfully');
   }
@@ -102,10 +105,14 @@ export class POSController {
   @ApiQuery({ name: 'per_page', required: false })
   @Get('transactions')
   @RequirePermissions('POS.READ')
-  async listTransactions(@Query() query: { shift_id?: string; status?: string; page?: number; per_page?: number }) {
+  async listTransactions(
+    @Query() query: { shift_id?: string; status?: string; page?: number; per_page?: number },
+    @Request() req: AuthRequest,
+  ) {
     const result = await this.posService.listTransactions({
       shift_id: query.shift_id as UUID,
       status: query.status,
+      branch_id: req.user.branch_id,
       page: query.page ? Number(query.page) : 1,
       per_page: query.per_page ? Number(query.per_page) : 20,
     });
@@ -145,8 +152,9 @@ export class POSController {
   @ApiQuery({ name: 'per_page', required: false })
   @Get('sales-returns')
   @RequirePermissions('POS.READ')
-  async listSalesReturns(@Query() query: { page?: number; per_page?: number }) {
+  async listSalesReturns(@Query() query: { page?: number; per_page?: number }, @Request() req: AuthRequest) {
     const result = await this.posService.listSalesReturns({
+      branch_id: req.user.branch_id,
       page: query.page ? Number(query.page) : 1,
       per_page: query.per_page ? Number(query.per_page) : 20,
     });

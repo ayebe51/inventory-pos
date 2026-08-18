@@ -36,9 +36,9 @@ export const useLogin = () => {
       if (data.mfaRequired && data.mfaToken) {
         localStorage.setItem('mfa_token', data.mfaToken);
         if (data.mfaPurpose === 'setup') {
-          navigate('/mfa/setup');
+          navigate('/setup-mfa');
         } else {
-          navigate('/mfa/verify');
+          navigate('/verify-mfa');
         }
         return;
       }

@@ -251,21 +251,21 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
     it('PBT: entries with difference within tolerance pass validation', () => {
       fc.assert(
         fc.property(
-          fc.float({ min: Math.fround(0.01), max: Math.fround(1_000_000), noNaN: true }),
-          fc.float({ min: Math.fround(0), max: Math.fround(0.01), noNaN: true }),
+          fc.integer({ min: 1, max: 100_000_000 }).map((c) => c / 100),
+          fc.integer({ min: 0, max: 1 }).map((c) => c / 100),
           (baseAmount, tolerance) => {
             // Create a balanced entry with a small difference within tolerance
             const debitAmount = Math.round(baseAmount * 100) / 100;
             const creditAmount = Math.round((baseAmount - tolerance) * 100) / 100;
-            const diff = Math.abs(debitAmount - creditAmount);
+            const diffCents = Math.round(Math.abs(debitAmount - creditAmount) * 100);
             
             const lines: JournalLine[] = [
               { account_id: 'acc-1', debit: debitAmount, credit: 0 },
               { account_id: 'acc-2', debit: 0, credit: creditAmount },
             ];
             
-            // If difference is within tolerance, should pass
-            if (diff <= 0.01) {
+            // If difference is within 1 cent (0.01) tolerance, should pass
+            if (diffCents <= 1) {
               return service.validateBalance(lines) === true;
             }
             // Otherwise should fail
@@ -484,25 +484,27 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
     it('PBT: floating point precision does not cause false negatives', () => {
       fc.assert(
         fc.property(
-          fc.float({ min: Math.fround(0.01), max: Math.fround(1_000_000), noNaN: true }),
+          fc.integer({ min: 1, max: 100_000_000 }).map((c) => c / 100),
           fc.integer({ min: 2, max: 10 }),
           (amount, numLines) => {
-            // Split amount into multiple lines that should sum to original
-            const portion = amount / numLines;
-            const debitLines: JournalLine[] = Array.from({ length: numLines }, (_, i) => ({
+            const portion = Math.round((amount / numLines) * 100) / 100;
+            const debitLines: JournalLine[] = Array.from({ length: numLines - 1 }, (_, i) => ({
               account_id: `debit-${i}`,
               debit: portion,
               credit: 0,
             }));
+            const remainingDebit = Math.round((amount - portion * (numLines - 1)) * 100) / 100;
+            debitLines.push({
+              account_id: `debit-${numLines - 1}`,
+              debit: remainingDebit,
+              credit: 0,
+            });
 
-            const debitTotal = debitLines.reduce((s, l) => s + l.debit, 0);
             const creditLines: JournalLine[] = [
-              { account_id: 'credit-0', debit: 0, credit: debitTotal },
+              { account_id: 'credit-0', debit: 0, credit: amount },
             ];
 
             const lines = [...debitLines, ...creditLines];
-            // Due to floating point, this might have tiny differences
-            // but should still pass within tolerance
             return service.validateBalance(lines) === true;
           },
         ),
