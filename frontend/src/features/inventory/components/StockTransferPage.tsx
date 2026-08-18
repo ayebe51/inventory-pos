@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Table, Button, Space, Typography, Card, Drawer, Form,
-  Input, Select, InputNumber, Row, Col, DatePicker, message, Badge,
+  Select, InputNumber, Row, Col, DatePicker, message, Badge,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -20,21 +20,21 @@ export const StockTransferPage: React.FC = () => {
 
   const { data: products } = useQuery({
     queryKey: ['products'],
-    queryFn: () => api.get('/products').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/products').then((r) => r.data),
   });
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: () => api.get('/warehouses').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
   });
 
   const { data: transfers, isLoading } = useQuery({
     queryKey: ['stock-transfers'],
-    queryFn: () => api.get('/inventory/stock-transfers').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/inventory/stock-transfers').then((r) => r.data),
   });
 
   const createTransfer = useMutation({
-    mutationFn: (data: any) => api.post('/inventory/stock-transfers', data).then((r) => r.data),
+    mutationFn: (data: any) => api.post('/api/v1/inventory/stock-transfers', data).then((r) => r.data),
     onSuccess: () => {
       message.success('Stock transferred successfully');
       setDrawerOpen(false);
@@ -73,7 +73,7 @@ export const StockTransferPage: React.FC = () => {
           return {
             product_id: l.product_id,
             qty: l.qty,
-            uom_id: product?.uom_id,
+            uom_id: product?.uom_id || '00000000-0000-0000-0000-000000000000',
             unit_cost: product?.standard_cost || 0,
           };
         }),
@@ -110,24 +110,26 @@ export const StockTransferPage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <Title level={4} style={{ color: '#E2E8F0', margin: 0 }}>Stock Transfers</Title>
-          <Text style={{ color: '#64748B' }}>Move inventory between warehouses</Text>
+          <Title level={3} className="page-title">Stock Transfers</Title>
+          <Text className="page-subtitle">Move inventory between warehouses</Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
           New Transfer
         </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={transfers?.data || []}
-        loading={isLoading}
-        rowKey="id"
-        size="small"
-      />
+      <Card className="stat-card" bodyStyle={{ padding: '24px' }}>
+        <Table
+          columns={columns}
+          dataSource={transfers?.data || []}
+          loading={isLoading}
+          rowKey="id"
+          size="small"
+        />
+      </Card>
 
       <Drawer
         title="Create Stock Transfer"
@@ -169,11 +171,11 @@ export const StockTransferPage: React.FC = () => {
           </Form.Item>
           
           <div style={{ marginBottom: 16, marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <Text style={{ color: '#E2E8F0', fontWeight: 600 }}>Items to Transfer</Text>
+            <Text style={{ fontWeight: 600 }}>Items to Transfer</Text>
             <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={handleAddLine}>Add Item</Button>
           </div>
           
-          {lines.map((line, index) => (
+          {lines.map((line) => (
             <Row gutter={8} key={line.id} style={{ marginBottom: 8 }}>
               <Col span={15}>
                 <Select

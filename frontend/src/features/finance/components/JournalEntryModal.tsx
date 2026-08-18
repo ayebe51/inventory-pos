@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
-import { Input } from '../../../components/ui/Input';
+import React, { useState } from 'react';
+import { Modal, Form, Input, Button, Table, InputNumber, DatePicker, message, Row, Col, Typography } from 'antd';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCreateJournalEntry } from '../hooks/useFinance';
-import { JournalEntryLine } from '../types/finance.types';
-import styles from './JournalEntryModal.module.css';
+import type { JournalEntryLine } from '../types/finance.types';
+import dayjs from 'dayjs';
+
+const { Text } = Typography;
 
 interface JournalEntryModalProps {
   isOpen: boolean;
@@ -12,8 +13,7 @@ interface JournalEntryModalProps {
 }
 
 export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, onClose }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [description, setDescription] = useState('');
+  const [form] = Form.useForm();
   const [lines, setLines] = useState<JournalEntryLine[]>([
     { accountId: '', debit: 0, credit: 0 },
     { accountId: '', debit: 0, credit: 0 },
@@ -25,6 +25,11 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
     const newLines = [...lines];
     if (field === 'debit' || field === 'credit') {
       newLines[index][field] = Number(value) || 0;
+      // Enforce exclusivity: if setting debit, clear credit and vice versa
+      if (Number(value) > 0) {
+        if (field === 'debit') newLines[index].credit = 0;
+        if (field === 'credit') newLines[index].debit = 0;
+      }
     } else {
       newLines[index].accountId = value as string;
     }
@@ -41,147 +46,157 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
     }
   };
 
-  const { totalDebit, totalCredit, isBalanced } = useMemo(() => {
-    const debit = lines.reduce((sum, line) => sum + line.debit, 0);
-    const credit = lines.reduce((sum, line) => sum + line.credit, 0);
-    return {
-      totalDebit: debit,
-      totalCredit: credit,
-      isBalanced: debit === credit && debit > 0,
-    };
-  }, [lines]);
+  const totalDebit = lines.reduce((sum, line) => sum + line.debit, 0);
+  const totalCredit = lines.reduce((sum, line) => sum + line.credit, 0);
+  const isBalanced = totalDebit === totalCredit && totalDebit > 0;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isBalanced) return;
-
-    mutate({
-      date,
-      description,
-      lines,
-    }, {
-      onSuccess: () => {
-        onClose();
-        // Reset form
-        setDate(new Date().toISOString().split('T')[0]);
-        setDescription('');
-        setLines([{ accountId: '', debit: 0, credit: 0 }, { accountId: '', debit: 0, credit: 0 }]);
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      if (!isBalanced) {
+        message.error('Journal entry must be balanced (Total Debit = Total Credit)');
+        return;
       }
-    });
+      
+      const hasEmptyAccounts = lines.some(l => !l.accountId);
+      if (hasEmptyAccounts) {
+        message.error('All lines must have an Account ID');
+        return;
+      }
+
+      mutate({
+        date: values.date.format('YYYY-MM-DD'),
+        description: values.description,
+        lines,
+      }, {
+        onSuccess: () => {
+          message.success('Journal entry created successfully');
+          onClose();
+          form.resetFields();
+          setLines([
+            { accountId: '', debit: 0, credit: 0 },
+            { accountId: '', debit: 0, credit: 0 },
+          ]);
+        }
+      });
+    } catch (_) {}
   };
 
-  if (!isOpen) return null;
+  const columns = [
+    {
+      title: 'Account ID',
+      key: 'accountId',
+      render: (_: any, __: any, index: number) => (
+        <Input
+          placeholder="e.g. 1001-CASH"
+          value={lines[index].accountId}
+          onChange={(e) => handleLineChange(index, 'accountId', e.target.value)}
+        />
+      ),
+    },
+    {
+      title: 'Debit',
+      key: 'debit',
+      width: 150,
+      render: (_: any, __: any, index: number) => (
+        <InputNumber
+          style={{ width: '100%' }}
+          min={0}
+          value={lines[index].debit}
+          onChange={(val) => handleLineChange(index, 'debit', val || 0)}
+          disabled={lines[index].credit > 0}
+        />
+      ),
+    },
+    {
+      title: 'Credit',
+      key: 'credit',
+      width: 150,
+      render: (_: any, __: any, index: number) => (
+        <InputNumber
+          style={{ width: '100%' }}
+          min={0}
+          value={lines[index].credit}
+          onChange={(val) => handleLineChange(index, 'credit', val || 0)}
+          disabled={lines[index].debit > 0}
+        />
+      ),
+    },
+    {
+      title: '',
+      key: 'action',
+      width: 50,
+      render: (_: any, __: any, index: number) => (
+        <Button
+          type="text"
+          danger
+          icon={<DeleteOutlined />}
+          onClick={() => removeLine(index)}
+          disabled={lines.length <= 2}
+        />
+      ),
+    },
+  ];
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.header}>
-          <h2 className={styles.title}>Manual Journal Entry</h2>
-          <button className={styles.closeBtn} onClick={onClose}>
-            <X size={20} />
-          </button>
+    <Modal
+      title="Manual Journal Entry"
+      open={isOpen}
+      onCancel={onClose}
+      onOk={handleSubmit}
+      confirmLoading={isPending}
+      width={700}
+      okText="Post Entry"
+      okButtonProps={{ disabled: !isBalanced }}
+    >
+      <Form form={form} layout="vertical" initialValues={{ date: dayjs() }}>
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item
+              name="date"
+              label="Date"
+              rules={[{ required: true, message: 'Date is required' }]}
+            >
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col span={16}>
+            <Form.Item
+              name="description"
+              label="Description"
+              rules={[{ required: true, message: 'Description is required' }]}
+            >
+              <Input placeholder="Entry description..." />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Table
+          dataSource={lines}
+          columns={columns}
+          rowKey={(_, i) => String(i)}
+          pagination={false}
+          size="small"
+          footer={() => (
+            <Row style={{ marginTop: 8 }}>
+              <Col span={12}>
+                <Button type="dashed" onClick={addLine} icon={<PlusOutlined />} block>
+                  Add Line
+                </Button>
+              </Col>
+            </Row>
+          )}
+        />
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 24, marginTop: 16 }}>
+          <Text strong>
+            Total Debit: <Text style={{ color: totalDebit === totalCredit ? '#34d399' : '#f43f5e' }}>Rp {totalDebit.toLocaleString()}</Text>
+          </Text>
+          <Text strong>
+            Total Credit: <Text style={{ color: totalDebit === totalCredit ? '#34d399' : '#f43f5e' }}>Rp {totalCredit.toLocaleString()}</Text>
+          </Text>
         </div>
-
-        <form id="journalForm" className={styles.content} onSubmit={handleSubmit}>
-          <div className={styles.row}>
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Date</label>
-              <Input 
-                type="date" 
-                value={date} 
-                onChange={(e) => setDate(e.target.value)} 
-                required 
-              />
-            </div>
-            <div className={styles.formGroup} style={{ flex: 2 }}>
-              <label className={styles.label}>Description</label>
-              <Input 
-                placeholder="Entry description..." 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)} 
-                required 
-              />
-            </div>
-          </div>
-
-          <div className={styles.linesContainer}>
-            <table className={styles.linesTable}>
-              <thead>
-                <tr>
-                  <th>Account Code / Name</th>
-                  <th style={{ width: '150px' }}>Debit</th>
-                  <th style={{ width: '150px' }}>Credit</th>
-                  <th style={{ width: '40px' }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line, index) => (
-                  <tr key={index}>
-                    <td>
-                      <input 
-                        className={styles.lineInput} 
-                        placeholder="e.g. 1000 - Cash"
-                        value={line.accountId}
-                        onChange={(e) => handleLineChange(index, 'accountId', e.target.value)}
-                        required
-                      />
-                    </td>
-                    <td>
-                      <input 
-                        type="number" 
-                        className={styles.lineInput} 
-                        value={line.debit || ''}
-                        onChange={(e) => handleLineChange(index, 'debit', e.target.value)}
-                        disabled={line.credit > 0}
-                      />
-                    </td>
-                    <td>
-                      <input 
-                        type="number" 
-                        className={styles.lineInput} 
-                        value={line.credit || ''}
-                        onChange={(e) => handleLineChange(index, 'credit', e.target.value)}
-                        disabled={line.debit > 0}
-                      />
-                    </td>
-                    <td>
-                      <button 
-                        type="button"
-                        className={styles.iconBtn} 
-                        onClick={() => removeLine(index)}
-                        disabled={lines.length <= 2}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button type="button" className={styles.addLineBtn} onClick={addLine}>
-              <Plus size={16} /> Add Line
-            </button>
-          </div>
-        </form>
-
-        <div className={styles.footer}>
-          <div>
-            <div className={styles.totals}>
-              <span>Total Debit: <strong>Rp {totalDebit.toLocaleString('id-ID')}</strong></span>
-              <span>Total Credit: <strong>Rp {totalCredit.toLocaleString('id-ID')}</strong></span>
-            </div>
-            {!isBalanced && (totalDebit > 0 || totalCredit > 0) && (
-              <div className={styles.totalsError}>Total debit must equal total credit.</div>
-            )}
-          </div>
-          <div className={styles.actions}>
-            <Button variant="ghost" onClick={onClose} type="button">Cancel</Button>
-            <Button variant="primary" type="submit" form="journalForm" disabled={!isBalanced || isPending}>
-              {isPending ? 'Posting...' : 'Post Journal'}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+      </Form>
+    </Modal>
   );
 };

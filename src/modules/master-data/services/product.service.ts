@@ -15,7 +15,7 @@ import {
   ProductFilterSchema,
   CreateProductDTO,
   UpdateProductDTO,
-  ProductFilter,
+  ProductFilterDTO,
 } from '../dto/product.dto';
 
 // ── Cache key helpers ─────────────────────────────────────────────────────────
@@ -283,10 +283,10 @@ export class ProductService {
   }
 
   /**
-   * Search products with filters and pagination.
-   * Excludes soft-deleted products (AC2, AC3).
+   * List all products with filters and pagination.
    */
-  async search(filters: ProductFilter): Promise<PaginatedResult<Product>> {
+  async search(filters: ProductFilterDTO): Promise<PaginatedResult<Product>> {
+    // 1. Validate filters using ProductFilterSchema.parse(filters);
     const validated = ProductFilterSchema.parse(filters);
     const { page, per_page, code, name, category_id, brand_id, is_active } = validated;
     const skip = (page - 1) * per_page;

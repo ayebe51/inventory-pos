@@ -3,32 +3,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-canvas);
+  background: var(--surface-2);
   position: relative;
   overflow: hidden;
 }
 
-/* Glowing neon background orbs */
 .orb1 {
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
-  top: -200px;
-  left: -200px;
-  pointer-events: none;
+  display: none;
 }
 
 .orb2 {
-  position: absolute;
-  width: 500px;
-  height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 70%);
-  bottom: -150px;
-  right: -150px;
-  pointer-events: none;
+  display: none;
 }
 
 .card {
@@ -37,15 +22,13 @@
   width: 100%;
   max-width: 420px;
   padding: 48px 40px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   display: flex;
   flex-direction: column;
   gap: 28px;
-  box-shadow: 0 32px 80px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(139, 92, 246, 0.08);
+  box-shadow: var(--shadow-lg);
 }
 
 .logoArea {
@@ -55,18 +38,18 @@
 }
 
 .logoMark {
-  width: 40px;
-  height: 40px;
-  background: var(--gradient-primary);
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-600) 100%);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
-  font-size: 18px;
+  font-size: 20px;
   color: #fff;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
 }
 
 .logoText {
@@ -75,16 +58,16 @@
 }
 
 .logoName {
-  font-family: var(--font-display);
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 700;
-  font-size: 16px;
-  color: var(--color-text-primary);
-  letter-spacing: 0.08em;
+  font-size: 18px;
+  color: var(--text-1);
+  letter-spacing: -0.01em;
 }
 
 .logoSub {
   font-size: 11px;
-  color: var(--color-text-muted);
+  color: var(--text-3);
   letter-spacing: 0.04em;
 }
 
@@ -95,30 +78,30 @@
 }
 
 .title {
-  font-family: var(--font-display);
-  font-size: 26px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: var(--text-1);
   margin: 0;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: var(--text-3);
   margin: 0;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .labelRow {
@@ -130,12 +113,12 @@
 .label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--color-text-secondary);
+  color: var(--text-2);
 }
 
 .forgotLink {
   font-size: 13px;
-  color: var(--color-primary);
+  color: var(--brand-600);
   text-decoration: none;
   transition: opacity 0.2s;
 }
@@ -148,55 +131,53 @@
   width: 100%;
   height: 44px;
   padding: 0 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--color-border-light);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  font-family: var(--font-body);
+  color: var(--text-1);
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input::placeholder {
-  color: var(--color-text-muted);
+  color: var(--text-3);
 }
 
 .input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 
 .errorBanner {
   padding: 12px 14px;
-  background: rgba(244, 63, 94, 0.08);
-  border: 1px solid rgba(244, 63, 94, 0.25);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: var(--radius-sm);
   font-size: 13px;
-  color: var(--color-danger);
+  color: #EF4444;
 }
 
 .submitBtn {
   height: 46px;
-  background: var(--gradient-primary);
+  background: var(--brand-500);
   color: #fff;
   border: none;
   border-radius: var(--radius-md);
-  font-family: var(--font-body);
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s, box-shadow 0.2s, transform 0.2s;
-  margin-top: 4px;
-  box-shadow: var(--shadow-glow);
+  transition: all 0.2s;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .submitBtn:hover:not(:disabled) {
-  opacity: 0.9;
-  box-shadow: 0 0 32px rgba(139, 92, 246, 0.6);
+  background: var(--brand-600);
   transform: translateY(-1px);
 }
 
@@ -205,7 +186,6 @@
   cursor: not-allowed;
 }
 
-/* Spinner animation */
 .spinner {
   width: 18px;
   height: 18px;
@@ -221,7 +201,7 @@
 
 .footer {
   text-align: center;
-  font-size: 12px;
-  color: var(--color-text-muted);
+  font-size: 13px;
+  color: var(--text-3);
   margin: 0;
 }

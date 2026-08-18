@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NumberingService } from '../../../services/numbering/numbering.service';
 import * as fc from 'fast-check';
 import { InventoryService } from './inventory.service';
 import { PrismaService } from '../../../config/prisma.service';
@@ -25,6 +26,7 @@ describe('InventoryService - WAC Property-Based Tests (BR-INV-003)', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: NumberingService, useValue: { generate: jest.fn().mockResolvedValue('INV-001') } },
         InventoryService,
         {
           provide: PrismaService,

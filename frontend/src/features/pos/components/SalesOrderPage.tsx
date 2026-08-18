@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Badge, DatePicker
+  Table, Button, Typography, Drawer, Form, InputNumber, Row, Col, Space, message, Badge, DatePicker, Select
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,24 +19,29 @@ export const SalesOrderPage: React.FC = () => {
 
   const { data: customers } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => api.get('/customers').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/customers').then((r) => r.data),
   });
 
   const { data: products } = useQuery({
     queryKey: ['products'],
-    queryFn: () => api.get('/products').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/products').then((r) => r.data),
+  });
+
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
   });
 
   const { data: salesOrdersData, isLoading } = useQuery({
     queryKey: ['sales-orders'],
-    queryFn: () => api.get('/sales-orders').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/sales-orders').then((r) => r.data),
   });
 
   const salesOrders = salesOrdersData?.data || [];
 
   const createSO = useMutation({
-    mutationFn: (data: any) => api.post('/sales-orders', data).then((r) => r.data.data),
-    onSuccess: (newSO) => {
+    mutationFn: (data: any) => api.post('/api/v1/sales-orders', data).then((r) => r.data.data),
+    onSuccess: () => {
       message.success('Sales Order created');
       setDrawerOpen(false);
       form.resetFields();
@@ -47,20 +52,20 @@ export const SalesOrderPage: React.FC = () => {
   });
 
   const approveSO = useMutation({
-    mutationFn: (id: string) => api.post(`/sales-orders/${id}/approve`).then((r) => r.data),
-    onSuccess: (_, id) => {
+    mutationFn: (id: string) => api.post(`/api/v1/sales-orders/${id}/approve`).then((r) => r.data),
+    onSuccess: () => {
       message.success('Sales Order approved');
       qc.invalidateQueries({ queryKey: ['sales-orders'] });
     },
   });
 
   const fulfillSO = useMutation({
-    mutationFn: (id: string) => api.post(`/sales-orders/${id}/fulfill`, {
-      warehouse_id: 'default-wh', // simplified
+    mutationFn: (id: string) => api.post(`/api/v1/sales-orders/${id}/fulfill`, {
+      warehouse_id: warehouses?.data?.[0]?.id || '00000000-0000-0000-0000-000000000000',
       delivery_date: new Date().toISOString(),
       lines: [] // simplified
     }).then((r) => r.data),
-    onSuccess: (_, id) => {
+    onSuccess: () => {
       message.success('Sales Order fulfilled');
       qc.invalidateQueries({ queryKey: ['sales-orders'] });
     },
@@ -73,7 +78,7 @@ export const SalesOrderPage: React.FC = () => {
       
       const payload = {
         customer_id: values.customer_id,
-        branch_id: 'default-branch', // Hardcoded for now
+        branch_id: warehouses?.data?.[0]?.branch_id || '00000000-0000-0000-0000-000000000000',
         order_date: values.order_date.toISOString(),
         lines: lines.map(l => {
           const p = products?.data?.find((x: any) => x.id === l.product_id);
@@ -81,7 +86,7 @@ export const SalesOrderPage: React.FC = () => {
             product_id: l.product_id,
             qty: l.qty,
             unit_price: l.unit_price,
-            uom_id: p?.uom_id,
+            uom_id: p?.uom_id || '00000000-0000-0000-0000-000000000000',
           };
         }),
       };
@@ -164,7 +169,7 @@ export const SalesOrderPage: React.FC = () => {
           </Row>
 
           <div style={{ marginBottom: 16, marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <Text style={{ color: '#E2E8F0', fontWeight: 600 }}>Order Lines</Text>
+            <Text style={{ fontWeight: 600 }}>Order Lines</Text>
             <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => setLines([...lines, { id: Date.now(), product_id: null, qty: 1, unit_price: 0 }])}>
               Add Item
             </Button>
@@ -178,7 +183,7 @@ export const SalesOrderPage: React.FC = () => {
                   placeholder="Product"
                   style={{ width: '100%' }}
                   value={line.product_id}
-                  onChange={(v) => {
+                  onChange={(v: string) => {
                     const p = products?.data?.find((x: any) => x.id === v);
                     setLines(lines.map(l => l.id === line.id ? { ...l, product_id: v, unit_price: p?.selling_price || 0 } : l));
                   }}

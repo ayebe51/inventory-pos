@@ -5,12 +5,10 @@ Sistem informasi manajemen enterprise berbasis web untuk industri retail distrib
 ## Monorepo Structure
 
 ```
-apps/
-├── backend/    # NestJS API (Node.js 20+, TypeScript, Prisma)
-└── frontend/   # React 18+ (TypeScript, Ant Design, Zustand)
-
-packages/
-└── shared/     # Shared types & utilities
+.
+├── src/        # NestJS API (Node.js 20+, TypeScript, Prisma)
+├── frontend/   # React 18+ (TypeScript, Ant Design, Zustand)
+└── prisma/     # Prisma Schema and Seeds
 ```
 
 ## Tech Stack

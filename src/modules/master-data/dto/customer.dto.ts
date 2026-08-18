@@ -12,13 +12,57 @@ export const CreateCustomerSchema = z.object({
   is_active: z.boolean().default(true),
 });
 
-export type CreateCustomerDTO = z.infer<typeof CreateCustomerSchema>;
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateCustomerDTO {
+  @ApiProperty({ example: 'CUST-001' })
+  code!: string;
+
+  @ApiProperty({ example: 'PT Maju Bersama' })
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'contact@majubersama.com' })
+  email?: string | null;
+
+  @ApiPropertyOptional({ example: '+628123456789' })
+  phone?: string | null;
+
+  @ApiPropertyOptional({ example: 'Jl. Sudirman No. 1' })
+  address?: string | null;
+
+  @ApiPropertyOptional({ example: 10000000 })
+  credit_limit?: number;
+
+  @ApiPropertyOptional({ example: true })
+  is_active?: boolean;
+}
 
 // ── UpdateCustomerDTO ─────────────────────────────────────────────────────────
 
 export const UpdateCustomerSchema = CreateCustomerSchema.partial();
 
-export type UpdateCustomerDTO = z.infer<typeof UpdateCustomerSchema>;
+export class UpdateCustomerDTO {
+  @ApiPropertyOptional({ example: 'CUST-001' })
+  code?: string;
+
+  @ApiPropertyOptional({ example: 'PT Maju Bersama' })
+  name?: string;
+
+  @ApiPropertyOptional({ example: 'contact@majubersama.com' })
+  email?: string | null;
+
+  @ApiPropertyOptional({ example: '+628123456789' })
+  phone?: string | null;
+
+  @ApiPropertyOptional({ example: 'Jl. Sudirman No. 1' })
+  address?: string | null;
+
+  @ApiPropertyOptional({ example: 10000000 })
+  credit_limit?: number;
+
+  @ApiPropertyOptional({ example: true })
+  is_active?: boolean;
+}
 
 // ── CustomerFilter ────────────────────────────────────────────────────────────
 
@@ -26,8 +70,23 @@ export const CustomerFilterSchema = z.object({
   code: z.string().optional(),
   name: z.string().optional(),
   is_active: z.boolean().optional(),
-  page: z.number().int().min(1).default(1),
-  per_page: z.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  per_page: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-export type CustomerFilter = z.input<typeof CustomerFilterSchema>;
+export class CustomerFilter {
+  @ApiPropertyOptional()
+  code?: string;
+
+  @ApiPropertyOptional()
+  name?: string;
+
+  @ApiPropertyOptional()
+  is_active?: boolean;
+
+  @ApiPropertyOptional({ default: 1 })
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  per_page?: number;
+}

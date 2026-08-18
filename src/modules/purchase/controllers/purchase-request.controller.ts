@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -35,6 +36,8 @@ interface AuthRequest extends Request {
  *
  * Base URL: /api/v1/purchase-requests
  */
+@ApiTags('Purchase - Purchase Requests')
+@ApiBearerAuth()
 @Controller('api/v1/purchase-requests')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class PurchaseRequestController {
@@ -46,6 +49,8 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.CREATE
    */
+  @ApiOperation({ summary: 'Create a new Purchase Request' })
+  @ApiBody({ type: CreatePurchaseRequestDTO })
   @Post()
   @RequirePermissions('PURCHASE.CREATE')
   async create(
@@ -57,13 +62,13 @@ export class PurchaseRequestController {
 
     return successResponse(pr, 'Purchase Request created successfully');
   }
-
   /**
    * Get all Purchase Requests with filters and pagination.
    * GET /api/v1/purchase-requests
    *
    * Permission: PURCHASE.READ
    */
+  @ApiOperation({ summary: 'Get all Purchase Requests with filters and pagination' })
   @Get()
   @RequirePermissions('PURCHASE.READ')
   async search(@Query() query: SearchPurchaseRequestDTO) {
@@ -94,6 +99,8 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.READ
    */
+  @ApiOperation({ summary: 'Get a Purchase Request by ID' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
   @Get(':id')
   @RequirePermissions('PURCHASE.READ')
   async findById(@Param('id') id: UUID): Promise<APIResponse<PurchaseRequestWithLines>> {
@@ -102,7 +109,7 @@ export class PurchaseRequestController {
     if (!pr) {
       return {
         success: false,
-        data: null,
+        data: null as any,
         message: 'Purchase Request not found',
       };
     }
@@ -116,6 +123,9 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.UPDATE
    */
+  @ApiOperation({ summary: 'Update a Purchase Request (only in DRAFT status)' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
+  @ApiBody({ type: UpdatePurchaseRequestDTO })
   @Put(':id')
   @RequirePermissions('PURCHASE.UPDATE')
   @HttpCode(HttpStatus.OK)
@@ -136,6 +146,8 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.CREATE
    */
+  @ApiOperation({ summary: 'Submit Purchase Request for approval (DRAFT → SUBMITTED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
   @Put(':id/submit')
   @RequirePermissions('PURCHASE.CREATE')
   @HttpCode(HttpStatus.OK)
@@ -155,6 +167,9 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.APPROVE
    */
+  @ApiOperation({ summary: 'Approve Purchase Request (SUBMITTED → APPROVED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
+  @ApiBody({ schema: { type: 'object', properties: { notes: { type: 'string' } } } })
   @Put(':id/approve')
   @RequirePermissions('PURCHASE.APPROVE')
   @HttpCode(HttpStatus.OK)
@@ -175,6 +190,9 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.APPROVE
    */
+  @ApiOperation({ summary: 'Reject Purchase Request (SUBMITTED → REJECTED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @Put(':id/reject')
   @RequirePermissions('PURCHASE.APPROVE')
   @HttpCode(HttpStatus.OK)
@@ -195,6 +213,9 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.DELETE
    */
+  @ApiOperation({ summary: 'Cancel Purchase Request (DRAFT/SUBMITTED → CANCELLED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @Put(':id/cancel')
   @RequirePermissions('PURCHASE.DELETE')
   @HttpCode(HttpStatus.OK)
@@ -215,6 +236,8 @@ export class PurchaseRequestController {
    *
    * Permission: PURCHASE.DELETE
    */
+  @ApiOperation({ summary: 'Soft-delete a Purchase Request' })
+  @ApiParam({ name: 'id', description: 'Purchase Request ID' })
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('PURCHASE.DELETE')

@@ -1,3 +1,4 @@
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 /**
  * Unit tests for InvoiceService
  *
@@ -148,6 +149,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: NumberingService, useValue: mockNumberingService },
+        { provide: JournalEngineService, useValue: { postInvoice: jest.fn() } },
       ],
     }).compile();
 

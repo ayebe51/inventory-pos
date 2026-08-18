@@ -11,7 +11,7 @@ const { RangePicker } = DatePicker;
 export const AuditTrailPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['audit-logs'],
-    queryFn: () => api.get('/audit-logs').then(r => r.data),
+    queryFn: () => api.get('/api/v1/audit-logs').then(r => r.data),
   });
 
   const getActionColor = (action: string) => {

@@ -1,20 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
-import api from '../../../lib/api';
+import { api } from '../../../lib/api';
 
 export const usePurchaseOrders = (params?: Record<string, string>) =>
   useQuery({
     queryKey: ['purchase-orders', params],
     queryFn: () => {
       const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-      return api.get(`/purchase-orders${qs}`).then((r) => r.data);
+      return api.get(`/api/v1/purchase-orders${qs}`).then((r) => r.data);
     },
   });
 
 export const useCreatePurchaseOrder = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) => api.post('/purchase-orders', data).then((r) => r.data.data),
+    mutationFn: (data: any) => api.post('/api/v1/purchase-orders', data).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       message.success('Purchase Order created');
@@ -28,7 +28,7 @@ export const useCreatePurchaseOrder = () => {
 export const useApprovePO = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.post(`/purchase-orders/${id}/approve`).then((r) => r.data.data),
+    mutationFn: (id: string) => api.post(`/api/v1/purchase-orders/${id}/approve`).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       message.success('Purchase Order approved');
@@ -43,7 +43,7 @@ export const useRejectPO = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      api.post(`/purchase-orders/${id}/reject`, { reason }).then((r) => r.data.data),
+      api.post(`/api/v1/purchase-orders/${id}/reject`, { reason }).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       message.success('Purchase Order rejected');
@@ -62,7 +62,7 @@ export const useConfirmGoodsReceipt = () => {
       receipt_date: string;
       notes?: string;
       lines: { product_id: string; qty_received: number; unit_cost: number; uom_id: string }[];
-    }) => api.post('/goods-receipts', data).then((r) => r.data.data),
+    }) => api.post('/api/v1/goods-receipts', data).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
@@ -70,6 +70,29 @@ export const useConfirmGoodsReceipt = () => {
     },
     onError: (err: any) => {
       message.error(err?.response?.data?.error?.message || 'Failed to confirm receipt');
+    },
+  });
+};
+
+export const usePurchaseRequests = (params?: Record<string, string>) =>
+  useQuery({
+    queryKey: ['purchase-requests', params],
+    queryFn: () => {
+      const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+      return api.get(`/api/v1/purchase-requests${qs}`).then((r) => r.data);
+    },
+  });
+
+export const useCreatePurchaseRequest = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) => api.post('/api/v1/purchase-requests', data).then((r) => r.data.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['purchase-requests'] });
+      message.success('Purchase Request created');
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || 'Failed to create PR');
     },
   });
 };

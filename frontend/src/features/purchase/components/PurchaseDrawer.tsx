@@ -2,9 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Loader } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
+import { Select } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../../lib/api';
 import { useCreatePurchaseOrder } from '../hooks/usePurchase';
-import { PurchaseOrderLine } from '../types/purchase.types';
+import type { PurchaseOrderLine } from '../types/purchase.types';
 import styles from './PurchaseDrawer.module.css';
+
+const { Option } = Select;
 
 interface PurchaseDrawerProps {
   isOpen: boolean;
@@ -13,10 +18,34 @@ interface PurchaseDrawerProps {
 
 export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose }) => {
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
-  const [supplierId, setSupplierId] = useState('supplier-mock-1');
+  const [supplierId, setSupplierId] = useState('');
   const [lines, setLines] = useState<PurchaseOrderLine[]>([
-    { product_id: '', qty_ordered: 1, uom_id: 'uom-mock-1', unit_price: 0 }
+    { product_id: '', qty_ordered: 1, uom_id: '', unit_price: 0 }
   ]);
+
+  const { data: suppliersResponse } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: () => api.get('/api/v1/master-data/suppliers').then((r) => r.data),
+  });
+  const suppliers = suppliersResponse?.data || [];
+
+  const { data: productsResponse } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => api.get('/api/v1/master-data/products').then((r) => r.data),
+  });
+  const products = productsResponse?.data || [];
+
+  const { data: branchesResponse } = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => api.get('/api/v1/master-data/branches').then((r) => r.data),
+  });
+  const branches = branchesResponse?.data || [];
+
+  const { data: warehousesResponse } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
+  });
+  const warehouses = warehousesResponse?.data || [];
 
   const { mutate, isPending } = useCreatePurchaseOrder();
 
@@ -31,7 +60,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
   };
 
   const addLine = () => {
-    setLines([...lines, { product_id: '', qty_ordered: 1, uom_id: 'uom-mock-1', unit_price: 0 }]);
+    setLines([...lines, { product_id: '', qty_ordered: 1, uom_id: '', unit_price: 0 }]);
   };
 
   const removeLine = (index: number) => {
@@ -48,15 +77,15 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
     e.preventDefault();
     mutate({
       supplier_id: supplierId,
-      branch_id: 'branch-1',
-      warehouse_id: 'wh-1',
+      branch_id: branches[0]?.id || '00000000-0000-0000-0000-000000000000',
+      warehouse_id: warehouses[0]?.id || '00000000-0000-0000-0000-000000000000',
       order_date: orderDate,
       lines
     }, {
       onSuccess: () => {
         onClose();
         // reset form
-        setLines([{ product_id: '', qty_ordered: 1, uom_id: 'uom-mock-1', unit_price: 0 }]);
+        setLines([{ product_id: '', qty_ordered: 1, uom_id: '', unit_price: 0 }]);
       }
     });
   };
@@ -85,12 +114,17 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
               />
             </div>
             <div className={styles.formGroup}>
-              <label className={styles.label}>Supplier ID</label>
-              <Input 
+              <label className={styles.label}>Supplier</label>
+              <Select 
                 value={supplierId} 
-                onChange={(e) => setSupplierId(e.target.value)} 
-                required 
-              />
+                onChange={(value) => setSupplierId(value)}
+                style={{ width: '100%' }}
+                placeholder="Select a supplier"
+              >
+                {suppliers.map((s: any) => (
+                  <Option key={s.id} value={s.id}>{s.name}</Option>
+                ))}
+              </Select>
             </div>
           </div>
 
@@ -99,7 +133,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
           <table className={styles.linesTable}>
             <thead>
               <tr>
-                <th>Product ID</th>
+                <th>Product</th>
                 <th style={{ width: '80px' }}>Qty</th>
                 <th style={{ width: '120px' }}>Unit Price</th>
                 <th style={{ width: '120px' }}>Subtotal</th>
@@ -110,13 +144,23 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
               {lines.map((line, index) => (
                 <tr key={index}>
                   <td>
-                    <input 
-                      className={styles.lineInput} 
-                      placeholder="SKU-XXXX"
+                    <Select 
                       value={line.product_id}
-                      onChange={(e) => handleLineChange(index, 'product_id', e.target.value)}
-                      required
-                    />
+                      onChange={(value) => {
+                        const product = products.find((p: any) => p.id === value);
+                        handleLineChange(index, 'product_id', value);
+                        if (product) {
+                          handleLineChange(index, 'uom_id', product.uom_id);
+                          handleLineChange(index, 'unit_price', product.standard_cost || 0);
+                        }
+                      }}
+                      style={{ width: '100%' }}
+                      placeholder="Select product"
+                    >
+                      {products.map((p: any) => (
+                        <Option key={p.id} value={p.id}>{p.name}</Option>
+                      ))}
+                    </Select>
                   </td>
                   <td>
                     <input 

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
-import { Product } from '../types/inventory.types';
+import type { Product } from '../types/inventory.types';
 import { useCreateProduct, useUpdateProduct } from '../hooks/useInventory';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../../lib/api';
 import styles from './ProductDrawer.module.css';
 
 interface ProductDrawerProps {
@@ -25,8 +27,18 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({ isOpen, onClose, p
     is_active: true,
     is_serialized: false,
     is_batch_tracked: false,
-    category_id: 'b75f5b61-9c1d-4074-b4a1-874271701e67', // Hardcoded mock category for now
-    uom_id: 'e6b8c4c7-124b-4a55-89f5-373a0a38b1d4', // Hardcoded mock UOM for now
+    category_id: '',
+    uom_id: '',
+  });
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/api/v1/master-data/categories').then((r) => r.data),
+  });
+
+  const { data: uoms } = useQuery({
+    queryKey: ['uoms'],
+    queryFn: () => api.get('/api/v1/master-data/uoms').then((r) => r.data),
   });
 
   const createMutation = useCreateProduct();
@@ -48,16 +60,20 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({ isOpen, onClose, p
         is_active: true,
         is_serialized: false,
         is_batch_tracked: false,
-        category_id: 'b75f5b61-9c1d-4074-b4a1-874271701e67', 
-        uom_id: 'e6b8c4c7-124b-4a55-89f5-373a0a38b1d4', 
+        category_id: categories?.data?.[0]?.id || '', 
+        uom_id: uoms?.data?.[0]?.id || '', 
       });
     }
-  }, [product, isOpen]);
+  }, [product, isOpen, categories, uoms]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    let checked = false;
+    if (e.target instanceof HTMLInputElement && type === 'checkbox') {
+      checked = e.target.checked;
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
@@ -144,6 +160,52 @@ export const ProductDrawer: React.FC<ProductDrawerProps> = ({ isOpen, onClose, p
               />
               <span className={styles.label}>Active Product</span>
             </label>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Category</label>
+            <select 
+              name="category_id" 
+              value={formData.category_id || ''} 
+              onChange={handleChange} 
+              required
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: 'rgba(255,255,255,0.7)',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="" disabled>Select a category</option>
+              {categories?.data?.map((cat: any) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label className={styles.label}>Unit of Measure</label>
+            <select 
+              name="uom_id" 
+              value={formData.uom_id || ''} 
+              onChange={handleChange} 
+              required
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(0,0,0,0.1)',
+                background: 'rgba(255,255,255,0.7)',
+                fontSize: '0.875rem'
+              }}
+            >
+              <option value="" disabled>Select a UOM</option>
+              {uoms?.data?.map((uom: any) => (
+                <option key={uom.id} value={uom.id}>{uom.name}</option>
+              ))}
+            </select>
           </div>
         </form>
 

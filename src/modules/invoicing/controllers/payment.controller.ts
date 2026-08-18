@@ -7,30 +7,37 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 import { PaymentService } from '../services/payment.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
-import { CreatePaymentDTO } from '../interfaces/invoicing.interfaces';
+import { CreatePaymentDTO } from '../dto/invoicing.dto';
 
 interface AuthRequest extends Request {
   user: { sub: string };
 }
 
+@ApiTags('Invoicing - Payments')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('api/v1/payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
+  @ApiOperation({ summary: 'Register a payment' })
+  @ApiBody({ type: CreatePaymentDTO })
   @Post()
   @RequirePermissions('PAYMENT.CREATE')
   async registerPayment(@Body() body: CreatePaymentDTO, @Request() req: AuthRequest) {
-    const payment = await this.paymentService.createPayment(body);
+    const payment = await this.paymentService.createPayment(body as any);
     return successResponse(payment, 'Payment registered successfully');
   }
 
+  @ApiOperation({ summary: 'Approve a payment' })
+  @ApiParam({ name: 'id', description: 'Payment ID' })
   @Post(':id/approve')
   @RequirePermissions('PAYMENT.APPROVE')
   async approve(@Param('id') id: string, @Request() req: AuthRequest) {
@@ -38,6 +45,8 @@ export class PaymentController {
     return successResponse(payment, 'Payment approved successfully');
   }
 
+  @ApiOperation({ summary: 'Post a payment' })
+  @ApiParam({ name: 'id', description: 'Payment ID' })
   @Post(':id/post')
   @RequirePermissions('PAYMENT.POST')
   async post(@Param('id') id: string, @Request() req: AuthRequest) {
@@ -45,6 +54,16 @@ export class PaymentController {
     return successResponse(payment, 'Payment posted successfully');
   }
 
+  @ApiOperation({ summary: 'Reverse a payment' })
+  @ApiParam({ name: 'id', description: 'Payment ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        reason: { type: 'string', example: 'Wrong amount' }
+      }
+    }
+  })
   @Post(':id/reverse')
   @RequirePermissions('PAYMENT.REVERSE')
   async reverse(@Param('id') id: string, @Body('reason') reason: string, @Request() req: AuthRequest) {
@@ -52,6 +71,13 @@ export class PaymentController {
     return successResponse(payment, 'Payment reversed successfully');
   }
 
+  @ApiOperation({ summary: 'Search payments' })
+  @ApiQuery({ name: 'payment_type', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'customer_id', required: false })
+  @ApiQuery({ name: 'supplier_id', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
   @Get()
   @RequirePermissions('PAYMENT.READ')
   async search(@Request() req: Request) {
@@ -73,6 +99,8 @@ export class PaymentController {
     };
   }
 
+  @ApiOperation({ summary: 'Get payment by ID' })
+  @ApiParam({ name: 'id', description: 'Payment ID' })
   @Get(':id')
   @RequirePermissions('PAYMENT.READ')
   async findById(@Param('id') id: string) {

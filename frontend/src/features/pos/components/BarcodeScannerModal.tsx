@@ -17,7 +17,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, 
     const codeReader = new BrowserMultiFormatReader();
 
     if (open && videoRef.current) {
-      codeReader.decodeFromVideoDevice(null, videoRef.current, (result, error, ctrls) => {
+      codeReader.decodeFromVideoDevice(undefined, videoRef.current, (result, error, ctrls) => {
         controls = ctrls;
         if (result) {
           onScan(result.getText());
@@ -26,7 +26,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, 
         if (error && error.name !== 'NotFoundException') {
           // ignore not found as it scans continuously
         }
-      }).catch((err) => {
+      }).catch(() => {
         setHasCamera(false);
         message.warning('Camera not accessible or not found. Fallback to manual entry.');
       });

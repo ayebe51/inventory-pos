@@ -100,6 +100,8 @@ export interface StockMovementDTO {
   movement_date: Date;
   qty_in: number;
   qty_out: number;
+  uom_id?: UUID;
+  conversion_rate?: number;
   unit_cost: number;
   notes?: string;
   created_by: UUID;

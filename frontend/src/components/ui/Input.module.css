@@ -24,7 +24,7 @@
   background-color: var(--color-surface);
   color: var(--color-text-primary);
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .input::placeholder {
@@ -33,7 +33,7 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
 }
 
 .input:disabled {
@@ -42,16 +42,24 @@
   cursor: not-allowed;
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
 .inputError {
   border-color: var(--color-danger);
+  animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
 }
 .inputError:focus {
   border-color: var(--color-danger);
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
 }
 
 .errorText {
   font-size: 12px;
   color: var(--color-danger);
   margin-top: 2px;
+  animation: fade-in-up 0.2s var(--ease-out);
 }

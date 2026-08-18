@@ -7,11 +7,13 @@ import { AccountingService } from './services/accounting.service';
 import { AccountingController } from './controllers/accounting.controller';
 import { BankReconciliationController } from './controllers/bank-reconciliation.controller';
 import { BankReconciliationService } from './services/bank-reconciliation.service';
+import { FixedAssetController } from './controllers/fixed-asset.controller';
+import { FixedAssetService } from './services/fixed-asset.service';
 
 @Module({
   imports: [JournalEngineModule, PeriodManagerModule, NumberingModule],
-  controllers: [AccountingController, BankReconciliationController],
-  providers: [JournalEngineService, AccountingService, BankReconciliationService],
-  exports: [JournalEngineService, AccountingService, BankReconciliationService],
+  controllers: [AccountingController, BankReconciliationController, FixedAssetController],
+  providers: [JournalEngineService, AccountingService, BankReconciliationService, FixedAssetService],
+  exports: [JournalEngineService, AccountingService, BankReconciliationService, FixedAssetService],
 })
 export class AccountingModule {}

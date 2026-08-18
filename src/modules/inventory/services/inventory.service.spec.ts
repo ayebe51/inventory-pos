@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { NumberingService } from '../../../services/numbering/numbering.service';
 import { InventoryService } from './inventory.service';
 import { PrismaService } from '../../../config/prisma.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
@@ -18,11 +19,25 @@ describe('InventoryService', () => {
       delete: jest.fn(),
       aggregate: jest.fn(),
     },
+    warehouse: {
+      update: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    stockTransfer: {
+      create: jest.fn(),
+    },
+    stockAdjustment: {
+      create: jest.fn(),
+    },
+    $transaction: jest.fn().mockImplementation(async (cb) => {
+      return cb(mockPrismaService);
+    }),
   };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: NumberingService, useValue: { generate: jest.fn().mockResolvedValue('INV-001') } },
         InventoryService,
         {
           provide: PrismaService,
@@ -1339,43 +1354,66 @@ describe('InventoryService', () => {
   });
 
   describe('transferStock', () => {
-    it('should throw not implemented error', async () => {
-      await expect(
-        service.transferStock({
-          from_warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
-          to_warehouse_id: '550e8400-e29b-41d4-a716-446655440002',
-          transfer_date: new Date(),
-          lines: [],
-          created_by: '550e8400-e29b-41d4-a716-446655440003',
-        }),
-      ).rejects.toThrow('Not implemented yet');
+    it('should create a stock transfer', async () => {
+      mockPrismaService.stockTransfer.create.mockResolvedValue({
+        id: '550e8400-e29b-41d4-a716-446655440020',
+        transfer_number: 'TRF-202501-00001',
+        from_warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
+        to_warehouse_id: '550e8400-e29b-41d4-a716-446655440002',
+        status: 'DRAFT',
+        created_by: '550e8400-e29b-41d4-a716-446655440003',
+      });
+
+      const data = {
+        from_warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
+        to_warehouse_id: '550e8400-e29b-41d4-a716-446655440002',
+        transfer_date: new Date(),
+        lines: [],
+        created_by: '550e8400-e29b-41d4-a716-446655440003',
+      };
+      const result = await service.transferStock(data);
+      expect(result).toBeDefined();
+      expect(mockPrismaService.stockTransfer.create).toHaveBeenCalled();
     });
   });
 
   describe('adjustStock', () => {
-    it('should throw not implemented error', async () => {
-      await expect(
-        service.adjustStock(
-          {
-            warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
-            adjustment_date: new Date(),
-            reason: 'Test',
-            lines: [],
-          },
-          '550e8400-e29b-41d4-a716-446655440002',
-        ),
-      ).rejects.toThrow('Not implemented yet');
+    it('should create a stock adjustment', async () => {
+      mockPrismaService.stockAdjustment.create.mockResolvedValue({
+        id: '550e8400-e29b-41d4-a716-446655440030',
+        adjustment_number: 'ADJ-202501-00001',
+        warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
+        reason: 'Test',
+        created_by: '550e8400-e29b-41d4-a716-446655440002',
+      });
+
+      const data = {
+        warehouse_id: '550e8400-e29b-41d4-a716-446655440001',
+        adjustment_date: new Date(),
+        reason: 'Test',
+        lines: [],
+      };
+      const result = await service.adjustStock(data, '550e8400-e29b-41d4-a716-446655440002');
+      expect(result).toBeDefined();
+      expect(mockPrismaService.stockAdjustment.create).toHaveBeenCalled();
     });
   });
 
   describe('lockWarehouse', () => {
-    it('should throw not implemented error', async () => {
-      await expect(
-        service.lockWarehouse(
-          '550e8400-e29b-41d4-a716-446655440001',
-          'Stock opname',
-        ),
-      ).rejects.toThrow('Not implemented yet');
+    it('should lock warehouse', async () => {
+      mockPrismaService.warehouse.update.mockResolvedValue({ id: '550e8400-e29b-41d4-a716-446655440001', is_locked: true });
+      await service.lockWarehouse(
+        '550e8400-e29b-41d4-a716-446655440001',
+        'Stock opname',
+      );
+      expect(mockPrismaService.warehouse.update).toHaveBeenCalledWith({
+        where: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        data: {
+          is_locked: true,
+          lock_reason: 'Stock opname',
+          locked_at: expect.any(Date),
+        },
+      });
     });
   });
 

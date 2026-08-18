@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Input, DatePicker
+  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, Input, DatePicker
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useQuery, useMutation } from '@tanstack/react-query';
 import { PlusOutlined } from '@ant-design/icons';
-import api from '../../../lib/api';
 import dayjs from 'dayjs';
 
 import { usePayments, useCreatePayment } from '../../invoicing/hooks/useInvoicing';

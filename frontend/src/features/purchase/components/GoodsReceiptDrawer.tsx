@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Drawer, Form, Table, Button, Input, InputNumber,
-  Select, Space, Typography, Divider, message,
+  Space, Divider, message, Typography,
   Row, Col, Alert,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { PurchaseOrder } from '../types/purchase.types';
 import { useConfirmGoodsReceipt } from '../hooks/usePurchase';
@@ -34,7 +33,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
 
   if (!purchaseOrder) return null;
 
-  const initialLines: GoodsReceiptLine[] = (purchaseOrder.lines || []).map((line: any, idx: number) => ({
+  const initialLines: GoodsReceiptLine[] = ((purchaseOrder as any).lines || []).map((line: any, idx: number) => ({
     key: String(idx),
     product_id: line.product_id,
     product_name: line.product?.name || line.product_id,
@@ -84,7 +83,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
       dataIndex: 'qty_received_before',
       align: 'right',
       width: 110,
-      render: (v) => <Text className="number-display" style={{ color: '#64748B' }}>{v}</Text>,
+      render: (v) => <Text className="number-display" style={{ }}>{v}</Text>,
     },
     {
       title: 'Qty to Receive',
@@ -157,7 +156,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
         </Form.Item>
 
         <Divider style={{ borderColor: '#2D2D3F' }}>
-          <Text style={{ color: '#64748B', fontSize: 12 }}>ITEMS RECEIVED</Text>
+          <Text style={{ fontSize: 12 }}>ITEMS RECEIVED</Text>
         </Divider>
 
         <Table

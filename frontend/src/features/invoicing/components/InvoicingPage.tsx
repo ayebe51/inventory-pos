@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import {
   Tabs, Table, Tag, Button, Space, Typography, Card,
-  Drawer, Form, Input, Select, InputNumber, Divider,
-  Row, Col, Tooltip, Badge, Statistic, message, Modal,
+  Drawer, Form, Input, Select,
+  Row, Col, Tooltip, Badge, message, Modal,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  PlusOutlined, SendOutlined, StopOutlined, CheckCircleOutlined,
-  SearchOutlined, ReloadOutlined,
+  PlusOutlined, SendOutlined, StopOutlined,
+  ReloadOutlined, WarningOutlined, FallOutlined
 } from '@ant-design/icons';
-import { useInvoices, useCreateInvoice, usePostInvoice, useCancelInvoice } from '../hooks/useInvoicing';
+import { 
+  useInvoices, useCreateInvoice, usePostInvoice, useCancelInvoice,
+  useDisputeInvoice, useWriteOffInvoice 
+} from '../hooks/useInvoicing';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 const INVOICE_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   DRAFT:     { color: '#94A3B8', label: 'Draft' },
@@ -34,6 +36,8 @@ export const InvoicingPage: React.FC = () => {
   const createInvoice = useCreateInvoice();
   const postInvoice = usePostInvoice();
   const cancelInvoice = useCancelInvoice();
+  const disputeInvoice = useDisputeInvoice();
+  const writeOffInvoice = useWriteOffInvoice();
 
   const handleCreate = async () => {
     try {
@@ -78,7 +82,7 @@ export const InvoicingPage: React.FC = () => {
       dataIndex: 'total_amount',
       align: 'right',
       width: 180,
-      render: (v) => <Text className="number-display" style={{ fontWeight: 600, color: '#E2E8F0' }}>Rp {v?.toLocaleString('id-ID') ?? '—'}</Text>,
+      render: (v) => <Text className="number-display" style={{ fontWeight: 600, }}>Rp {v?.toLocaleString('id-ID') ?? '—'}</Text>,
     },
     {
       title: 'Outstanding',
@@ -117,6 +121,27 @@ export const InvoicingPage: React.FC = () => {
                   content: 'This cannot be undone.',
                   onOk: () => cancelInvoice.mutate(record.id),
                   okButtonProps: { danger: true },
+                })} />
+            </Tooltip>
+          )}
+          {record.status === 'OVERDUE' && (
+            <Tooltip title="Write Off">
+              <Button type="text" size="small" icon={<FallOutlined />} style={{ color: '#475569' }}
+                onClick={() => Modal.confirm({
+                  title: 'Write Off Invoice?',
+                  content: 'Are you sure you want to write off this bad debt?',
+                  onOk: () => writeOffInvoice.mutate({ id: record.id, reason: 'Bad debt' }),
+                  okButtonProps: { danger: true },
+                })} />
+            </Tooltip>
+          )}
+          {['OPEN', 'PARTIAL', 'OVERDUE'].includes(record.status) && (
+            <Tooltip title="Dispute">
+              <Button type="text" size="small" icon={<WarningOutlined />} style={{ color: '#FBBF24' }}
+                onClick={() => Modal.confirm({
+                  title: 'Dispute Invoice?',
+                  content: 'Mark this invoice as disputed by the customer?',
+                  onOk: () => disputeInvoice.mutate({ id: record.id, reason: 'Customer dispute' }),
                 })} />
             </Tooltip>
           )}

@@ -125,10 +125,10 @@ export interface FiscalPeriod {
 export interface JournalEntryDTO {
   entry_date: Date;
   period_id: UUID;
-  reference_type: string;
-  reference_id: UUID;
-  reference_number: string;
-  description: string;
+  reference_type?: string;
+  reference_id?: UUID;
+  reference_number?: string;
+  description?: string;
   lines: JournalLine[];
   is_auto_generated?: boolean;
   created_by: UUID;
@@ -140,6 +140,7 @@ export interface AccountingService {
   getTrialBalance(periodId: UUID, branchId?: UUID): Promise<TrialBalance>;
   closePeriod(periodId: UUID, userId: UUID): Promise<FiscalPeriod>;
   getAccountBalance(accountId: UUID, asOfDate: Date): Promise<AccountBalance>;
+  getRecentJournalEntries(limit?: number): Promise<JournalEntry[]>;
 }
 
 export interface JournalBalanceValidationResult {

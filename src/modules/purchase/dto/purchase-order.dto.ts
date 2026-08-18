@@ -60,8 +60,8 @@ export const PurchaseOrderFilterSchema = z.object({
     ])
     .optional(),
   created_by: z.string().uuid().optional(),
-  page: z.number().int().positive().optional(),
-  per_page: z.number().int().positive().max(100).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  per_page: z.coerce.number().int().positive().max(100).optional(),
 });
 
 // ── TypeScript Types ──────────────────────────────────────────────────────────

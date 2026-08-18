@@ -9,14 +9,18 @@ interface LoginPayload {
 }
 
 interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  user: {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: {
     id: string;
-    name: string;
+    full_name: string;
     email: string;
-    role: 'admin' | 'manager' | 'cashier';
+    roles: string[];
+    branch_id: string | null;
   };
+  mfaRequired?: boolean;
+  mfaToken?: string;
+  mfaPurpose?: 'setup' | 'verify';
 }
 
 export const useLogin = () => {
@@ -25,13 +29,30 @@ export const useLogin = () => {
 
   return useMutation({
     mutationFn: async (payload: LoginPayload): Promise<LoginResponse> => {
-      const { data } = await api.post<LoginResponse>('/auth/login', payload);
-      return data;
+      const { data } = await api.post<{ data: LoginResponse }>('/api/v1/auth/login', payload);
+      return data.data;
     },
     onSuccess: (data) => {
-      localStorage.setItem('refresh_token', data.refreshToken);
-      setAuth(data.user, data.accessToken);
-      navigate('/');
+      if (data.mfaRequired && data.mfaToken) {
+        localStorage.setItem('mfa_token', data.mfaToken);
+        if (data.mfaPurpose === 'setup') {
+          navigate('/mfa/setup');
+        } else {
+          navigate('/mfa/verify');
+        }
+        return;
+      }
+
+      if (data.accessToken && data.user) {
+        localStorage.setItem('refresh_token', data.refreshToken || '');
+        setAuth({
+          id: data.user.id,
+          name: data.user.full_name,
+          email: data.user.email,
+          role: data.user.roles?.[0] || 'admin'
+        } as any, data.accessToken);
+        navigate('/');
+      }
     },
   });
 };

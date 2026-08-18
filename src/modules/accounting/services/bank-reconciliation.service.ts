@@ -12,7 +12,7 @@ export interface BankStatementRow {
 }
 
 export interface ReconciliationMatch {
-  statement_row: BankStatementRow;
+  statement_id: string;
   payment_id: string | null;
   payment_number: string | null;
   match_score: number; // 0-100
@@ -51,32 +51,70 @@ export class BankReconciliationService {
   }
 
   /**
-   * Auto-match statement rows with system payments
+   * Upload and persist bank statement CSV
    */
-  async autoMatch(rows: BankStatementRow[]): Promise<ReconciliationMatch[]> {
+  async uploadStatement(bankAccountId: UUID, csvContent: string): Promise<any[]> {
+    const rows = this.parseStatement(csvContent);
+
+    return await this.prisma.$transaction(async (tx) => {
+      const statements: any[] = [];
+      for (const row of rows) {
+        const statement = await tx.bankStatement.create({
+          data: {
+            bank_account_id: bankAccountId,
+            statement_date: new Date(row.date),
+            reference_number: row.reference,
+            description: row.description,
+            amount: row.amount,
+            transaction_type: row.amount >= 0 ? 'CREDIT' : 'DEBIT',
+            is_matched: false
+          }
+        });
+        statements.push(statement);
+      }
+      return statements;
+    });
+  }
+
+  /**
+   * Auto-match statement rows from DB with system payments
+   */
+  async autoMatch(bankAccountId: UUID, fromDate: Date, toDate: Date): Promise<ReconciliationMatch[]> {
     const matches: ReconciliationMatch[] = [];
     
-    // Fetch all unreconciled POSTED payments
+    // Fetch unmatched statements in range
+    const statements = await this.prisma.bankStatement.findMany({
+      where: {
+        bank_account_id: bankAccountId,
+        is_matched: false,
+        statement_date: {
+          gte: fromDate,
+          lte: toDate
+        }
+      }
+    });
+
+    // Fetch all unreconciled POSTED payments (assuming we don't filter by account for now, but realistically we should)
     const payments = await this.prisma.payment.findMany({
       where: {
         status: 'POSTED',
       }
     });
 
-    for (const row of rows) {
-      let bestMatch = null;
+    for (const stmt of statements) {
+      let bestMatch: any = null;
       let highestScore = 0;
 
       for (const payment of payments) {
         let score = 0;
         
         // Exact amount match: +50 points
-        if (Math.abs(Number(payment.amount)) === Math.abs(row.amount)) {
+        if (Math.abs(Number(payment.amount)) === Math.abs(Number(stmt.amount))) {
           score += 50;
         }
 
         // Exact reference match: +50 points
-        if (row.reference && payment.payment_number.includes(row.reference)) {
+        if (stmt.reference_number && payment.payment_number.includes(stmt.reference_number)) {
           score += 50;
         }
 
@@ -88,7 +126,7 @@ export class BankReconciliationService {
 
       if (bestMatch && highestScore >= 50) {
         matches.push({
-          statement_row: row,
+          statement_id: stmt.id,
           payment_id: bestMatch.id,
           payment_number: bestMatch.payment_number,
           match_score: highestScore,
@@ -96,7 +134,7 @@ export class BankReconciliationService {
         });
       } else {
         matches.push({
-          statement_row: row,
+          statement_id: stmt.id,
           payment_id: null,
           payment_number: null,
           match_score: 0,
@@ -111,25 +149,30 @@ export class BankReconciliationService {
   /**
    * Confirm reconciliation for matched payments
    */
-  async confirmReconciliation(paymentIds: UUID[], userId: UUID): Promise<void> {
+  async confirmReconciliation(matches: { statementId: UUID; paymentId: UUID }[], userId: UUID): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      for (const id of paymentIds) {
-        const payment = await tx.payment.findUnique({ where: { id } });
-        if (!payment) {
-          throw new BusinessRuleException(`Payment ${id} not found`, ErrorCode.NOT_FOUND);
-        }
-        
-        if (payment.status !== 'POSTED') {
-          throw new BusinessRuleException(`Payment ${id} is not POSTED`, ErrorCode.BUSINESS_RULE_VIOLATION);
+      for (const match of matches) {
+        const payment = await tx.payment.findUnique({ where: { id: match.paymentId } });
+        if (!payment || payment.status !== 'POSTED') {
+          throw new BusinessRuleException(`Payment ${match.paymentId} invalid or not POSTED`, ErrorCode.BUSINESS_RULE_VIOLATION);
         }
 
         await tx.payment.update({
-          where: { id },
+          where: { id: match.paymentId },
           data: { status: 'RECONCILED' }
+        });
+
+        await tx.bankStatement.update({
+          where: { id: match.statementId },
+          data: {
+            is_matched: true,
+            matched_payment_id: match.paymentId,
+            matched_at: new Date()
+          }
         });
       }
     });
     
-    this.logger.log(`Reconciled ${paymentIds.length} payments by user ${userId}`);
+    this.logger.log(`Reconciled ${matches.length} bank statements by user ${userId}`);
   }
 }

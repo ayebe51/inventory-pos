@@ -5,17 +5,21 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 import { InventoryService } from '../services/inventory.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
+import { StockTransferDTO } from '../dto/inventory.dto';
 
 interface AuthRequest extends Request {
   user: { sub: string };
 }
 
+@ApiTags('Inventory - Stock Transfers')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('api/v1/inventory/stock-transfers')
 export class StockTransferController {
@@ -25,15 +29,12 @@ export class StockTransferController {
    * POST /api/v1/inventory/stock-transfers
    * Create a new stock transfer
    */
+  @ApiOperation({ summary: 'Create a new stock transfer' })
+  @ApiBody({ type: StockTransferDTO })
   @Post()
   @RequirePermissions('STOCK.TRANSFER')
   async transferStock(
-    @Body() body: {
-      from_warehouse_id: string;
-      to_warehouse_id: string;
-      transfer_date: string;
-      lines: { product_id: string; qty: number; uom_id: string; unit_cost: number }[];
-    },
+    @Body() body: StockTransferDTO,
     @Request() req: AuthRequest,
   ) {
     const transfer = await this.inventoryService.transferStock({

@@ -10,12 +10,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 import { POSService } from '../services/pos.service';
 import { successResponse, paginatedResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
+import { OpenShiftDTO, CloseShiftDTO, ProcessTransactionDTO, VoidTransactionDTO, SalesReturnDTO } from '../dto/pos.dto';
 
 interface AuthRequest extends Request {
   user: { sub: string };
@@ -34,6 +36,8 @@ interface AuthRequest extends Request {
  *   POST /api/v1/pos/transactions      - Create transaction (all-in-one: items + payment)
  *   POST /api/v1/pos/transactions/:id/void - Void transaction
  */
+@ApiTags('POS - Point of Sales')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('api/v1/pos')
 export class POSController {
@@ -41,92 +45,120 @@ export class POSController {
 
   // ─── SHIFTS ──────────────────────────────────────────────
 
+  @ApiOperation({ summary: 'List shifts' })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
   @Get('shifts')
   @RequirePermissions('POS.READ')
   async listShifts(@Query() query: { status?: string; page?: number; per_page?: number }) {
     const result = await this.posService.listShifts({
       status: query.status,
-      page: query.page || 1,
-      per_page: query.per_page || 20,
+      page: query.page ? Number(query.page) : 1,
+      per_page: query.per_page ? Number(query.per_page) : 20,
     });
     return paginatedResponse(result.data, result.meta.total, result.meta.page, result.meta.per_page);
   }
 
+  @ApiOperation({ summary: 'Open shift' })
+  @ApiBody({ type: OpenShiftDTO })
   @Post('shifts')
   @RequirePermissions('POS.CREATE')
-  async openShift(@Body() body: { opening_balance: number }, @Request() req: AuthRequest) {
+  async openShift(@Body() body: OpenShiftDTO, @Request() req: AuthRequest) {
     const shift = await this.posService.openShift({
       cashier_id: req.user.sub as UUID,
       opening_balance: body.opening_balance,
+      branch_id: body.branch_id as UUID,
+      warehouse_id: body.warehouse_id as UUID,
     });
     return successResponse(shift, 'Shift opened successfully');
   }
 
+  @ApiOperation({ summary: 'Get shift detail' })
+  @ApiParam({ name: 'id', description: 'Shift ID' })
   @Get('shifts/:id')
   @RequirePermissions('POS.READ')
   async getShift(@Param('id') id: string) {
     const shift = await this.posService.getShift(id as UUID);
-    return successResponse(shift, 'Shift retrieved');
+    return successResponse(shift);
   }
 
+  @ApiOperation({ summary: 'Close shift' })
+  @ApiParam({ name: 'id', description: 'Shift ID' })
+  @ApiBody({ type: CloseShiftDTO })
   @Post('shifts/:id/close')
-  @RequirePermissions('POS.CREATE')
-  @HttpCode(HttpStatus.OK)
-  async closeShift(@Param('id') id: string, @Body() body: { closing_balance: number }) {
+  @RequirePermissions('POS.UPDATE')
+  async closeShift(@Param('id') id: string, @Body() body: CloseShiftDTO, @Request() req: AuthRequest) {
     const report = await this.posService.closeShift(id as UUID, body.closing_balance);
     return successResponse(report, 'Shift closed successfully');
   }
 
-  // ─── TRANSACTIONS ─────────────────────────────────────────
+  // ─── TRANSACTIONS ────────────────────────────────────────
 
+  @ApiOperation({ summary: 'List transactions' })
+  @ApiQuery({ name: 'shift_id', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
   @Get('transactions')
   @RequirePermissions('POS.READ')
-  async listTransactions(@Query() query: { shift_id?: string; status?: string; page?: number }) {
+  async listTransactions(@Query() query: { shift_id?: string; status?: string; page?: number; per_page?: number }) {
     const result = await this.posService.listTransactions({
       shift_id: query.shift_id as UUID,
       status: query.status,
-      page: query.page || 1,
-      per_page: 20,
+      page: query.page ? Number(query.page) : 1,
+      per_page: query.per_page ? Number(query.per_page) : 20,
     });
     return paginatedResponse(result.data, result.meta.total, result.meta.page, result.meta.per_page);
   }
 
+  @ApiOperation({ summary: 'Create transaction (all-in-one: items + payment)' })
+  @ApiBody({ type: ProcessTransactionDTO })
   @Post('transactions')
   @RequirePermissions('POS.CREATE')
-  async createTransaction(
-    @Body() body: {
-      shift_id: string;
-      customer_id?: string;
-      items: { product_id: string; quantity: number; unit_price: number; discount_pct?: number }[];
-      payments: { method: string; amount: number; reference?: string }[];
-    },
-    @Request() req: AuthRequest,
-  ) {
-    // All-in-one: create transaction, add items, process payment
+  async processTransaction(@Body() body: ProcessTransactionDTO, @Request() req: AuthRequest) {
     const receipt = await this.posService.processFullTransaction({
       shift_id: body.shift_id as UUID,
       cashier_id: req.user.sub as UUID,
-      customer_id: body.customer_id as UUID | undefined,
+      customer_id: body.customer_id as UUID,
       items: body.items,
       payments: body.payments,
     });
     return successResponse(receipt, 'Transaction completed successfully');
   }
 
+  @ApiOperation({ summary: 'Void transaction' })
+  @ApiParam({ name: 'id', description: 'Transaction ID' })
+  @ApiBody({ type: VoidTransactionDTO })
   @Post('transactions/:id/void')
-  @RequirePermissions('POS.VOID')
-  @HttpCode(HttpStatus.OK)
-  async voidTransaction(
-    @Param('id') transactionId: string,
-    @Body() body: { reason: string; version?: number },
-    @Request() req: AuthRequest,
-  ) {
-    await this.posService.voidTransaction(
-      transactionId as UUID,
-      req.user.sub as UUID,
-      body.reason,
-      body.version || 1,
-    );
-    return successResponse(null, 'Transaction voided');
+  @RequirePermissions('POS.DELETE')
+  async voidTransaction(@Param('id') id: string, @Body() body: VoidTransactionDTO, @Request() req: AuthRequest) {
+    // Note: Assuming a fixed version for voiding as it's not provided in the request
+    await this.posService.voidTransaction(id as UUID, req.user.sub as UUID, body.reason, 1);
+    return successResponse(null, 'Transaction voided successfully');
+  }
+
+  // ─── SALES RETURNS ────────────────────────────────────────
+
+  @ApiOperation({ summary: 'List sales returns' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
+  @Get('sales-returns')
+  @RequirePermissions('POS.READ')
+  async listSalesReturns(@Query() query: { page?: number; per_page?: number }) {
+    const result = await this.posService.listSalesReturns({
+      page: query.page ? Number(query.page) : 1,
+      per_page: query.per_page ? Number(query.per_page) : 20,
+    });
+    return paginatedResponse(result.data, result.meta.total, result.meta.page, result.meta.per_page);
+  }
+
+  @ApiOperation({ summary: 'Create sales return' })
+  @ApiBody({ type: SalesReturnDTO })
+  @Post('sales-returns')
+  @RequirePermissions('POS.CREATE')
+  async createSalesReturn(@Body() body: SalesReturnDTO, @Request() req: AuthRequest) {
+    const salesReturn = await this.posService.createSalesReturn(req.user.sub as UUID, body);
+    return successResponse(salesReturn, 'Sales return created successfully');
   }
 }

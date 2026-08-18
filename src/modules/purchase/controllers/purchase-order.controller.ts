@@ -9,7 +9,9 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -17,12 +19,14 @@ import { PurchaseOrderService } from '../services/purchase-order.service';
 import { APIResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
 import { PurchaseOrder, GoodsReceipt } from '../interfaces/purchase.interfaces';
-import { CreatePODTO, GoodsReceiptDTO } from '../dto/purchase-order.dto';
+import { CreatePODTO, GoodsReceiptDTO, PurchaseOrderFilter } from '../dto/purchase-order.dto';
 
 /**
  * Purchase Order Controller
  * Handles HTTP endpoints for purchase order management.
  */
+@ApiTags('Purchase - Purchase Orders')
+@ApiBearerAuth()
 @Controller('api/v1/purchase-orders')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class PurchaseOrderController {
@@ -32,6 +36,7 @@ export class PurchaseOrderController {
    * Create a new Purchase Order.
    * POST /api/v1/purchase-orders
    */
+  @ApiOperation({ summary: 'Create a new Purchase Order' })
   @Post()
   @RequirePermissions('PURCHASE.CREATE')
   async create(
@@ -52,6 +57,8 @@ export class PurchaseOrderController {
    * Get a Purchase Order by ID.
    * GET /api/v1/purchase-orders/:id
    */
+  @ApiOperation({ summary: 'Get a Purchase Order by ID' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
   @Get(':id')
   @RequirePermissions('PURCHASE.READ')
   async findById(@Param('id') id: UUID): Promise<APIResponse<PurchaseOrder>> {
@@ -60,7 +67,7 @@ export class PurchaseOrderController {
     if (!po) {
       return {
         success: false,
-        data: null,
+        data: null as any,
         message: 'Purchase Order not found',
       };
     }
@@ -76,15 +83,15 @@ export class PurchaseOrderController {
    * Search Purchase Orders.
    * GET /api/v1/purchase-orders
    */
+  @ApiOperation({ summary: 'Search Purchase Orders' })
   @Get()
   @RequirePermissions('PURCHASE.READ')
-  async search(@Request() req: any) {
-    const query = req.query;
+  async search(@Query() query: PurchaseOrderFilter) {
     const filters = {
       status: query.status,
       supplier_id: query.supplier_id,
-      page: query.page ? parseInt(query.page) : 1,
-      per_page: query.per_page ? parseInt(query.per_page) : 20,
+      page: query.page ? Number(query.page) : 1,
+      per_page: query.per_page ? Number(query.per_page) : 20,
     };
     const result = await this.poService.search(filters);
     return {
@@ -99,6 +106,8 @@ export class PurchaseOrderController {
    * Submit PO for approval (DRAFT → PENDING_APPROVAL).
    * PUT /api/v1/purchase-orders/:id/submit
    */
+  @ApiOperation({ summary: 'Submit PO for approval (DRAFT → PENDING_APPROVAL)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
   @Put(':id/submit')
   @RequirePermissions('PURCHASE.CREATE')
   @HttpCode(HttpStatus.OK)
@@ -121,6 +130,9 @@ export class PurchaseOrderController {
    * Validates RBAC permission (PURCHASE.APPROVE) and SOD-001.
    * PUT /api/v1/purchase-orders/:id/approve
    */
+  @ApiOperation({ summary: 'Approve PO (PENDING_APPROVAL → APPROVED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
+  @ApiBody({ schema: { type: 'object', properties: { notes: { type: 'string' } } } })
   @Put(':id/approve')
   @RequirePermissions('PURCHASE.APPROVE')
   @HttpCode(HttpStatus.OK)
@@ -144,6 +156,9 @@ export class PurchaseOrderController {
    * Validates RBAC permission (PURCHASE.APPROVE).
    * PUT /api/v1/purchase-orders/:id/reject
    */
+  @ApiOperation({ summary: 'Reject PO (PENDING_APPROVAL → REJECTED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @Put(':id/reject')
   @RequirePermissions('PURCHASE.APPROVE')
   @HttpCode(HttpStatus.OK)
@@ -166,6 +181,8 @@ export class PurchaseOrderController {
    * Revise rejected PO back to DRAFT (REJECTED → DRAFT).
    * PUT /api/v1/purchase-orders/:id/revise
    */
+  @ApiOperation({ summary: 'Revise rejected PO back to DRAFT (REJECTED → DRAFT)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
   @Put(':id/revise')
   @RequirePermissions('PURCHASE.UPDATE')
   @HttpCode(HttpStatus.OK)
@@ -187,6 +204,9 @@ export class PurchaseOrderController {
    * Cancel PO (APPROVED → CANCELLED).
    * PUT /api/v1/purchase-orders/:id/cancel
    */
+  @ApiOperation({ summary: 'Cancel PO (APPROVED → CANCELLED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @Put(':id/cancel')
   @RequirePermissions('PURCHASE.DELETE')
   @HttpCode(HttpStatus.OK)
@@ -209,6 +229,8 @@ export class PurchaseOrderController {
    * Close PO (FULLY_RECEIVED → CLOSED).
    * PUT /api/v1/purchase-orders/:id/close
    */
+  @ApiOperation({ summary: 'Close PO (FULLY_RECEIVED → CLOSED)' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
   @Put(':id/close')
   @RequirePermissions('PURCHASE.UPDATE')
   @HttpCode(HttpStatus.OK)
@@ -230,6 +252,8 @@ export class PurchaseOrderController {
    * Create Goods Receipt for PO.
    * POST /api/v1/purchase-orders/:id/goods-receipts
    */
+  @ApiOperation({ summary: 'Create Goods Receipt for PO' })
+  @ApiParam({ name: 'id', description: 'Purchase Order ID' })
   @Post(':id/goods-receipts')
   @RequirePermissions('INVENTORY.CREATE')
   async receiveGoods(

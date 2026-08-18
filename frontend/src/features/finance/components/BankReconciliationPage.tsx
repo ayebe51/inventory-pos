@@ -3,7 +3,8 @@ import {
   Table, Button, Typography, Tag, Space, Upload, message, Card
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { UploadOutlined, CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { UploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { api } from '../../../lib/api';
 
 const { Title, Text } = Typography;
 
@@ -40,7 +41,7 @@ export const BankReconciliationPage: React.FC = () => {
 
     try {
       setConfirming(true);
-      const res = await api.post('/bank-reconciliation/confirm', { payment_ids: matchedIds });
+      await api.post('/api/v1/bank-reconciliation/confirm', { payment_ids: matchedIds });
       message.success('Reconciliation confirmed successfully');
       setMatches([]);
     } catch (err: any) {
@@ -89,7 +90,7 @@ export const BankReconciliationPage: React.FC = () => {
 
       <Card className="stat-card">
         {matches.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#64748B' }}>
+          <div style={{ padding: 40, textAlign: 'center', }}>
             <UploadOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }} />
             <p>Upload a CSV bank statement to start reconciliation</p>
           </div>

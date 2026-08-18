@@ -1,86 +1,108 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, ArrowDownRight, FileText, Plus, Loader } from 'lucide-react';
-import { Button } from '../../../components/ui/Button';
+import { 
+  Row, Col, Card, Typography, Button, Space, 
+  Table, Statistic 
+} from 'antd';
+import { 
+  FileTextOutlined, PlusOutlined, BookOutlined 
+} from '@ant-design/icons';
 import { useFinanceData } from '../hooks/useFinance';
 import { JournalEntryModal } from './JournalEntryModal';
-import styles from './FinancePage.module.css';
+
+const { Title, Text } = Typography;
 
 export const FinancePage: React.FC = () => {
-  const { data, isLoading, isError } = useFinanceData();
+  const { data, isLoading } = useFinanceData();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const columns = [
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (d: string) => new Date(d).toLocaleDateString('id-ID'),
+    },
+    {
+      title: 'Description',
+      dataIndex: 'desc',
+      key: 'desc',
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      align: 'right' as const,
+      render: (amount: number, record: any) => (
+        <Text style={{ color: record.type === 'credit' ? '#34d399' : '#f43f5e', fontWeight: 500 }}>
+          {record.type === 'credit' ? '+' : '-'} Rp {amount.toLocaleString('id-ID')}
+        </Text>
+      ),
+    },
+  ];
+
   return (
-    <div className={styles.container}>
-      <header className={styles.header}>
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <h1 className={styles.title}>Finance & Accounting</h1>
-          <p className={styles.subtitle}>Track ledger, invoices, and journal entries.</p>
-        </div>
-      </header>
-
-      <div className={styles.layout}>
-        {/* Left Pane: Ledger */}
-        <div className={styles.ledgerPane}>
-          <div className={styles.paneHeader}>
-            <h2 className={styles.paneTitle}>Recent Transactions</h2>
-            <Button variant="ghost" size="sm">View Full Ledger</Button>
-          </div>
-          
-          <div className={styles.transactionList}>
-            {isLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                <Loader size={32} className={styles.spinner} style={{ animation: 'spin 1s linear infinite' }} color="var(--color-primary)" />
-              </div>
-            ) : isError ? (
-              <div style={{ padding: '20px', color: 'var(--color-danger)', textAlign: 'center' }}>
-                Failed to load transactions.
-              </div>
-            ) : (
-              data?.recentTransactions.map(tx => (
-                <div key={tx.id} className={styles.transactionCard}>
-                  <div className={`${styles.txIcon} ${tx.type === 'credit' ? styles.txCredit : styles.txDebit}`}>
-                    {tx.type === 'credit' ? <ArrowDownRight size={18} /> : <ArrowUpRight size={18} />}
-                  </div>
-                  <div className={styles.txDetails}>
-                    <div className={styles.txDesc}>{tx.desc}</div>
-                    <div className={styles.txDate}>{tx.date}</div>
-                  </div>
-                  <div className={`${styles.txAmount} ${tx.type === 'credit' ? styles.txCreditText : ''}`}>
-                    {tx.type === 'credit' ? '+' : '-'} Rp {tx.amount.toLocaleString('id-ID')}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Right Pane: Quick Actions */}
-        <div className={styles.actionPane}>
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>Current Cash Balance</div>
-            <div className={styles.summaryValue}>
-              {isLoading ? '...' : `Rp ${data?.currentCashBalance.toLocaleString('id-ID')}`}
-            </div>
-          </div>
-          
-          <h3 className={styles.paneTitle} style={{ marginTop: 24, marginBottom: 16 }}>Quick Actions</h3>
-          
-          <div className={styles.actionGrid}>
-            <button className={styles.quickActionBtn}>
-              <Plus size={20} className={styles.quickActionIcon} />
-              <span>Create Invoice</span>
-            </button>
-            <button className={styles.quickActionBtn}>
-              <FileText size={20} className={styles.quickActionIcon} />
-              <span>Record Expense</span>
-            </button>
-            <button className={styles.quickActionBtn} onClick={() => setIsModalOpen(true)}>
-              <ArrowUpRight size={20} className={styles.quickActionIcon} />
-              <span>Manual Journal</span>
-            </button>
-          </div>
+          <Title level={3} className="page-title" style={{ marginBottom: 4 }}>
+            Finance & Accounting
+          </Title>
+          <Text className="page-subtitle">Track ledger, invoices, and journal entries.</Text>
         </div>
       </div>
+
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <Card 
+            title="Recent Transactions" 
+            extra={<Button type="link">View Full Ledger</Button>}
+            className="stat-card"
+          >
+            <Table
+              dataSource={data?.recentTransactions}
+              columns={columns}
+              rowKey="id"
+              pagination={false}
+              loading={isLoading}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={8}>
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Card className="stat-card">
+              <Statistic
+                title="Current Cash Balance"
+                value={data?.currentCashBalance || 0}
+                precision={0}
+                prefix="Rp"
+                loading={isLoading}
+                valueStyle={{ color: '#8B5CF6', fontWeight: 600 }}
+              />
+            </Card>
+
+            <Card title="Quick Actions" className="stat-card">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Button block icon={<PlusOutlined />} style={{ textAlign: 'left' }}>
+                  Create Invoice
+                </Button>
+                <Button block icon={<FileTextOutlined />} style={{ textAlign: 'left' }}>
+                  Record Expense
+                </Button>
+                <Button 
+                  block 
+                  type="primary" 
+                  icon={<BookOutlined />} 
+                  onClick={() => setIsModalOpen(true)}
+                  style={{ textAlign: 'left' }}
+                >
+                  Manual Journal
+                </Button>
+              </Space>
+            </Card>
+          </Space>
+        </Col>
+      </Row>
 
       <JournalEntryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>

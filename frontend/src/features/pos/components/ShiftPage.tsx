@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import {
   Card, Row, Col, Button, Typography, Space, Tag, Statistic,
-  Table, Modal, Form, InputNumber, Descriptions, Badge, Divider, message,
+  Table, Modal, Form, InputNumber, Descriptions, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  PlayCircleOutlined, PauseCircleOutlined, BarChartOutlined,
-  CloseCircleOutlined,
+  PlayCircleOutlined, CloseCircleOutlined, BarChartOutlined,
 } from '@ant-design/icons';
 import { useOpenShift, useCloseShift, useActiveShift, useShiftTransactions } from '../hooks/usePOS';
 
@@ -17,7 +16,7 @@ export const ShiftPage: React.FC = () => {
   const [closeModal, setCloseModal] = useState(false);
   const [form] = Form.useForm();
 
-  const { data: activeShift, isLoading } = useActiveShift();
+  const { data: activeShift } = useActiveShift();
   const openShift = useOpenShift();
   const closeShift = useCloseShift();
   const { data: transactions } = useShiftTransactions(activeShift?.id);
@@ -78,8 +77,8 @@ export const ShiftPage: React.FC = () => {
       {!activeShift ? (
         <Card className="stat-card" style={{ textAlign: 'center', padding: 48 }}>
           <div style={{ fontSize: 56, marginBottom: 16 }}>🕐</div>
-          <Title level={4} style={{ color: '#E2E8F0' }}>No Active Shift</Title>
-          <Text style={{ color: '#64748B', display: 'block', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
+          <Title level={4} style={{ }}>No Active Shift</Title>
+          <Text style={{ display: 'block', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
             Open a shift to start processing POS transactions. You must record your opening cash balance.
           </Text>
           <Button type="primary" icon={<PlayCircleOutlined />} size="large" onClick={() => setOpenModal(true)}>
@@ -93,7 +92,7 @@ export const ShiftPage: React.FC = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card className="stat-card">
                 <Statistic
-                  title={<Text style={{ color: '#64748B' }}>Opening Balance</Text>}
+                  title={<Text style={{ }}>Opening Balance</Text>}
                   value={activeShift.opening_balance}
                   prefix="Rp"
                   formatter={(v) => (v as number).toLocaleString('id-ID')}
@@ -104,7 +103,7 @@ export const ShiftPage: React.FC = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card className="stat-card">
                 <Statistic
-                  title={<Text style={{ color: '#64748B' }}>Total Sales (Today)</Text>}
+                  title={<Text style={{ }}>Total Sales (Today)</Text>}
                   value={totalSales}
                   prefix="Rp"
                   formatter={(v) => (v as number).toLocaleString('id-ID')}
@@ -115,16 +114,16 @@ export const ShiftPage: React.FC = () => {
             <Col xs={24} sm={12} lg={6}>
               <Card className="stat-card">
                 <Statistic
-                  title={<Text style={{ color: '#64748B' }}>Transactions</Text>}
+                  title={<Text style={{ }}>Transactions</Text>}
                   value={transactions?.data?.filter((t: any) => t.status === 'COMPLETED').length ?? 0}
-                  valueStyle={{ color: '#E2E8F0' }}
+                  valueStyle={{ }}
                 />
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <Card className="stat-card">
                 <Statistic
-                  title={<Text style={{ color: '#64748B' }}>Shift Duration</Text>}
+                  title={<Text style={{ }}>Shift Duration</Text>}
                   value={Math.floor((Date.now() - new Date(activeShift.opened_at).getTime()) / 3600000)}
                   suffix="hours"
                   valueStyle={{ color: '#FBBF24' }}
@@ -134,7 +133,7 @@ export const ShiftPage: React.FC = () => {
           </Row>
 
           {/* Transaction list */}
-          <Card className="stat-card" title={<Text style={{ color: '#E2E8F0', fontWeight: 600 }}>Today's Transactions</Text>}>
+          <Card className="stat-card" title={<Text style={{ fontWeight: 600 }}>Today's Transactions</Text>}>
             <Table
               columns={txColumns}
               dataSource={transactions?.data ?? []}

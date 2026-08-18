@@ -23,5 +23,12 @@
       "@modules/*": ["src/modules/*"],
       "@services/*": ["src/services/*"]
     }
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "frontend",
+    "test/**/*.ts",
+    "test/**/*.spec.ts"
+  ]
 }

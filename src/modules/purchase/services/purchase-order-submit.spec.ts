@@ -1,3 +1,4 @@
+import { RbacService } from '../../../services/rbac/rbac.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PurchaseOrderService } from './purchase-order.service';
 import { PrismaService } from '../../../config/prisma.service';
@@ -51,6 +52,8 @@ describe('PurchaseOrderService - submit() with BR-PUR-007', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PurchaseOrderService,
+        { provide: RbacService, useValue: { checkPermission: jest.fn().mockResolvedValue(true) } },
+        { provide: NumberingService, useValue: { generate: jest.fn().mockResolvedValue('PO-TEST-001') } },
         {
           provide: PrismaService,
           useValue: {

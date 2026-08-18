@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ── CreateHeadOfficeDTO ───────────────────────────────────────────────────────
 
@@ -8,7 +9,16 @@ export const CreateHeadOfficeSchema = z.object({
   address: z.string().nullable().optional(),
 });
 
-export type CreateHeadOfficeDTO = z.infer<typeof CreateHeadOfficeSchema>;
+export class CreateHeadOfficeDTO {
+  @ApiProperty({ example: 'HQ-001' })
+  code!: string;
+
+  @ApiProperty({ example: 'Kantor Pusat Jakarta' })
+  name!: string;
+
+  @ApiPropertyOptional({ example: 'Jl. Jend. Sudirman No. 1' })
+  address?: string | null;
+}
 
 // ── CreateBranchDTO ───────────────────────────────────────────────────────────
 
@@ -19,4 +29,16 @@ export const CreateBranchSchema = z.object({
   address: z.string().nullable().optional(),
 });
 
-export type CreateBranchDTO = z.infer<typeof CreateBranchSchema>;
+export class CreateBranchDTO {
+  @ApiProperty({ example: 'BR-001' })
+  code!: string;
+
+  @ApiProperty({ example: 'Cabang Bandung' })
+  name!: string;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  parent_id!: string;
+
+  @ApiPropertyOptional({ example: 'Jl. Asia Afrika No. 10' })
+  address?: string | null;
+}

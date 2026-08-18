@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
-  Tabs, Table, Typography, Card, Button, Input, Space, Tag, Modal, Form, InputNumber
+  Tabs, Table, Typography, Card, Button, Input, Tag, Modal, Form, InputNumber
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShopOutlined, UserOutlined, AppstoreOutlined, HomeOutlined,
-  PlusOutlined, EditOutlined, DeleteOutlined
+  PlusOutlined
 } from '@ant-design/icons';
-import api from '../../../lib/api';
+import { api } from '../../../lib/api';
 
 const { Title, Text } = Typography;
 
@@ -16,12 +15,12 @@ const { Title, Text } = Typography;
 
 const CustomerManager: React.FC = () => {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/customers').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['customers'], queryFn: () => api.get('/api/v1/master-data/customers').then(r => r.data) });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const mutation = useMutation({
-    mutationFn: (values: any) => api.post('/customers', values),
+    mutationFn: (values: any) => api.post('/api/v1/master-data/customers', values),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['customers'] }); setIsModalOpen(false); form.resetFields(); }
   });
 
@@ -52,12 +51,12 @@ const CustomerManager: React.FC = () => {
 
 const SupplierManager: React.FC = () => {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/suppliers').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/v1/master-data/suppliers').then(r => r.data) });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm();
 
   const mutation = useMutation({
-    mutationFn: (values: any) => api.post('/suppliers', values),
+    mutationFn: (values: any) => api.post('/api/v1/master-data/suppliers', values),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['suppliers'] }); setIsModalOpen(false); form.resetFields(); }
   });
 
@@ -89,10 +88,10 @@ const SupplierManager: React.FC = () => {
 
 const WarehouseManager: React.FC = () => {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: () => api.get('/warehouses').then(r => r.data) });
+  const { data, isLoading } = useQuery({ queryKey: ['warehouses'], queryFn: () => api.get('/api/v1/warehouses').then(r => r.data) });
   
   const toggleLock = useMutation({
-    mutationFn: (id: string) => api.post(`/warehouses/${id}/lock`),
+    mutationFn: (id: string) => api.post(`/api/v1/warehouses/${id}/lock`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['warehouses'] })
   });
 
@@ -100,7 +99,7 @@ const WarehouseManager: React.FC = () => {
     { title: 'Code', dataIndex: 'code', render: (t: string) => <Text code>{t}</Text> },
     { title: 'Name', dataIndex: 'name' },
     { title: 'Status', dataIndex: 'is_locked', render: (l: boolean) => <Tag color={l ? 'red' : 'green'}>{l ? 'Locked' : 'Active'}</Tag> },
-    { title: 'Actions', render: (_, r: any) => (
+    { title: 'Actions', render: (_: any, r: any) => (
       <Button size="small" danger={!r.is_locked} onClick={() => toggleLock.mutate(r.id)}>
         {r.is_locked ? 'Unlock' : 'Lock'}
       </Button>

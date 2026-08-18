@@ -1,252 +1,493 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Layout,
-  Menu,
-  Avatar,
-  Dropdown,
-  Button,
-  Space,
-  Typography,
-  Badge,
-  Tooltip,
-} from 'antd';
+import { Dropdown, Badge, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import {
-  DashboardOutlined,
-  ShoppingCartOutlined,
-  InboxOutlined,
-  FileTextOutlined,
-  BarChartOutlined,
-  SettingOutlined,
-  ShoppingOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  BellOutlined,
-  SafetyCertificateOutlined,
-  AuditOutlined,
-  DollarOutlined,
-  ContainerOutlined,
-} from '@ant-design/icons';
+  LayoutDashboard, ShoppingCart, Package, Truck, BarChart2,
+  Users, Shield, DollarSign, Archive,
+  ChevronsLeft, ChevronsRight, Bell, Sun, Moon, LogOut,
+  User, ChevronRight, Layers, BookOpen,
+  MoreHorizontal,
+} from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
+import { api } from '../../lib/api';
+import { CommandPalette } from './CommandPalette';
+import styles from './Layout.module.css';
 
-const { Sider, Header, Content } = Layout;
-const { Text } = Typography;
+/* ── Navigation config ──────────────────────────────────────────────── */
+interface NavItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  children?: { key: string; label: string }[];
+  section?: string;
+}
 
-const navItems: MenuProps['items'] = [
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    key: '/',
-    icon: <DashboardOutlined />,
-    label: 'Dashboard',
-  },
-  {
-    key: '/pos',
-    icon: <ShoppingCartOutlined />,
-    label: 'Point of Sale',
-  },
-  {
-    key: 'inventory-group',
-    icon: <InboxOutlined />,
-    label: 'Inventory',
-    children: [
-      { key: '/inventory', label: 'Products & Stock' },
-      { key: '/inventory/transfers', label: 'Stock Transfer' },
-      { key: '/inventory/opname', label: 'Stock Opname' },
+    label: 'Workspace',
+    items: [
+      { key: '/',              icon: <LayoutDashboard size={16} />, label: 'Dashboard' },
+      { key: '/pos',           icon: <ShoppingCart     size={16} />, label: 'Point of Sale' },
     ],
   },
   {
-    key: 'purchase-group',
-    icon: <ShoppingOutlined />,
-    label: 'Purchasing',
-    children: [
-      { key: '/purchase', label: 'Purchase Orders' },
-      { key: '/purchase/receipts', label: 'Goods Receipt' },
+    label: 'Operations',
+    items: [
+      {
+        key: 'inventory-group',
+        icon: <Package size={16} />,
+        label: 'Inventory',
+        children: [
+          { key: '/inventory',           label: 'Products & Stock' },
+          { key: '/inventory/transfers', label: 'Stock Transfer' },
+          { key: '/inventory/opname',    label: 'Stock Opname' },
+        ],
+      },
+      {
+        key: 'purchase-group',
+        icon: <Truck size={16} />,
+        label: 'Procurement',
+        children: [
+          { key: '/purchase/requests', label: 'Purchase Requests' },
+          { key: '/purchase',          label: 'Purchase Orders' },
+          { key: '/purchase/receipts', label: 'Goods Receipts' },
+        ],
+      },
+      {
+        key: 'sales-group',
+        icon: <Archive size={16} />,
+        label: 'Sales',
+        children: [
+          { key: '/sales',         label: 'Sales Orders' },
+          { key: '/sales/returns', label: 'Sales Returns' },
+        ],
+      },
     ],
   },
   {
-    key: 'sales-group',
-    icon: <ContainerOutlined />,
-    label: 'Sales',
-    children: [
-      { key: '/sales', label: 'Sales Orders' },
-      { key: '/sales/returns', label: 'Sales Returns' },
-    ],
-  },
-  {
-    key: 'finance-group',
-    icon: <DollarOutlined />,
     label: 'Finance',
-    children: [
-      { key: '/finance', label: 'Journal Entries' },
-      { key: '/invoicing', label: 'Invoicing (AR/AP)' },
-      { key: '/payment', label: 'Payments' },
-      { key: '/bank-reconciliation', label: 'Bank Reconciliation' },
+    items: [
+      {
+        key: 'finance-group',
+        icon: <DollarSign size={16} />,
+        label: 'Finance',
+        children: [
+          { key: '/finance',               label: 'Journal Entries' },
+          { key: '/finance/periods',       label: 'Fiscal Periods' },
+          { key: '/finance/assets',        label: 'Fixed Assets' },
+          { key: '/invoicing',             label: 'Invoicing (AR/AP)' },
+          { key: '/payment',               label: 'Payments' },
+          { key: '/bank-reconciliation',   label: 'Bank Reconciliation' },
+        ],
+      },
+      { key: '/reporting',   icon: <BarChart2   size={16} />, label: 'Reporting' },
+      { key: '/approvals',   icon: <Shield      size={16} />, label: 'Approvals' },
+      { key: '/audit',       icon: <BookOpen    size={16} />, label: 'Audit Trail' },
     ],
   },
   {
-    key: '/reporting',
-    icon: <BarChartOutlined />,
-    label: 'Reporting',
-  },
-  {
-    key: '/approvals',
-    icon: <SafetyCertificateOutlined />,
-    label: 'Approvals',
-  },
-  {
-    key: '/audit',
-    icon: <AuditOutlined />,
-    label: 'Audit Trail',
-  },
-  {
-    key: '/master-data',
-    icon: <SettingOutlined />,
-    label: 'Master Data',
+    label: 'Configuration',
+    items: [
+      { key: '/master-data', icon: <Layers size={16} />,  label: 'Master Data' },
+      {
+        key: 'admin-group',
+        icon: <Users size={16} />,
+        label: 'Admin',
+        children: [
+          { key: '/admin/users', label: 'User Management' },
+          { key: '/admin/roles', label: 'Role Management' },
+        ],
+      },
+    ],
   },
 ];
 
+/* Helper — get a flat label for the current path */
+function getBreadcrumb(pathname: string): { parent: string; current: string } {
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.children) {
+        const child = item.children.find(c => c.key === pathname);
+        if (child) return { parent: item.label, current: child.label };
+      } else if (item.key === pathname) {
+        return { parent: group.label, current: item.label };
+      }
+    }
+  }
+  return { parent: '', current: 'Page' };
+}
+
+/* ── NavItem component ──────────────────────────────────────────────── */
+interface NavItemProps {
+  item: NavItem;
+  collapsed: boolean;
+  activePath: string;
+  onNavigate: (key: string) => void;
+}
+
+const NavItemRow: React.FC<NavItemProps> = ({ item, collapsed, activePath, onNavigate }) => {
+  const [open, setOpen] = useState(() => {
+    if (!item.children) return false;
+    return item.children.some(c => c.key === activePath);
+  });
+
+  const isActive = item.children
+    ? item.children.some(c => c.key === activePath)
+    : item.key === activePath;
+
+  const handleClick = () => {
+    if (item.children) { setOpen(o => !o); }
+    else { onNavigate(item.key); }
+  };
+
+  const baseStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: collapsed ? '0 0' : '0 10px',
+    height: 38,
+    borderRadius: 10,
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
+    fontSize: 13,
+    fontWeight: 500,
+    color: isActive ? (item.children ? 'var(--brand-500)' : 'var(--brand-600)') : 'var(--text-secondary)',
+    background: isActive && !item.children ? 'var(--brand-50)' : 'transparent',
+    border: 'none',
+    width: '100%',
+    textAlign: 'left',
+    justifyContent: collapsed ? 'center' : 'flex-start',
+    userSelect: 'none',
+    position: 'relative',
+  };
+
+  const iconStyle: React.CSSProperties = {
+    flexShrink: 0,
+    color: isActive ? 'var(--brand-500)' : 'var(--text-tertiary)',
+    transition: 'color 120ms ease',
+  };
+
+  const content = (
+    <button
+      style={baseStyle}
+      onClick={handleClick}
+      onMouseEnter={e => {
+        if (!isActive) (e.currentTarget as HTMLElement).style.background = 'var(--glass-bg-hover)';
+        (e.currentTarget as HTMLElement).style.color = isActive ? '' : 'var(--text-primary)';
+      }}
+      onMouseLeave={e => {
+        if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
+        (e.currentTarget as HTMLElement).style.color = isActive ? '' : 'var(--text-secondary)';
+      }}
+    >
+      <span style={iconStyle}>{item.icon}</span>
+      {!collapsed && (
+        <>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {item.label}
+          </span>
+          {item.children && (
+            <ChevronRight
+              size={12}
+              style={{
+                flexShrink: 0,
+                color: 'var(--text-tertiary)',
+                transition: 'transform 200ms ease',
+                transform: open ? 'rotate(90deg)' : 'none',
+              }}
+            />
+          )}
+        </>
+      )}
+    </button>
+  );
+
+  return (
+    <div>
+      {collapsed && item.icon ? (
+        <Tooltip title={item.label} placement="right">
+          {content}
+        </Tooltip>
+      ) : content}
+
+      {/* Children */}
+      {!collapsed && item.children && open && (
+        <div style={{ paddingLeft: 28, marginTop: 2 }}>
+          {item.children.map(child => {
+            const childActive = child.key === activePath;
+            return (
+              <button
+                key={child.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  width: '100%',
+                  height: 34,
+                  padding: '0 10px 0 8px',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 12.5,
+                  fontWeight: childActive ? 600 : 400,
+                  color: childActive ? 'var(--brand-600)' : 'var(--text-secondary)',
+                  background: childActive ? 'var(--brand-50)' : 'transparent',
+                  transition: 'all 120ms ease',
+                  textAlign: 'left',
+                  position: 'relative',
+                  userSelect: 'none',
+                }}
+                onClick={() => onNavigate(child.key)}
+                onMouseEnter={e => {
+                  if (!childActive) {
+                    (e.currentTarget as HTMLElement).style.background = 'var(--glass-bg-hover)';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!childActive) {
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                  }
+                }}
+              >
+                {/* Active indicator dot */}
+                <span style={{
+                  width: 5, height: 5,
+                  borderRadius: '50%',
+                  background: childActive ? 'var(--brand-500)' : 'var(--glass-border)',
+                  flexShrink: 0,
+                  transition: 'background 120ms ease',
+                }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {child.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Main Layout ────────────────────────────────────────────────────── */
 export const Layout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const { user, clearAuth } = useAuthStore();
+  const { isDarkMode, toggleTheme } = useThemeStore();
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(async () => {
+    try { await api.post('/api/v1/auth/logout'); } catch (_) {}
     clearAuth();
     navigate('/login');
-  };
+  }, [clearAuth, navigate]);
+
+  const handleNavigate = useCallback((key: string) => {
+    navigate(key);
+  }, [navigate]);
+
+  const breadcrumb = getBreadcrumb(location.pathname);
 
   const userMenuItems: MenuProps['items'] = [
     {
+      key: 'profile-header',
+      label: (
+        <div style={{ padding: '4px 0' }}>
+          <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>
+            {user?.name || 'User'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 1 }}>
+            {user?.role || 'Staff'}
+          </div>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
       key: 'profile',
-      icon: <UserOutlined />,
+      icon: <User size={14} />,
       label: 'Profile',
     },
     { type: 'divider' },
     {
       key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Logout',
+      icon: <LogOut size={14} />,
+      label: 'Sign out',
       danger: true,
       onClick: handleLogout,
     },
   ];
 
-  // Determine which menu key is active
-  const selectedKey = location.pathname;
-  const openKeys = navItems
-    .filter((item: any) => item?.children?.some((c: any) => c.key === selectedKey))
-    .map((item: any) => item?.key as string);
-
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        theme="dark"
-        width={240}
-        style={{
-          position: 'fixed',
-          height: '100vh',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 100,
-          borderRight: '1px solid #2D2D3F',
-        }}
-      >
+    <div className={styles.root}>
+
+      {/* ── Glass Sidebar ───────────────────────────────────────── */}
+      <aside className={`${styles.sidebar} ${collapsed ? styles.sidebarCollapsed : styles.sidebarExpanded}`}>
+
         {/* Logo */}
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          padding: collapsed ? '0 20px' : '0 24px',
-          borderBottom: '1px solid #2D2D3F',
-          overflow: 'hidden',
-          cursor: 'pointer',
-        }}
+        <div
+          className={`${styles.sidebarLogo} ${collapsed ? styles.sidebarLogoCollapsed : ''}`}
           onClick={() => navigate('/')}
+          role="button"
+          tabIndex={0}
         >
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 0 16px rgba(139, 92, 246, 0.4)',
-            fontWeight: 700,
-            color: '#fff',
-            fontSize: 14,
-          }}>K</div>
+          <div className={styles.logoMark}>K</div>
           {!collapsed && (
-            <div style={{ marginLeft: 12 }}>
-              <div style={{ color: '#E2E8F0', fontWeight: 700, fontSize: 14, fontFamily: 'Space Grotesk' }}>Kiro ERP</div>
-              <div style={{ color: '#64748B', fontSize: 10, letterSpacing: '0.1em' }}>ENTERPRISE</div>
+            <div className={styles.logoTextBlock}>
+              <div className={styles.logoName}>Kiro ERP</div>
+              <div className={styles.logoSub}>Enterprise</div>
             </div>
           )}
         </div>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          defaultOpenKeys={openKeys}
-          items={navItems}
-          onClick={({ key }) => navigate(key)}
-          style={{ borderRight: 0, paddingTop: 8 }}
-        />
-      </Sider>
-
-      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
-        <Header style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 99,
-          background: '#12121A',
-          borderBottom: '1px solid #2D2D3F',
-          padding: '0 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 16,
-          height: 64,
-        }}>
-          <Tooltip title="Notifications">
-            <Badge count={3} size="small">
-              <Button type="text" icon={<BellOutlined />} style={{ color: '#94A3B8' }} />
-            </Badge>
-          </Tooltip>
-
-          <Dropdown menu={{ items: userMenuItems }} trigger={['click']}>
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar
-                size={32}
-                style={{ background: 'linear-gradient(135deg, #8B5CF6, #6D28D9)' }}
-              >
-                {user?.name?.[0]?.toUpperCase() || 'U'}
-              </Avatar>
+        {/* Nav Groups */}
+        <div className={styles.navScroll}>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label}>
+              {/* Section label — hidden when collapsed */}
               {!collapsed && (
-                <div>
-                  <Text style={{ color: '#E2E8F0', fontSize: 13, fontWeight: 500, display: 'block' }}>
-                    {user?.name || 'User'}
-                  </Text>
-                  <Text style={{ color: '#8B5CF6', fontSize: 11 }}>
-                    {user?.role || 'Staff'}
-                  </Text>
+                <div className={styles.navSection}>
+                  <div className={styles.navSectionLabel}>{group.label}</div>
                 </div>
               )}
-            </Space>
-          </Dropdown>
-        </Header>
+              {collapsed && <div style={{ height: 12 }} />}
 
-        <Content style={{ background: '#0F0F13', minHeight: 'calc(100vh - 64px)', overflow: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {group.items.map(item => (
+                  <NavItemRow
+                    key={item.key}
+                    item={item}
+                    collapsed={collapsed}
+                    activePath={location.pathname}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* User Section */}
+        <div className={styles.userSection}>
+          <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="topLeft">
+            <button className={`${styles.userBtn} ${collapsed ? styles.userBtnCollapsed : ''}`}>
+              <div className={styles.userAvatar}>
+                {user?.name?.[0]?.toUpperCase() || 'U'}
+              </div>
+              {!collapsed && (
+                <div className={styles.userInfo}>
+                  <div className={styles.userName}>{user?.name || 'User'}</div>
+                  <div className={styles.userRole}>{user?.role || 'Staff'}</div>
+                </div>
+              )}
+              {!collapsed && <MoreHorizontal size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />}
+            </button>
+          </Dropdown>
+
+          {/* Collapse toggle */}
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed
+              ? <ChevronsRight size={15} />
+              : <ChevronsLeft size={15} />
+            }
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main Area ───────────────────────────────────────────── */}
+      <div className={`${styles.main} ${collapsed ? styles.mainCollapsed : styles.mainExpanded}`}>
+
+        {/* Glass Navbar */}
+        <header className={styles.navbar}>
+          {/* Breadcrumb */}
+          <nav className={styles.navbarBreadcrumb}>
+            {breadcrumb.parent && (
+              <>
+                <span className={styles.navbarBreadcrumbText}>{breadcrumb.parent}</span>
+                <ChevronRight size={12} style={{ color: 'var(--text-tertiary)' }} />
+              </>
+            )}
+            <span className={styles.navbarBreadcrumbCurrent}>{breadcrumb.current}</span>
+          </nav>
+
+          {/* Actions */}
+          <div className={styles.navbarActions}>
+            {/* Theme toggle */}
+            <Tooltip title={isDarkMode ? 'Light mode' : 'Dark mode'}>
+              <button
+                className={styles.navbarIconBtn}
+                onClick={toggleTheme}
+                aria-label="Toggle theme"
+              >
+                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+            </Tooltip>
+
+            {/* Notifications */}
+            <Tooltip title="Notifications">
+              <button className={styles.navbarIconBtn} aria-label="Notifications">
+                <Badge
+                  count={3}
+                  size="small"
+                  style={{ fontSize: 9, minWidth: 14, height: 14, lineHeight: '14px', padding: '0 3px' }}
+                >
+                  <Bell size={15} />
+                </Badge>
+              </button>
+            </Tooltip>
+
+            <div className={styles.navbarDivider} />
+
+            {/* User avatar */}
+            <Dropdown menu={{ items: userMenuItems }} trigger={['click']} placement="bottomRight">
+              <button
+                className={styles.navbarIconBtn}
+                style={{ width: 'auto', padding: '0 4px', gap: 8, borderRadius: 20 }}
+                aria-label="User menu"
+              >
+                <div style={{
+                  width: 28, height: 28,
+                  borderRadius: '50%',
+                  background: 'var(--brand-gradient)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 700, color: '#fff',
+                  boxShadow: '0 2px 6px var(--brand-glow)',
+                }}>
+                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <span style={{
+                  fontSize: 12.5, fontWeight: 500,
+                  color: 'var(--text-primary)',
+                  maxWidth: 90,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {user?.name || 'User'}
+                </span>
+                <ChevronRight size={11} style={{ color: 'var(--text-tertiary)' }} />
+              </button>
+            </Dropdown>
+          </div>
+        </header>
+
+        {/* Page Content — solid workspace */}
+        <main className={styles.content}>
           <Outlet />
-        </Content>
-      </Layout>
-    </Layout>
+        </main>
+      </div>
+
+      <CommandPalette />
+    </div>
   );
 };

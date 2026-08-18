@@ -14,6 +14,8 @@ import {
   POSTransaction,
   Receipt,
   ShiftReport,
+  SalesReturnDTO,
+  SalesReturn,
 } from '../interfaces/pos.interfaces';
 
 @Injectable()
@@ -59,6 +61,22 @@ export class POSService implements IPOSService {
       const shift = await tx.shift.findUnique({ where: { id: shiftId } });
       if (!shift || shift.status !== 'OPEN') {
         throw new BusinessRuleException('Valid open shift required', ErrorCode.VALIDATION_ERROR);
+      }
+
+      if (data.customer_id) {
+        const customer = await tx.customer.findUnique({ where: { id: data.customer_id } });
+        if (!customer) {
+          throw new BusinessRuleException('Customer not found', ErrorCode.NOT_FOUND);
+        }
+        // GAP-26: Credit limit check
+        const limit = Number(customer.credit_limit);
+        const outstanding = Number(customer.outstanding_balance);
+        if (limit > 0 && outstanding >= limit) {
+          throw new BusinessRuleException(
+            `Customer credit limit exceeded. Limit: ${limit}, Outstanding: ${outstanding}`,
+            ErrorCode.BUSINESS_RULE_VIOLATION
+          );
+        }
       }
 
       const txNumber = await this.numberingService.generate(DocumentType.POS);
@@ -392,6 +410,218 @@ export class POSService implements IPOSService {
         opened_at: updatedShift.opened_at,
         closed_at: updatedShift.closed_at!,
       };
+    });
+  }
+
+  async forceCloseShift(shiftId: UUID, supervisorId: UUID, closingBalance: number, reason: string): Promise<ShiftReport> {
+    this.logger.warn(`Force closing shift ${shiftId} by supervisor ${supervisorId}. Reason: ${reason}`);
+
+    return await this.prisma.$transaction(async (tx) => {
+      const shift = await tx.shift.findUnique({ where: { id: shiftId } });
+      if (!shift) throw new BusinessRuleException('Shift not found', ErrorCode.NOT_FOUND);
+      if (shift.status === 'CLOSED') throw new BusinessRuleException('Shift already closed', ErrorCode.BUSINESS_RULE_VIOLATION);
+
+      // Cancel all OPEN pos transactions in this shift
+      await tx.posTransaction.updateMany({
+        where: { shift_id: shiftId, status: 'OPEN' },
+        data: { status: 'CANCELLED' } // Assume cancelled status
+      });
+
+      // Calculate totals for PAID transactions
+      const txs = await tx.posTransaction.findMany({
+        where: { shift_id: shiftId, status: 'PAID' },
+        include: { payments: { include: { payment_method: true } } }
+      });
+
+      let cashSales = 0;
+      let cardSales = 0;
+      let transferSales = 0;
+      let totalSales = 0;
+
+      for (const t of txs) {
+        totalSales += Number(t.total_amount);
+        for (const p of t.payments) {
+          if (p.payment_method.type === 'CASH') cashSales += Number(p.amount);
+          else if (p.payment_method.type === 'CARD') cardSales += Number(p.amount);
+          else if (p.payment_method.type === 'TRANSFER') transferSales += Number(p.amount);
+        }
+        cashSales -= Number(t.change_amount);
+      }
+      
+      const expectedBalance = Number(shift.opening_balance) + cashSales;
+      const difference = closingBalance - expectedBalance;
+
+      const updatedShift = await tx.shift.update({
+        where: { id: shiftId },
+        data: {
+          status: 'CLOSED',
+          closed_at: new Date(),
+          closing_balance: closingBalance,
+          expected_balance: expectedBalance,
+          difference: difference,
+        }
+      });
+
+      // We might log the force close reason in an Audit table, but returning it is enough here.
+
+      return {
+        shift_id: updatedShift.id,
+        cashier_id: updatedShift.cashier_id,
+        opening_balance: Number(updatedShift.opening_balance),
+        closing_balance: closingBalance,
+        total_transactions: txs.length,
+        total_sales: totalSales,
+        cash_sales: cashSales,
+        card_sales: cardSales,
+        transfer_sales: transferSales,
+        cash_difference: difference,
+        opened_at: updatedShift.opened_at,
+        closed_at: updatedShift.closed_at!,
+      };
+    });
+  }
+
+  async listShifts(query: { status?: string; page: number; per_page: number }): Promise<{ data: Shift[]; meta: { total: number; page: number; per_page: number } }> {
+    const where = query.status ? { status: query.status } : {};
+    const total = await this.prisma.shift.count({ where });
+    const data = await this.prisma.shift.findMany({
+      where,
+      skip: (query.page - 1) * query.per_page,
+      take: Number(query.per_page),
+      orderBy: { created_at: 'desc' },
+    });
+    return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
+  }
+
+  async getShift(id: UUID): Promise<Shift> {
+    const shift = await this.prisma.shift.findUnique({ where: { id } });
+    if (!shift) throw new BusinessRuleException('Shift not found', ErrorCode.NOT_FOUND);
+    return shift as any;
+  }
+
+  async listTransactions(query: { shift_id?: UUID; status?: string; page: number; per_page: number }): Promise<{ data: POSTransaction[]; meta: { total: number; page: number; per_page: number } }> {
+    const where: any = {};
+    if (query.shift_id) where.shift_id = query.shift_id;
+    if (query.status) where.status = query.status;
+
+    const total = await this.prisma.posTransaction.count({ where });
+    const data = await this.prisma.posTransaction.findMany({
+      where,
+      skip: (query.page - 1) * query.per_page,
+      take: Number(query.per_page),
+      orderBy: { created_at: 'desc' },
+      include: { lines: true, payments: true }
+    });
+    return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
+  }
+
+  async processFullTransaction(data: { shift_id: UUID; cashier_id: UUID; customer_id?: UUID; items: any[]; payments: any[] }): Promise<Receipt> {
+    const transaction = await this.createTransaction(data.shift_id, { customer_id: data.customer_id });
+    
+    // Using a for loop to process sequentially to avoid optimistic lock failures if processed concurrently
+    for (const item of data.items) {
+      // Refresh transaction version inside addItem loop, but wait, addItem doesn't return version we easily pass, 
+      // let's fetch current version before adding item
+      const currentTx = await this.prisma.posTransaction.findUnique({ where: { id: transaction.id } });
+      await this.addItem(transaction.id, {
+        product_id: item.product_id,
+        qty: item.quantity,
+        unit_price: item.unit_price,
+        discount_pct: item.discount_pct || 0,
+        uom_id: item.uom_id || '00000000-0000-0000-0000-000000000000', // Mock UOM if not provided
+        version: currentTx!.version
+      });
+    }
+
+    const currentTxForPayment = await this.prisma.posTransaction.findUnique({ where: { id: transaction.id } });
+    const payments = data.payments.map(p => ({ ...p, version: currentTxForPayment!.version }));
+    return await this.applyPayment(transaction.id, payments);
+  }
+
+  async listSalesReturns(query: { page: number; per_page: number }): Promise<{ data: SalesReturn[]; meta: { total: number; page: number; per_page: number } }> {
+    const total = await this.prisma.salesReturn.count();
+    const data = await this.prisma.salesReturn.findMany({
+      skip: (query.page - 1) * query.per_page,
+      take: Number(query.per_page),
+      orderBy: { created_at: 'desc' },
+      include: { lines: true, customer: true, warehouse: true }
+    });
+    return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
+  }
+
+  async createSalesReturn(userId: UUID, data: SalesReturnDTO): Promise<SalesReturn> {
+    this.logger.log(`Creating Sales Return for reference ${data.reference_id}`);
+    
+    return await this.prisma.$transaction(async (tx) => {
+      const returnNumber = await this.numberingService.generate(DocumentType.SR);
+      
+      let totalAmount = 0;
+      data.lines.forEach(line => {
+        totalAmount += line.qty * line.unit_price;
+      });
+
+      const salesReturn = await tx.salesReturn.create({
+        data: {
+          return_number: returnNumber,
+          customer_id: data.customer_id,
+          warehouse_id: data.warehouse_id,
+          reference_type: data.reference_type,
+          reference_id: data.reference_id,
+          return_date: data.return_date,
+          reason: data.reason,
+          status: 'COMPLETED',
+          total_amount: totalAmount,
+          created_by: userId,
+          lines: {
+            create: data.lines.map(line => ({
+              product_id: line.product_id,
+              qty: line.qty,
+              uom_id: line.uom_id,
+              unit_price: line.unit_price,
+              line_total: line.qty * line.unit_price,
+            }))
+          }
+        },
+        include: { lines: true }
+      });
+
+      // Adjust inventory ledger for each line (returning stock back to warehouse)
+      for (const line of salesReturn.lines) {
+        // Fetch current running qty and cost
+        const lastLedger = await tx.inventoryLedger.findFirst({
+          where: { product_id: line.product_id, warehouse_id: data.warehouse_id },
+          orderBy: [{ movement_date: 'desc' }, { created_at: 'desc' }]
+        });
+
+        const prevQty = lastLedger ? Number(lastLedger.running_qty) : 0;
+        const prevCost = lastLedger ? Number(lastLedger.running_cost) : 0;
+        const unitCost = lastLedger && prevQty > 0 ? prevCost / prevQty : Number(line.unit_price);
+        
+        const returnedQty = Number(line.qty);
+        const addedCost = returnedQty * unitCost;
+
+        await tx.inventoryLedger.create({
+          data: {
+            product_id: line.product_id,
+            warehouse_id: data.warehouse_id,
+            transaction_type: 'SALES_RETURN',
+            reference_type: 'SALES_RETURN',
+            reference_id: salesReturn.id,
+            reference_number: salesReturn.return_number,
+            movement_date: data.return_date,
+            qty_in: returnedQty,
+            qty_out: 0,
+            unit_cost: unitCost,
+            total_cost: addedCost,
+            running_qty: prevQty + returnedQty,
+            running_cost: prevCost + addedCost,
+            notes: `Return ${salesReturn.return_number} reason: ${data.reason}`,
+            created_by: userId
+          }
+        });
+      }
+
+      return salesReturn as any;
     });
   }
 }

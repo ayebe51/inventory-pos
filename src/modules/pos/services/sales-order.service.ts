@@ -30,7 +30,7 @@ export class SalesOrderService implements ISalesOrderService {
 
       let subtotal = 0;
       let totalAmount = 0;
-      let taxAmount = 0; // Assuming 0 for now unless provided
+      const taxAmount = 0; // Assuming 0 for now unless provided
 
       for (const line of data.lines) {
         const lineTotal = line.qty * line.unit_price;

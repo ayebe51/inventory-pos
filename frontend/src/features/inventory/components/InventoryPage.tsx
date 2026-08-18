@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Tabs, Typography } from 'antd';
 import { ProductManagement } from './ProductManagement';
 import { StockTransferPage } from './StockTransferPage';
 import { StockOpnamePage } from './StockOpnamePage';
+import { StockLedgerPage } from './StockLedgerPage';
 
 const { Title, Text } = Typography;
 
@@ -26,6 +27,11 @@ export const InventoryPage: React.FC = () => {
             key: 'products',
             label: 'Products',
             children: <ProductManagement />,
+          },
+          {
+            key: 'ledger',
+            label: 'Stock Ledger',
+            children: <StockLedgerPage />,
           },
           {
             key: 'transfers',

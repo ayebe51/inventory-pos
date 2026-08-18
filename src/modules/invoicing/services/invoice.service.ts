@@ -250,6 +250,11 @@ export class InvoiceService implements IInvoiceService {
     // Generate invoice number
     const invoiceNumber = await this.numbering.generate(DocumentType.INV);
 
+    // GAP-27: Auto-calculate due_date from terms_of_payment
+    const terms = supplier.payment_terms_days || 0;
+    const calculatedDueDate = new Date(data.invoice_date);
+    calculatedDueDate.setDate(calculatedDueDate.getDate() + terms);
+
     // Create invoice with lines in a transaction
     const result = await this.prisma.$transaction(async (tx) => {
       // Create invoice header
@@ -263,7 +268,7 @@ export class InvoiceService implements IInvoiceService {
           supplier_id: data.supplier_id,
           branch_id: data.branch_id,
           invoice_date: data.invoice_date,
-          due_date: data.due_date,
+          due_date: calculatedDueDate,
           status: 'DRAFT',
           subtotal: subtotal,
           tax_amount: taxAmount,

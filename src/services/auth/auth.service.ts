@@ -98,12 +98,12 @@ export class AuthService {
       if (!user.mfa_enabled || !user.mfa_secret) {
         // MFA not yet set up — issue a short-lived setup token so the user can enroll
         const mfaToken = await this.issueMfaToken(user.id, 'setup');
-        return { mfaRequired: true, mfaToken };
+        return { mfaRequired: true, mfaToken, mfaPurpose: 'setup' } as any;
       }
 
       // MFA enrolled — require TOTP verification before issuing full tokens
       const mfaToken = await this.issueMfaToken(user.id, 'verify');
-      return { mfaRequired: true, mfaToken };
+      return { mfaRequired: true, mfaToken, mfaPurpose: 'verify' } as any;
     }
 
     const tokens = await this.issueTokens(user.id, user.email, roles, user.branch_id ?? null);

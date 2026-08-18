@@ -157,6 +157,101 @@ export class JournalEngineService implements AutoJournalEngine {
     return [result];
   }
 
+  /**
+   * Create a manual journal entry without relying on an AutoJournalTemplate.
+   */
+  async createManualEntry(
+    reference_type: string,
+    reference_id: string,
+    description: string,
+    entry_date: Date,
+    lines: JournalLine[],
+    created_by: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<JournalEntry> {
+    const client = tx ?? this.prisma;
+
+    // 1. Get Active Period
+    const activePeriod = await this.periodManager.getCurrentPeriod();
+    if (!activePeriod) {
+      throw new BusinessRuleException(
+        'No active fiscal period found.',
+        ErrorCode.NOT_FOUND,
+      );
+    }
+    await this.periodManager.validatePeriodOpen(activePeriod.id);
+
+    // 2. Validate Balance
+    if (!this.validateBalance(lines)) {
+      throw new BusinessRuleException(
+        `BR-ACC-001: Journal entry is not balanced.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    // 3. Generate JE Number
+    const jeNumber = await this.numbering.generate(DocumentType.JE, entry_date);
+
+    const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
+
+    const writeJe = async (writeClient: Prisma.TransactionClient) => {
+      return writeClient.journalEntry.create({
+        data: {
+          je_number: jeNumber,
+          entry_date,
+          period_id: activePeriod.id,
+          reference_type,
+          reference_id,
+          reference_number: jeNumber,
+          description,
+          total_debit: totalDebit,
+          total_credit: totalCredit,
+          status: 'POSTED',
+          is_auto_generated: true,
+          created_by,
+          lines: {
+            create: lines.map((line, i) => ({
+              line_number: i + 1,
+              account_id: line.account_id,
+              cost_center_id: line.cost_center_id,
+              description: line.description ?? null,
+              debit: line.debit,
+              credit: line.credit,
+            })),
+          },
+        },
+        include: { lines: true },
+      });
+    };
+
+    const created = tx
+      ? await writeJe(tx)
+      : await this.prisma.$transaction((innerTx) => writeJe(innerTx));
+
+    return {
+      id: created.id,
+      je_number: created.je_number,
+      entry_date: created.entry_date,
+      period_id: created.period_id,
+      reference_type: created.reference_type,
+      reference_id: created.reference_id,
+      reference_number: created.reference_number,
+      description: created.description,
+      total_debit: Number(created.total_debit),
+      total_credit: Number(created.total_credit),
+      status: created.status as JournalEntry['status'],
+      is_auto_generated: created.is_auto_generated,
+      reversed_by: created.reversed_by ?? null,
+      reversed_at: created.reversed_at ?? null,
+      posted_by: created.posted_by ?? null,
+      posted_at: created.posted_at ?? null,
+      created_by: created.created_by,
+      created_at: created.created_at,
+      updated_at: created.updated_at,
+    };
+  }
+
   async getJournalTemplate(eventType: JournalEventType, tx?: Prisma.TransactionClient): Promise<JournalTemplate> {
     const client = tx ?? this.prisma;
     const template = await client.autoJournalTemplate.findUnique({

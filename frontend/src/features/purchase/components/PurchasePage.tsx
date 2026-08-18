@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
   Table, Button, Input, Space, Tag, Tabs, Typography,
-  Card, Tooltip, Badge, Row, Col,
+  Card, Tooltip, Badge,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, SearchOutlined, CheckOutlined,
   CloseOutlined, FileDoneOutlined, ReloadOutlined,
 } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePurchaseOrders, useApprovePO, useRejectPO } from '../hooks/usePurchase';
 import type { PurchaseOrder } from '../types/purchase.types';
 import { PurchaseDrawer } from './PurchaseDrawer';
@@ -26,12 +27,14 @@ const PO_STATUS_COLORS: Record<string, string> = {
 };
 
 export const PurchasePage: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [grDrawerOpen, setGrDrawerOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [search, setSearch] = useState('');
 
-  const { data, isLoading, refetch } = usePurchaseOrders({ search: search || undefined });
+  const { data, isLoading, refetch } = usePurchaseOrders({ search: search || '' });
   const approvePO = useApprovePO();
   const rejectPO = useRejectPO();
 
@@ -59,7 +62,7 @@ export const PurchasePage: React.FC = () => {
       align: 'right',
       width: 180,
       render: (val) => (
-        <Text className="number-display" style={{ color: '#E2E8F0', fontWeight: 600 }}>
+        <Text className="number-display" style={{ fontWeight: 600 }}>
           Rp {val?.toLocaleString('id-ID') ?? '—'}
         </Text>
       ),
@@ -133,7 +136,7 @@ export const PurchasePage: React.FC = () => {
           <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
             <Input
               placeholder="Search PO number or supplier..."
-              prefix={<SearchOutlined style={{ color: '#64748B' }} />}
+              prefix={<SearchOutlined style={{ }} />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
@@ -161,7 +164,7 @@ export const PurchasePage: React.FC = () => {
         </span>
       ),
       children: (
-        <div style={{ padding: '24px 0', color: '#64748B', textAlign: 'center' }}>
+        <div style={{ padding: '24px 0', textAlign: 'center' }}>
           Goods Receipts will be shown here.
           <br />
           <Text style={{ color: '#475569', fontSize: 12 }}>
@@ -172,6 +175,11 @@ export const PurchasePage: React.FC = () => {
     },
   ];
 
+  const activeKey = location.pathname.includes('/receipts') ? 'receipts' : 'orders';
+  const handleTabChange = (key: string) => {
+    navigate(key === 'receipts' ? '/purchase/receipts' : '/purchase');
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -181,16 +189,18 @@ export const PurchasePage: React.FC = () => {
           </Title>
           <Text className="page-subtitle">Manage purchase orders, approvals, and goods receipts</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
-          Create PO
-        </Button>
+        {activeKey === 'orders' && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
+            Create PO
+          </Button>
+        )}
       </div>
 
       <Card className="stat-card">
-        <Tabs items={tabs} />
+        <Tabs items={tabs} activeKey={activeKey} onChange={handleTabChange} />
       </Card>
 
-      <PurchaseDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <PurchaseDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <GoodsReceiptDrawer
         open={grDrawerOpen}
         onClose={() => { setGrDrawerOpen(false); setSelectedPO(null); }}

@@ -114,6 +114,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return;
     }
 
+    // Prisma error handling
+    if (exception && typeof exception === 'object' && 'code' in exception) {
+      const prismaCode = (exception as any).code;
+      if (typeof prismaCode === 'string' && prismaCode.startsWith('P')) {
+        let status = HttpStatus.BAD_REQUEST;
+        let message = 'Database error';
+        
+        if (prismaCode === 'P2002') {
+          status = HttpStatus.CONFLICT;
+          message = 'Unique constraint failed';
+        } else if (prismaCode === 'P2025') {
+          status = HttpStatus.NOT_FOUND;
+          message = 'Record not found';
+        }
+
+        const body: APIError = {
+          success: false,
+          error: {
+            code: statusToErrorCode(status),
+            message: message,
+            details: { prismaCode: [prismaCode] }
+          }
+        };
+
+        this.logger.warn(`[${request.method}] ${request.url} → Prisma ${prismaCode}`);
+        response.status(status).json(body);
+        return;
+      }
+    }
+
     // Unhandled / unexpected errors → 500
     this.logger.error(
       `[${request.method}] ${request.url} → 500 (unhandled)`,

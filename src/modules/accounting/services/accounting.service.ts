@@ -44,10 +44,10 @@ export class AccountingService implements IAccountingService {
           je_number: jeNumber,
           entry_date: data.entry_date,
           period_id: data.period_id,
-          reference_type: data.reference_type,
-          reference_id: data.reference_id,
-          reference_number: data.reference_number,
-          description: data.description,
+          reference_type: data.reference_type || '',
+          reference_id: data.reference_id || '00000000-0000-0000-0000-000000000000',
+          reference_number: data.reference_number || '',
+          description: data.description || '',
           total_debit: totalDebit,
           total_credit: totalCredit,
           status: 'POSTED',
@@ -132,41 +132,174 @@ export class AccountingService implements IAccountingService {
         }
       });
 
-      return updated as any;
+      return reversalJe as any;
     });
   }
 
+  async getRecentJournalEntries(limit: number = 10): Promise<JournalEntry[]> {
+    const entries = await this.prisma.journalEntry.findMany({
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      include: { lines: true }
+    });
+    return entries as any;
+  }
+
   async getTrialBalance(periodId: UUID, branchId?: UUID): Promise<TrialBalance> {
-    // In a real implementation, this would aggregate journal entry lines or account balances
-    // For now, this is a simplified stub returning empty trial balance
+    const result = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        c.id as account_id,
+        c.account_code, 
+        c.account_name, 
+        c.account_type,
+        SUM(l.debit) as debit_balance, 
+        SUM(l.credit) as credit_balance
+      FROM chart_of_accounts c
+      JOIN journal_entry_lines l ON c.id = l.account_id
+      JOIN journal_entries j ON l.je_id = j.id
+      WHERE j.period_id = $1::uuid AND j.status = 'POSTED'
+      ${branchId ? `AND c.branch_id = '${branchId}'` : ''}
+      GROUP BY c.id, c.account_code, c.account_name, c.account_type
+      ORDER BY c.account_code ASC
+    `, periodId);
+
+    let total_debit = 0;
+    let total_credit = 0;
+    
+    const accounts = result.map(r => {
+      const debit = Number(r.debit_balance || 0);
+      const credit = Number(r.credit_balance || 0);
+      total_debit += debit;
+      total_credit += credit;
+      
+      return {
+        account_id: r.account_id,
+        account_code: r.account_code,
+        account_name: r.account_name,
+        account_type: r.account_type,
+        debit_balance: debit,
+        credit_balance: credit,
+      };
+    });
+
     return {
       period_id: periodId,
-      accounts: [],
-      total_debit: 0,
-      total_credit: 0,
+      accounts,
+      total_debit,
+      total_credit,
       generated_at: new Date()
     };
   }
 
   async closePeriod(periodId: UUID, userId: UUID): Promise<FiscalPeriod> {
     return await this.prisma.$transaction(async (tx) => {
-      // The PeriodManagerService handles checklist validation and status update
-      const closedPeriod = await this.periodManager.closePeriod(periodId, userId);
-
-      // End of Period Closing routine:
-      // Transfer REVENUE and EXPENSE balances to RETAINED EARNINGS.
-      // In a full implementation, we would query the total net income,
-      // and generate a PERIOD_CLOSING_NET journal entry here.
-      // This is simplified to just calling the journal engine.
+      const period = await tx.fiscalPeriod.findUnique({ where: { id: periodId } });
+      if (!period) throw new BusinessRuleException('Period not found', ErrorCode.NOT_FOUND);
       
-      const retainedEarningsAcct = await tx.chartOfAccount.findFirst({
-        where: { account_code: '31000' } // Example standard code
-      });
+      const result = await tx.$queryRawUnsafe<any[]>(`
+        SELECT 
+          c.id as account_id,
+          c.account_type,
+          c.normal_balance,
+          COALESCE(SUM(l.debit), 0) as total_debit,
+          COALESCE(SUM(l.credit), 0) as total_credit
+        FROM chart_of_accounts c
+        JOIN journal_entry_lines l ON c.id = l.account_id
+        JOIN journal_entries j ON l.je_id = j.id
+        WHERE j.period_id = $1::uuid AND j.status = 'POSTED'
+          AND c.account_type IN ('REVENUE', 'EXPENSE', 'COGS')
+        GROUP BY c.id, c.account_type, c.normal_balance
+      `, periodId);
 
-      if (retainedEarningsAcct) {
-        // Auto-journal for net income transfer would go here
-        // await this.journalEngine.processEvent(...)
+      if (result.length > 0) {
+        const retainedEarningsAcct = await tx.chartOfAccount.findFirst({
+          where: { account_type: 'EQUITY', account_code: { startsWith: '3' } } 
+        });
+
+        if (retainedEarningsAcct) {
+          const closingLines: { account_id: string; description: string; debit: number; credit: number }[] = [];
+          let netIncome = 0;
+
+          for (const row of result) {
+            const debit = Number(row.total_debit);
+            const credit = Number(row.total_credit);
+            const balance = row.normal_balance === 'DEBIT' ? debit - credit : credit - debit;
+            
+            if (balance !== 0) {
+               if (row.normal_balance === 'DEBIT') {
+                 closingLines.push({
+                   account_id: row.account_id,
+                   description: 'Closing Entry',
+                   debit: 0,
+                   credit: balance
+                 });
+                 netIncome -= balance;
+               } else {
+                 closingLines.push({
+                   account_id: row.account_id,
+                   description: 'Closing Entry',
+                   debit: balance,
+                   credit: 0
+                 });
+                 netIncome += balance;
+               }
+            }
+          }
+
+          if (netIncome !== 0) {
+            closingLines.push({
+              account_id: retainedEarningsAcct.id,
+              description: 'Period Net Income to Retained Earnings',
+              debit: netIncome < 0 ? Math.abs(netIncome) : 0,
+              credit: netIncome > 0 ? netIncome : 0
+            });
+
+            const jeNumber = await this.numberingService.generate(DocumentType.JE);
+            const totalDebit = closingLines.reduce((sum, l) => sum + Number(l.debit), 0);
+            const totalCredit = closingLines.reduce((sum, l) => sum + Number(l.credit), 0);
+
+            await tx.journalEntry.create({
+              data: {
+                je_number: jeNumber,
+                entry_date: period.end_date,
+                period_id: periodId,
+                reference_type: 'PERIOD_CLOSING',
+                reference_id: periodId,
+                reference_number: jeNumber,
+                description: 'Period Closing Entries',
+                total_debit: totalDebit,
+                total_credit: totalCredit,
+                status: 'POSTED',
+                is_auto_generated: true,
+                created_by: userId,
+                posted_by: userId,
+                posted_at: new Date(),
+                lines: {
+                  create: closingLines.map((l, index) => ({
+                    line_number: index + 1,
+                    account_id: l.account_id,
+                    description: l.description,
+                    debit: l.debit,
+                    credit: l.credit,
+                  }))
+                }
+              }
+            });
+          }
+        }
       }
+
+      // Finally close the period via PeriodManagerService
+      // But periodManager uses its own Prisma instance by default. Since we are in tx,
+      // we can't pass tx to periodManager. Let's just update it directly to keep transaction safe.
+      const closedPeriod = await tx.fiscalPeriod.update({
+        where: { id: periodId },
+        data: {
+          status: 'CLOSED',
+          closed_by: userId,
+          closed_at: new Date(),
+        }
+      });
 
       return closedPeriod as any;
     });

@@ -157,6 +157,10 @@ export interface FulfillmentLineDTO {
 }
 
 export interface SalesReturnDTO {
+  customer_id: UUID;
+  warehouse_id: UUID;
+  reference_type: string;
+  reference_id: UUID;
   return_date: Date;
   reason: string;
   lines: SalesReturnLineDTO[];
@@ -165,6 +169,7 @@ export interface SalesReturnDTO {
 export interface SalesReturnLineDTO {
   product_id: UUID;
   qty: number;
+  uom_id: UUID;
   unit_price: number;
 }
 
@@ -177,6 +182,14 @@ export interface POSService {
   applyPayment(transactionId: UUID, payments: PaymentMethodDTO[]): Promise<Receipt>;
   voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version: number): Promise<void>;
   closeShift(shiftId: UUID, closingBalance: number): Promise<ShiftReport>;
+  
+  // Added missing methods
+  listShifts(query: { status?: string; page: number; per_page: number }): Promise<{ data: Shift[]; meta: { total: number; page: number; per_page: number } }>;
+  getShift(id: UUID): Promise<Shift>;
+  listTransactions(query: { shift_id?: UUID; status?: string; page: number; per_page: number }): Promise<{ data: POSTransaction[]; meta: { total: number; page: number; per_page: number } }>;
+  processFullTransaction(data: { shift_id: UUID; cashier_id: UUID; customer_id?: UUID; items: any[]; payments: any[] }): Promise<Receipt>;
+  listSalesReturns(query: { page: number; per_page: number }): Promise<{ data: SalesReturn[]; meta: { total: number; page: number; per_page: number } }>;
+  createSalesReturn(userId: UUID, data: SalesReturnDTO): Promise<SalesReturn>;
 }
 
 export interface SalesOrderService {

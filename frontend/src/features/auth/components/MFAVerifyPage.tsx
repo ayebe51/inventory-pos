@@ -3,9 +3,10 @@ import { Card, Typography, Button, Input, message, Space } from 'antd';
 import { KeyOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../../store/authStore';
-import api from '../../../lib/api';
 
 const { Title, Text } = Typography;
+
+import api from '../../../lib/api';
 
 export const MFAVerifyPage: React.FC = () => {
   const [token, setToken] = useState('');
@@ -16,21 +17,32 @@ export const MFAVerifyPage: React.FC = () => {
   const handleVerify = async () => {
     if (token.length !== 6) return message.warning('Token must be 6 digits');
     
+    const mfaToken = localStorage.getItem('mfa_token');
+    if (!mfaToken) {
+      message.error('Session expired, please login again.');
+      return navigate('/login');
+    }
+
     setLoading(true);
     try {
-      // Mocked endpoint for MFA verification during login
-      // const res = await api.post('/auth/mfa/verify-login', { token });
+      const res = await api.post('/api/v1/auth/mfa/verify', { mfaToken, totpCode: token });
+      const data = res.data.data;
       
-      // Simulating success
-      setTimeout(() => {
-        message.success('Verification successful');
-        // We simulate that the user was in a partial login state and now we fully authenticate them
-        setAuth({ id: '1', name: 'Admin User', role: 'ADMIN' }, 'mock-jwt-token-after-mfa');
-        navigate('/');
-        setLoading(false);
-      }, 1000);
-    } catch (e) {
-      message.error('Invalid token. Please try again.');
+      localStorage.removeItem('mfa_token');
+      localStorage.setItem('refresh_token', data.refreshToken || '');
+      
+      setAuth({
+        id: data.user.id,
+        name: data.user.full_name,
+        email: data.user.email,
+        role: data.user.roles?.[0] || 'admin'
+      } as any, data.accessToken);
+      
+      message.success('Verification successful');
+      navigate('/');
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Invalid token. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -47,7 +59,7 @@ export const MFAVerifyPage: React.FC = () => {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Input 
             size="large"
-            prefix={<KeyOutlined style={{ color: '#64748B' }} />} 
+            prefix={<KeyOutlined style={{ }} />} 
             placeholder="000000" 
             value={token}
             onChange={e => setToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -58,7 +70,7 @@ export const MFAVerifyPage: React.FC = () => {
           <Button type="primary" size="large" block onClick={handleVerify} loading={loading}>
             Verify
           </Button>
-          <Button type="link" onClick={() => navigate('/login')} style={{ color: '#64748B' }}>
+          <Button type="link" onClick={() => navigate('/login')} style={{ }}>
             Back to Login
           </Button>
         </Space>

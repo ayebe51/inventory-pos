@@ -12,6 +12,7 @@ import {
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useInventory';
 import type { Product } from '../types/inventory.types';
 import { Typography } from 'antd';
+import { ActionableEmptyState } from '../../common/ActionableEmptyState';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -45,7 +46,7 @@ export const ProductManagement: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (editingProduct) {
-        await updateProduct.mutateAsync({ id: editingProduct.id, data: values });
+        await updateProduct.mutateAsync({ id: editingProduct.id, ...values });
       } else {
         await createProduct.mutateAsync(values);
       }
@@ -136,7 +137,7 @@ export const ProductManagement: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
         <Input
           placeholder="Search by name or SKU..."
-          prefix={<SearchOutlined style={{ color: '#64748B' }} />}
+          prefix={<SearchOutlined style={{ }} />}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           allowClear
@@ -155,6 +156,16 @@ export const ProductManagement: React.FC = () => {
           rowKey="id"
           scroll={{ x: 800 }}
           size="small"
+          locale={{
+            emptyText: (
+              <ActionableEmptyState
+                title="No Products Found"
+                description={search ? "We couldn't find any products matching your search." : "Your inventory is currently empty. Create your first product to start tracking stock."}
+                actionLabel="Add Product"
+                onAction={handleOpenCreate}
+              />
+            ),
+          }}
           pagination={{
             pageSize: 15,
             showSizeChanger: true,

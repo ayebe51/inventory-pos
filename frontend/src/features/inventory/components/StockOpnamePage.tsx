@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message,
+  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Card
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,31 +20,33 @@ export const StockOpnamePage: React.FC = () => {
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
-    queryFn: () => api.get('/warehouses').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
   });
 
   const { data: products } = useQuery({
     queryKey: ['products'],
-    queryFn: () => api.get('/products').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/products').then((r) => r.data),
   });
 
-  // Mocked list, normally we'd fetch from an endpoint that returns all stock opnames
-  const opnames = [
-    ...(selectedOpname ? [selectedOpname] : [])
-  ];
+  const { data: opnameResponse, refetch: refetchOpnames, isLoading: isLoadingOpnames } = useQuery({
+    queryKey: ['opnames'],
+    queryFn: () => api.get('/api/v1/inventory/stock-opname').then((r) => r.data),
+  });
+
+  const opnames = opnameResponse?.data || [];
 
   const initiate = useMutation({
-    mutationFn: (warehouse_id: string) => api.post('/inventory/stock-opname/initiate', { warehouse_id }).then((r) => r.data.data),
-    onSuccess: (data) => {
+    mutationFn: (warehouse_id: string) => api.post('/api/v1/inventory/stock-opname/initiate', { warehouse_id }).then((r) => r.data.data),
+    onSuccess: () => {
       message.success('Stock Opname initiated');
-      setSelectedOpname(data);
+      refetchOpnames();
       setInitDrawerOpen(false);
       form.resetFields();
     },
   });
 
   const record = useMutation({
-    mutationFn: (data: { id: string; items: any[] }) => api.post(`/inventory/stock-opname/${data.id}/record`, { items: data.items }),
+    mutationFn: (data: { id: string; items: any[] }) => api.post(`/api/v1/inventory/stock-opname/${data.id}/record`, { items: data.items }),
     onSuccess: () => {
       message.success('Counts recorded');
       setRecordDrawerOpen(false);
@@ -53,10 +55,11 @@ export const StockOpnamePage: React.FC = () => {
   });
 
   const finalize = useMutation({
-    mutationFn: (id: string) => api.post(`/inventory/stock-opname/${id}/finalize`).then((r) => r.data.data),
-    onSuccess: (data) => {
+    mutationFn: (id: string) => api.post(`/api/v1/inventory/stock-opname/${id}/finalize`).then((r) => r.data.data),
+    onSuccess: () => {
       message.success('Stock Opname finalized');
-      setSelectedOpname(data.opname); // Refresh with final status
+      setSelectedOpname(null); // Or data.opname
+      refetchOpnames();
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
   });
@@ -95,23 +98,26 @@ export const StockOpnamePage: React.FC = () => {
   ];
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div className="page-container">
+      <div className="page-header">
         <div>
-          <Title level={4} style={{ color: '#E2E8F0', margin: 0 }}>Stock Opname</Title>
-          <Text style={{ color: '#64748B' }}>Physical stock counting and reconciliation</Text>
+          <Title level={3} className="page-title">Stock Opname</Title>
+          <Text className="page-subtitle">Physical stock counting and reconciliation</Text>
         </div>
         <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => setInitDrawerOpen(true)}>
           Initiate Opname
         </Button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={opnames}
-        rowKey="id"
-        size="small"
-      />
+      <Card className="stat-card" bodyStyle={{ padding: '24px' }}>
+        <Table
+          columns={columns}
+          dataSource={opnames}
+          loading={isLoadingOpnames}
+          rowKey="id"
+          size="small"
+        />
+      </Card>
 
       <Drawer
         title="Initiate Stock Opname"

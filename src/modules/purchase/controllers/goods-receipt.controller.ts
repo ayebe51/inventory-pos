@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -34,6 +35,8 @@ interface AuthRequest extends Request {
  *
  * Base URL: /api/v1/goods-receipts
  */
+@ApiTags('Purchase - Goods Receipts')
+@ApiBearerAuth()
 @Controller('api/v1/goods-receipts')
 @UseGuards(JwtAuthGuard, RbacGuard)
 export class GoodsReceiptController {
@@ -45,6 +48,8 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.CREATE
    */
+  @ApiOperation({ summary: 'Create a new Goods Receipt from a Purchase Order' })
+  @ApiBody({ type: CreateGoodsReceiptDTO })
   @Post()
   @RequirePermissions('INVENTORY.CREATE')
   async create(
@@ -61,7 +66,7 @@ export class GoodsReceiptController {
         : data.receipt_date,
     };
     
-    const gr = await this.grService.create(grData.po_id, grData as any, userId);
+    const gr = await this.grService.create(grData.po_id as UUID, grData as any, userId);
 
     return successResponse(gr, 'Goods Receipt created successfully');
   }
@@ -72,6 +77,7 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.READ
    */
+  @ApiOperation({ summary: 'Get all Goods Receipts with filters and pagination' })
   @Get()
   @RequirePermissions('INVENTORY.READ')
   async search(@Query() query: SearchGoodsReceiptDTO) {
@@ -102,6 +108,8 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.READ
    */
+  @ApiOperation({ summary: 'Get a Goods Receipt by ID' })
+  @ApiParam({ name: 'id', description: 'Goods Receipt ID' })
   @Get(':id')
   @RequirePermissions('INVENTORY.READ')
   async findById(@Param('id') id: UUID): Promise<APIResponse<GoodsReceipt>> {
@@ -110,7 +118,7 @@ export class GoodsReceiptController {
     if (!gr) {
       return {
         success: false,
-        data: null,
+        data: null as any,
         message: 'Goods Receipt not found',
       };
     }
@@ -131,6 +139,9 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.UPDATE
    */
+  @ApiOperation({ summary: 'Confirm a Goods Receipt (DRAFT → CONFIRMED)' })
+  @ApiParam({ name: 'id', description: 'Goods Receipt ID' })
+  @ApiBody({ type: ConfirmGoodsReceiptDTO })
   @Put(':id/confirm')
   @RequirePermissions('INVENTORY.UPDATE')
   @HttpCode(HttpStatus.OK)
@@ -151,6 +162,8 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.READ
    */
+  @ApiOperation({ summary: 'Get Goods Receipts by Purchase Order ID' })
+  @ApiParam({ name: 'poId', description: 'Purchase Order ID' })
   @Get('by-po/:poId')
   @RequirePermissions('INVENTORY.READ')
   async findByPurchaseOrder(@Param('poId') poId: UUID): Promise<APIResponse<GoodsReceipt[]>> {
@@ -165,6 +178,9 @@ export class GoodsReceiptController {
    *
    * Permission: INVENTORY.DELETE
    */
+  @ApiOperation({ summary: 'Cancel a Goods Receipt (only in DRAFT status)' })
+  @ApiParam({ name: 'id', description: 'Goods Receipt ID' })
+  @ApiBody({ schema: { type: 'object', properties: { reason: { type: 'string' } } } })
   @Put(':id/cancel')
   @RequirePermissions('INVENTORY.DELETE')
   @HttpCode(HttpStatus.OK)

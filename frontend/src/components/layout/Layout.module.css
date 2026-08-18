@@ -1,275 +1,350 @@
-.appContainer {
+/* Layout.module.css — Glass Sidebar + Glass Navbar */
+
+/* ── Root Layout ───────────────────────────────────────── */
+.root {
   display: flex;
-  flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--color-canvas);
+  background: transparent;
 }
 
-.commandNav {
+/* ── Sidebar Shell ─────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  bottom: 12px;
+  z-index: var(--z-sidebar, 100);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 56px;
+  flex-direction: column;
+  border-radius: var(--r-2xl);
+  overflow: hidden;
+  transition: width 250ms var(--ease-out);
+
+  /* Glass surface */
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-md);
+}
+
+/* Top-edge specular highlight */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 8%; right: 8%;
+  height: 1px;
+  background: linear-gradient(
+    90deg, transparent, var(--glass-highlight) 30%, var(--glass-highlight) 70%, transparent
+  );
+  border-radius: var(--r-2xl);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sidebarExpanded  { width: 240px; }
+.sidebarCollapsed { width: 68px; }
+
+/* ── Sidebar Logo ──────────────────────────────────────── */
+.sidebarLogo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 14px 14px;
+  cursor: pointer;
   border-bottom: 1px solid var(--glass-border);
-  padding: 0 24px;
   flex-shrink: 0;
-  z-index: 50;
+  overflow: hidden;
+  transition: padding 250ms var(--ease-out);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 200px;
-}
+.sidebarLogoCollapsed { padding: 18px 14px 14px; justify-content: center; }
 
-.logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: var(--gradient-primary);
-  color: #FFF;
-  border-radius: 6px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 16px;
-  box-shadow: var(--shadow-glow);
-}
-
-.brandName {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.5px;
-  color: var(--color-text-primary);
-}
-
-.navLinks {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  gap: 8px;
-}
-
-.navItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 16px;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
-  transition: all 0.2s ease;
-}
-
-.navItem:hover {
-  color: var(--color-text-primary);
-  background-color: var(--glass-border);
-}
-
-.active {
-  color: var(--color-primary);
-  background-color: rgba(139, 92, 246, 0.1);
-}
-
-.userActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 240px;
-  justify-content: flex-end;
-}
-
-.iconBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.logoMark {
   width: 36px;
   height: 36px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: 10px;
+  background: var(--brand-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px var(--brand-glow);
 }
 
-.iconBtn:hover {
-  color: var(--color-text-primary);
-  background-color: var(--glass-border);
-  border-color: var(--glass-border);
+.logoTextBlock {
+  overflow: hidden;
+  transition: opacity 200ms ease, max-width 250ms var(--ease-out);
 }
 
-.mainContent {
+.logoName {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.logoSub {
+  font-size: var(--fs-2xs);
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Nav Section Labels ─────────────────────────────────── */
+.navSection {
+  padding: 20px 14px 4px;
+  flex-shrink: 0;
+}
+
+.navSectionLabel {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* ── Nav Scroll Area ────────────────────────────────────── */
+.navScroll {
   flex: 1;
   overflow-y: auto;
-  position: relative;
+  overflow-x: hidden;
+  padding: 4px 8px 8px;
+  scrollbar-width: none;
+}
+.navScroll::-webkit-scrollbar { display: none; }
+
+/* ── Collapse Toggle ────────────────────────────────────── */
+.collapseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px;
+  height: 32px;
+  border-radius: var(--r-md);
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+  flex-shrink: 0;
 }
 
-/* User Menu */
-.userMenu {
-  position: relative;
+.collapseBtn:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── User Profile Footer ────────────────────────────────── */
+.userSection {
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
 }
 
 .userBtn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px 4px 4px;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 8px;
+  border: none;
+  border-radius: var(--r-lg);
   background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 24px;
   cursor: pointer;
-  transition: all 0.2s;
-  color: var(--color-text-primary);
+  transition: background var(--dur-fast) ease;
+  text-align: left;
+  overflow: hidden;
 }
 
 .userBtn:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--color-primary);
+  background: var(--glass-bg-hover);
 }
 
-.avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+.userBtnCollapsed {
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.userAvatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  background: var(--brand-gradient);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px var(--brand-glow);
 }
 
-.profileInfo {
-  display: flex;
-  flex-direction: column;
-}
-
-.profileName {
-  font-weight: 600;
-  color: var(--color-text-primary);
-  font-size: 14px;
-}
-
-.profileRole {
-  font-size: 12px;
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .layout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    padding: 16px;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .nav {
-    display: none; /* In a real app we'd have a hamburger menu */
-  }
-
-  .logo {
-    margin-bottom: 0;
-  }
-
-  .userSection {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
-  }
-}
-
-.userInfo {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
+.userInfo { overflow: hidden; flex: 1; }
 
 .userName {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--color-text-primary);
-  line-height: 1.2;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .userRole {
-  font-size: 10px;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  line-height: 1.2;
+  font-size: var(--fs-2xs);
+  color: var(--brand-400);
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
-.chevron {
-  color: var(--color-text-muted);
-}
-
-.dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 200px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
+/* ── Main Content Area ──────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  z-index: 100;
-  animation: dropIn 0.15s ease;
+  transition: margin-left 250ms var(--ease-out);
 }
 
-@keyframes dropIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+.mainExpanded  { margin-left: calc(240px + 12px + 12px); }
+.mainCollapsed { margin-left: calc(68px  + 12px + 12px); }
 
-.dropdownHeader {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.dropdownEmail {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.dropdownItem {
-  width: 100%;
+/* ── Navbar ─────────────────────────────────────────────── */
+.navbar {
+  position: sticky;
+  top: 12px;
+  z-index: var(--z-navbar, 200);
+  margin: 12px 12px 0;
+  border-radius: var(--r-xl);
+  height: 54px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: transparent;
-  border: none;
-  color: var(--color-text-secondary);
-  font-family: var(--font-body);
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
+  padding: 0 16px;
+  gap: 8px;
+  flex-shrink: 0;
+
+  /* Glass */
+  background: var(--glass-bg);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-sm);
 }
 
-.dropdownItem:hover {
-  background: var(--color-surface-hover);
-  color: var(--color-danger);
+/* Top-edge specular on navbar */
+.navbar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  background: linear-gradient(
+    90deg, transparent, var(--glass-highlight) 30%, var(--glass-highlight) 70%, transparent
+  );
+  border-radius: var(--r-xl);
+  pointer-events: none;
+}
+
+.navbarBreadcrumb {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.navbarBreadcrumbText {
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.navbarBreadcrumbCurrent {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.navbarSep {
+  font-size: var(--fs-sm);
+  color: var(--text-tertiary);
+}
+
+.navbarActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.navbarIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
+  position: relative;
+}
+
+.navbarIconBtn:hover {
+  background: var(--glass-bg-hover);
+  color: var(--text-primary);
+}
+
+.navbarDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--glass-border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+/* ── Content Scroll ─────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--sp-6) 12px 24px;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .mainExpanded  { margin-left: calc(240px + 12px + 8px); }
+  .mainCollapsed { margin-left: calc(68px  + 12px + 8px); }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    top: 0; left: 0; bottom: 0;
+    border-radius: 0;
+  }
+  .mainExpanded  { margin-left: 240px; }
+  .mainCollapsed { margin-left: 68px; }
+  .navbar { margin: 0; border-radius: 0; top: 0; }
+  .content { padding: var(--sp-4) var(--sp-4) 24px; }
 }

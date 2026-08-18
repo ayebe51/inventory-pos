@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Input, DatePicker
+  Table, Button, Typography, Tag, Drawer, Form, InputNumber, Row, Col, Space, message, DatePicker, Input, Select, Card
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -9,7 +9,6 @@ import api from '../../../lib/api';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 export const SalesReturnPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -18,35 +17,37 @@ export const SalesReturnPage: React.FC = () => {
 
   const { data: products } = useQuery({
     queryKey: ['products'],
-    queryFn: () => api.get('/products').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/master-data/products').then((r) => r.data),
   });
 
-  const [mockSRs, setMockSRs] = useState([
-    {
-      id: 'mock-sr-1',
-      return_number: 'SR-2026-001',
-      reference_number: 'SO-2026-001',
-      return_date: '2026-07-26',
-      total_amount: 1500000,
-      status: 'APPROVED',
-    },
-  ]);
+  const { data: uoms } = useQuery({
+    queryKey: ['uoms'],
+    queryFn: () => api.get('/api/v1/master-data/uoms').then((r) => r.data),
+  });
+
+  const { data: customers } = useQuery({
+    queryKey: ['customers'],
+    queryFn: () => api.get('/api/v1/master-data/customers').then((r) => r.data),
+  });
+
+  const { data: warehouses } = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: () => api.get('/api/v1/master-data/warehouses').then((r) => r.data),
+  });
+
+  const { data: salesReturns, isLoading, refetch } = useQuery({
+    queryKey: ['sales-returns'],
+    queryFn: () => api.get('/api/v1/pos/sales-returns').then((r) => r.data),
+  });
 
   const createSR = useMutation({
-    mutationFn: (data: any) => api.post(`/sales-orders/${data.so_id}/return`, data).then((r) => r.data.data),
-    onSuccess: (newSR) => {
+    mutationFn: (data: any) => api.post('/api/v1/pos/sales-returns', data).then((r) => r.data.data),
+    onSuccess: () => {
       message.success('Sales Return created');
       setDrawerOpen(false);
       form.resetFields();
       setLines([]);
-      setMockSRs(prev => [{
-        id: newSR?.id || Date.now().toString(),
-        return_number: newSR?.return_number || `SR-NEW-${Date.now()}`,
-        reference_number: form.getFieldValue('so_id') || 'Unknown',
-        return_date: form.getFieldValue('return_date').format('YYYY-MM-DD'),
-        total_amount: lines.reduce((acc, l) => acc + (l.qty * l.unit_price), 0),
-        status: 'APPROVED',
-      }, ...prev]);
+      refetch();
     },
     onError: (err: any) => message.error(err?.response?.data?.error?.message || 'Failed to create Return'),
   });
@@ -55,14 +56,19 @@ export const SalesReturnPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       if (lines.length === 0) return message.error('Add at least one return item');
+      if (lines.some(l => !l.product_id)) return message.error('Please select a product for all lines');
       
       const payload = {
-        so_id: values.so_id,
+        customer_id: customers?.data?.[0]?.id || '00000000-0000-0000-0000-000000000000',
+        warehouse_id: warehouses?.data?.[0]?.id || '00000000-0000-0000-0000-000000000000',
+        reference_type: 'POS',
+        reference_id: values.so_id,
         return_date: values.return_date.toISOString(),
         reason: values.reason,
         lines: lines.map(l => ({
           product_id: l.product_id,
           qty: l.qty,
+          uom_id: l.uom_id || uoms?.data?.[0]?.id || '00000000-0000-0000-0000-000000000000',
           unit_price: l.unit_price,
         })),
       };
@@ -91,7 +97,9 @@ export const SalesReturnPage: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={mockSRs} rowKey="id" size="small" />
+      <Card className="stat-card" bodyStyle={{ padding: 0 }}>
+        <Table columns={columns} dataSource={salesReturns?.data || []} loading={isLoading} rowKey="id" pagination={{ pageSize: 15 }} />
+      </Card>
 
       <Drawer
         title="Create Sales Return"
@@ -123,7 +131,7 @@ export const SalesReturnPage: React.FC = () => {
           </Form.Item>
 
           <div style={{ marginBottom: 16, marginTop: 24, display: 'flex', justifyContent: 'space-between' }}>
-            <Text style={{ color: '#E2E8F0', fontWeight: 600 }}>Return Items</Text>
+            <Text style={{ fontWeight: 600 }}>Return Items</Text>
             <Button type="dashed" size="small" icon={<PlusOutlined />} onClick={() => setLines([...lines, { id: Date.now(), product_id: null, qty: 1, unit_price: 0 }])}>
               Add Item
             </Button>
@@ -137,9 +145,9 @@ export const SalesReturnPage: React.FC = () => {
                   placeholder="Product"
                   style={{ width: '100%' }}
                   value={line.product_id}
-                  onChange={(v) => {
+                  onChange={(v: string) => {
                     const p = products?.data?.find((x: any) => x.id === v);
-                    setLines(lines.map(l => l.id === line.id ? { ...l, product_id: v, unit_price: p?.selling_price || 0 } : l));
+                    setLines(lines.map(l => l.id === line.id ? { ...l, product_id: v, unit_price: p?.selling_price || 0, uom_id: p?.base_uom_id || uoms?.data?.[0]?.id } : l));
                   }}
                   options={products?.data?.map((p: any) => ({ label: p.name, value: p.id }))}
                 />

@@ -42,14 +42,20 @@ export class InventoryService implements IInventoryService {
     // Validate input
     this.validateMovementData(data);
 
+    // Apply UOM Conversion
+    const rate = data.conversion_rate && data.conversion_rate > 0 ? data.conversion_rate : 1;
+    const qty_in_base = data.qty_in * rate;
+    const qty_out_base = data.qty_out * rate;
+    const unit_cost_base = rate > 0 ? data.unit_cost / rate : data.unit_cost;
+
     // Calculate running balance and cost
     const { running_qty, running_cost, average_cost } =
       await this.calculateRunningBalance(
         data.product_id,
         data.warehouse_id,
-        data.qty_in,
-        data.qty_out,
-        data.unit_cost,
+        qty_in_base,
+        qty_out_base,
+        unit_cost_base,
       );
 
     // BR-INV-001: Negative stock check
@@ -67,7 +73,7 @@ export class InventoryService implements IInventoryService {
     }
 
     // Calculate total cost for this movement
-    const total_cost = data.qty_in > 0 ? data.qty_in * data.unit_cost : 0;
+    const total_cost = qty_in_base > 0 ? qty_in_base * unit_cost_base : 0;
 
     // Append-only insert to inventory_ledger
     // BR-INV-002: No UPDATE or DELETE operations allowed
@@ -80,9 +86,9 @@ export class InventoryService implements IInventoryService {
         reference_id: data.reference_id,
         reference_number: data.reference_number,
         movement_date: data.movement_date,
-        qty_in: data.qty_in,
-        qty_out: data.qty_out,
-        unit_cost: data.unit_cost,
+        qty_in: qty_in_base,
+        qty_out: qty_out_base,
+        unit_cost: unit_cost_base,
         total_cost: total_cost,
         running_qty: running_qty,
         running_cost: running_cost,
@@ -186,6 +192,22 @@ export class InventoryService implements IInventoryService {
     );
 
     return stockBalance;
+  }
+
+  async getLedger(filters: { product_id?: UUID, warehouse_id?: UUID, limit?: number }) {
+    const where: any = {};
+    if (filters.product_id) where.product_id = filters.product_id;
+    if (filters.warehouse_id) where.warehouse_id = filters.warehouse_id;
+    
+    return this.prisma.inventoryLedger.findMany({
+      where,
+      orderBy: { movement_date: 'desc' },
+      take: filters.limit || 100,
+      include: {
+        product: { select: { name: true, code: true } },
+        warehouse: { select: { name: true } },
+      }
+    });
   }
 
   /**
