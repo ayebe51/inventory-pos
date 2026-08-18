@@ -1001,6 +1001,163 @@ const CategoryManager: React.FC = () => {
   );
 };
 
+// --- CHART OF ACCOUNTS MANAGER ---
+const CoaManager: React.FC = () => {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [form] = Form.useForm();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['coa-accounts'],
+    queryFn: () => api.get('/api/v1/master-data/coa').then(r => r.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (values: any) => api.post('/api/v1/master-data/coa', {
+      ...values,
+      normal_balance: values.account_type === 'EXPENSE' || values.account_type === 'ASSET' ? 'DEBIT' : 'CREDIT'
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['coa-accounts'] });
+      message.success('Account Code added to Chart of Accounts');
+      setIsModalOpen(false);
+      form.resetFields();
+    },
+    onError: (err: any) => {
+      message.error(err.response?.data?.message || 'Failed to create COA account');
+    }
+  });
+
+  const rawList = data?.data || (Array.isArray(data) ? data : []);
+  const filteredData = rawList.filter((a: any) =>
+    a.account_name?.toLowerCase().includes(search.toLowerCase()) ||
+    a.account_code?.toLowerCase().includes(search.toLowerCase()) ||
+    a.account_type?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getTypeTag = (type: string) => {
+    switch (type) {
+      case 'ASSET': return <Tag color="blue">ASSET</Tag>;
+      case 'LIABILITY': return <Tag color="orange">LIABILITY</Tag>;
+      case 'EQUITY': return <Tag color="gold">EQUITY</Tag>;
+      case 'REVENUE': return <Tag color="green">REVENUE</Tag>;
+      case 'EXPENSE': return <Tag color="red">EXPENSE</Tag>;
+      default: return <Tag>{type}</Tag>;
+    }
+  };
+
+  const columns = [
+    {
+      title: 'ACCOUNT CODE',
+      dataIndex: 'account_code',
+      width: 160,
+      render: (t: string) => (
+        <span style={{
+          padding: '4px 10px',
+          background: 'var(--brand-50)',
+          color: 'var(--brand-600)',
+          border: '1px solid var(--brand-200)',
+          borderRadius: 8,
+          fontFamily: 'var(--font-mono, monospace)',
+          fontWeight: 700,
+          fontSize: 12
+        }}>
+          {t}
+        </span>
+      )
+    },
+    {
+      title: 'ACCOUNT NAME',
+      dataIndex: 'account_name',
+      render: (name: string) => <Text style={{ fontWeight: 700, fontSize: 14 }}>{name}</Text>
+    },
+    {
+      title: 'TYPE',
+      dataIndex: 'account_type',
+      width: 140,
+      render: getTypeTag
+    },
+    {
+      title: 'NORMAL BALANCE',
+      dataIndex: 'normal_balance',
+      width: 140,
+      render: (nb: string) => <Tag style={{ borderRadius: 6, fontWeight: 600 }}>{nb || 'DEBIT'}</Tag>
+    },
+  ];
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <Input
+          placeholder="Search account code or name..."
+          prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          allowClear
+          style={{ maxWidth: 360, borderRadius: 10 }}
+        />
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => { form.resetFields(); setIsModalOpen(true); }}
+          style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
+        >
+          Add Account Code
+        </Button>
+      </div>
+
+      {filteredData.length === 0 && !isLoading ? (
+        <ActionableEmptyState
+          title="No COA Accounts Found"
+          description="Create custom ledger account codes for revenue, expenses, assets, and liabilities."
+          actionLabel="Add Account Code"
+          onAction={() => { form.resetFields(); setIsModalOpen(true); }}
+          icon={<AppstoreOutlined />}
+        />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="id"
+          loading={isLoading}
+          pagination={{ pageSize: 10 }}
+          size="middle"
+          style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
+        />
+      )}
+
+      <Modal
+        title="Add Chart of Accounts (COA) Code"
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        onOk={() => form.submit()}
+        confirmLoading={createMutation.isPending}
+        destroyOnClose
+        width={480}
+      >
+        <Form form={form} layout="vertical" onFinish={(v) => createMutation.mutate(v)} style={{ marginTop: 16 }}>
+          <Form.Item name="account_code" label="Account Code" rules={[{ required: true, message: 'Required (e.g. 6007)' }]}>
+            <Input placeholder="e.g. 6007" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="account_name" label="Account Name" rules={[{ required: true, message: 'Required' }]}>
+            <Input placeholder="e.g. Beban Iklan & Promosi" style={{ borderRadius: 8 }} />
+          </Form.Item>
+          <Form.Item name="account_type" label="Account Type" rules={[{ required: true, message: 'Required' }]}>
+            <Select placeholder="Select account type" style={{ borderRadius: 8 }}>
+              <Select.Option value="ASSET">ASSET (Harta / Aktiva)</Select.Option>
+              <Select.Option value="LIABILITY">LIABILITY (Hutang / Kewajiban)</Select.Option>
+              <Select.Option value="EQUITY">EQUITY (Modal / Ekuitas)</Select.Option>
+              <Select.Option value="REVENUE">REVENUE (Pendapatan)</Select.Option>
+              <Select.Option value="EXPENSE">EXPENSE (Beban Operasional)</Select.Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  );
+};
+
 // --- MAIN MASTER DATA PAGE ---
 export const MasterDataPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('customers');
@@ -1009,17 +1166,20 @@ export const MasterDataPage: React.FC = () => {
   const { data: suppData } = useQuery({ queryKey: ['suppliers'], queryFn: () => api.get('/api/v1/master-data/suppliers').then(r => r.data) });
   const { data: whData } = useQuery({ queryKey: ['warehouses'], queryFn: () => api.get('/api/v1/warehouses').then(r => r.data) });
   const { data: catData } = useQuery({ queryKey: ['categories'], queryFn: () => api.get('/api/v1/master-data/categories').then(r => r.data) });
+  const { data: coaData } = useQuery({ queryKey: ['coa-accounts'], queryFn: () => api.get('/api/v1/master-data/coa').then(r => r.data) });
 
   const custCount = (custData?.data || (Array.isArray(custData) ? custData : [])).length;
   const suppCount = (suppData?.data || (Array.isArray(suppData) ? suppData : [])).length;
   const whCount = (whData?.data || (Array.isArray(whData) ? whData : [])).length;
   const catCount = (catData?.data || (Array.isArray(catData) ? catData : [])).length;
+  const coaCount = (coaData?.data || (Array.isArray(coaData) ? coaData : [])).length;
 
   const tabItems = [
     { key: 'customers', label: 'Customers', icon: <UserOutlined />, count: custCount },
     { key: 'suppliers', label: 'Suppliers', icon: <ShopOutlined />, count: suppCount },
     { key: 'warehouses', label: 'Warehouses', icon: <HomeOutlined />, count: whCount },
     { key: 'categories', label: 'Categories', icon: <AppstoreOutlined />, count: catCount },
+    { key: 'coa', label: 'Chart of Accounts (COA)', icon: <AppstoreOutlined />, count: coaCount },
   ];
 
   return (
@@ -1120,6 +1280,7 @@ export const MasterDataPage: React.FC = () => {
         {activeTab === 'suppliers' && <SupplierManager />}
         {activeTab === 'warehouses' && <WarehouseManager />}
         {activeTab === 'categories' && <CategoryManager />}
+        {activeTab === 'coa' && <CoaManager />}
       </Card>
     </div>
   );
