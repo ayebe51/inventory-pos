@@ -19,23 +19,130 @@ export const CreatePurchaseRequestSchema = z.object({
 });
 
 export const UpdatePurchaseRequestSchema = z.object({
+  branch_id: z.string().uuid().optional(),
   warehouse_id: z.string().uuid().optional(),
   notes: z.string().optional(),
   lines: z.array(CreatePurchaseRequestLineSchema).optional(),
 });
 
 export const PurchaseRequestFilterSchema = z.object({
+  pr_number: z.string().optional(),
   branch_id: z.string().uuid().optional(),
   warehouse_id: z.string().uuid().optional(),
   status: z.enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED']).optional(),
   requested_by: z.string().uuid().optional(),
-  page: z.number().int().positive().optional(),
-  per_page: z.number().int().positive().max(100).optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  page: z.coerce.number().int().positive().optional(),
+  per_page: z.coerce.number().int().positive().max(100).optional(),
 });
 
 // ── TypeScript Types ──────────────────────────────────────────────────────────
 
-export type CreatePurchaseRequestLineDTO = z.infer<typeof CreatePurchaseRequestLineSchema>;
-export type CreatePurchaseRequestDTO = z.infer<typeof CreatePurchaseRequestSchema>;
-export type UpdatePurchaseRequestDTO = z.infer<typeof UpdatePurchaseRequestSchema>;
-export type PurchaseRequestFilter = z.infer<typeof PurchaseRequestFilterSchema>;
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreatePurchaseRequestLineDTO {
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  product_id!: string;
+
+  @ApiProperty({ example: 10 })
+  qty_requested!: number;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  uom_id!: string;
+
+  @ApiPropertyOptional({ example: 50000 })
+  estimated_price?: number;
+
+  @ApiPropertyOptional({ example: 'Mohon segera diproses' })
+  notes?: string;
+}
+
+export class CreatePurchaseRequestDTO {
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  branch_id!: string;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  warehouse_id!: string;
+
+  @ApiPropertyOptional({ example: 'Pesanan untuk proyek A' })
+  notes?: string;
+
+  @ApiProperty({ type: [CreatePurchaseRequestLineDTO] })
+  lines!: CreatePurchaseRequestLineDTO[];
+}
+
+export class UpdatePurchaseRequestDTO {
+  @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  branch_id?: string;
+
+  @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  warehouse_id?: string;
+
+  @ApiPropertyOptional({ example: 'Pesanan untuk proyek A' })
+  notes?: string;
+
+  @ApiPropertyOptional({ type: [CreatePurchaseRequestLineDTO] })
+  lines?: CreatePurchaseRequestLineDTO[];
+}
+
+export class PurchaseRequestFilter {
+  @ApiPropertyOptional()
+  pr_number?: string;
+
+  @ApiPropertyOptional()
+  branch_id?: string;
+
+  @ApiPropertyOptional()
+  warehouse_id?: string;
+
+  @ApiPropertyOptional({ enum: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'] })
+  status?: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+  @ApiPropertyOptional()
+  requested_by?: string;
+
+  @ApiPropertyOptional()
+  date_from?: string;
+
+  @ApiPropertyOptional()
+  date_to?: string;
+
+  @ApiPropertyOptional({ default: 1 })
+  page?: number;
+
+  @ApiPropertyOptional({ default: 20 })
+  per_page?: number;
+}
+
+/**
+ * DTO for searching Purchase Requests
+ */
+export class SearchPurchaseRequestDTO {
+  @ApiPropertyOptional()
+  pr_number?: string;
+
+  @ApiPropertyOptional()
+  branch_id?: UUID;
+
+  @ApiPropertyOptional()
+  warehouse_id?: UUID;
+
+  @ApiPropertyOptional()
+  status?: string;
+
+  @ApiPropertyOptional()
+  requested_by?: UUID;
+
+  @ApiPropertyOptional()
+  date_from?: string;
+
+  @ApiPropertyOptional()
+  date_to?: string;
+
+  @ApiPropertyOptional()
+  page?: number;
+
+  @ApiPropertyOptional()
+  per_page?: number;
+}

@@ -1,0 +1,184 @@
+import React, { useState } from 'react';
+import { Card, Typography, Button, Input, Steps, message, Result, Space } from 'antd';
+import { QrcodeOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import api from '../../../lib/api';
+import { useAuthStore } from '../../../store/authStore';
+
+const { Title, Text } = Typography;
+
+export const MFASetupPage: React.FC = () => {
+  const [current, setCurrent] = useState(0);
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [secret, setSecret] = useState('');
+  const [token, setToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { setAuth } = useAuthStore();
+
+  const handleStartSetup = async () => {
+    const mfaToken = localStorage.getItem('mfa_token');
+    if (!mfaToken) {
+      message.error('Session expired. Please login again.');
+      return navigate('/login');
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v1/auth/mfa/setup', { mfaToken });
+      const data = res.data.data;
+      
+      const qrData = encodeURIComponent(data.otpauthUrl);
+      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`);
+      setSecret(data.secret);
+      setCurrent(1);
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Failed to initiate MFA setup');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBypass = async () => {
+    const mfaToken = localStorage.getItem('mfa_token');
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v1/auth/mfa/bypass', { mfaToken });
+      const data = res.data.data;
+      
+      localStorage.removeItem('mfa_token');
+      localStorage.setItem('refresh_token', data.refreshToken || '');
+      
+      setAuth({
+        id: data.user.id,
+        name: data.user.full_name,
+        email: data.user.email,
+        role: data.user.roles?.[0] || 'admin'
+      } as any, data.accessToken);
+
+      message.success('Welcome! Logged in successfully.');
+      navigate('/');
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Bypass failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify = async () => {
+    if (token.length !== 6) return message.warning('Token must be 6 digits');
+    const mfaToken = localStorage.getItem('mfa_token');
+    
+    setLoading(true);
+    try {
+      const res = await api.post('/api/v1/auth/mfa/setup/confirm', { mfaToken, totpCode: token });
+      const data = res.data.data;
+      
+      localStorage.removeItem('mfa_token');
+      localStorage.setItem('refresh_token', data.refreshToken || '');
+      
+      setAuth({
+        id: data.user.id,
+        name: data.user.full_name,
+        email: data.user.email,
+        role: data.user.roles?.[0] || 'admin'
+      } as any, data.accessToken);
+
+      message.success('MFA successfully enabled!');
+      setCurrent(2);
+    } catch (e: any) {
+      message.error(e.response?.data?.message || 'Invalid token. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const steps = [
+    {
+      title: 'Initiate',
+      content: (
+        <div style={{ textAlign: 'center', padding: '30px 0' }}>
+          <QrcodeOutlined style={{ fontSize: 48, color: '#8B5CF6', marginBottom: 16 }} />
+          <Title level={4}>Secure Your Account</Title>
+          <Text style={{ display: 'block', marginBottom: 24, color: '#94A3B8' }}>
+            Multi-factor authentication adds an extra layer of security to your Kiro ERP account.
+          </Text>
+          <Space direction="vertical" size="middle" style={{ width: '100%', maxWidth: 320 }}>
+            <Button type="primary" size="large" block onClick={handleStartSetup} loading={loading}>
+              Set up Authenticator App
+            </Button>
+            <Button
+              type="default"
+              size="large"
+              block
+              icon={<RocketOutlined />}
+              onClick={handleBypass}
+              loading={loading}
+              style={{ borderColor: 'var(--brand-500)', color: 'var(--brand-500)', fontWeight: 600 }}
+            >
+              Skip MFA & Enter Dashboard (Demo)
+            </Button>
+          </Space>
+        </div>
+      )
+    },
+    {
+      title: 'Scan QR & Verify',
+      content: (
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <Text style={{ display: 'block', marginBottom: 16 }}>
+            1. Open Google Authenticator, Authy, or your preferred TOTP app.
+          </Text>
+          <img src={qrCodeUrl} alt="QR Code" style={{ borderRadius: 8, padding: 8, background: '#fff', marginBottom: 16 }} />
+          <Text style={{ display: 'block', marginBottom: 24, color: '#94A3B8' }}>
+            Or enter this code manually: <Text code style={{ fontSize: 16, letterSpacing: 2 }}>{secret}</Text>
+          </Text>
+          
+          <Text style={{ display: 'block', marginBottom: 8 }}>
+            2. Enter the 6-digit code generated by the app:
+          </Text>
+          <Space>
+            <Input 
+              prefix={<KeyOutlined />} 
+              placeholder="000000" 
+              value={token}
+              onChange={e => setToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              style={{ width: 150, textAlign: 'center', letterSpacing: 4, fontSize: 18 }}
+              maxLength={6}
+            />
+            <Button type="primary" onClick={handleVerify} loading={loading}>Verify & Enable</Button>
+          </Space>
+        </div>
+      )
+    },
+    {
+      title: 'Complete',
+      content: (
+        <Result
+          icon={<CheckCircleOutlined style={{ color: '#10B981' }} />}
+          title={<span>MFA Enabled Successfully!</span>}
+          subTitle={<span style={{ color: '#94A3B8' }}>Your account is now protected with 2-step verification.</span>}
+          extra={[
+            <Button type="primary" key="console" onClick={() => navigate('/')}>
+              Go to Dashboard
+            </Button>,
+          ]}
+        />
+      )
+    }
+  ];
+
+  return (
+    <div className="page-container" style={{ maxWidth: 600, margin: '40px auto' }}>
+      <Card className="stat-card" style={{ padding: 24 }}>
+        <Title level={3} style={{ marginBottom: 32, textAlign: 'center' }}>Multi-Factor Authentication</Title>
+        <Steps current={current} items={steps.map(s => ({ title: s.title }))} style={{ marginBottom: 24 }} />
+        <div className="steps-content" style={{ minHeight: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          {steps[current].content}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
+export default MFASetupPage;

@@ -32,7 +32,14 @@ export type JournalEventType =
   | 'PERIOD_CLOSING_NET'
   | 'DEPRECIATION'
   | 'BANK_RECONCILIATION_ADJ'
-  | 'WRITE_OFF_AR';
+  | 'WRITE_OFF_AR'
+  | 'POS_SALE_REVERSAL'
+  | 'POS_SALE_COGS_REVERSAL'
+  | 'CASH_IN'
+  | 'CASH_OUT'
+  | 'EXPENSE_PAYMENT'
+  | 'TAX_PAYMENT'
+  | 'INTER_ACCOUNT_TRANSFER';
 
 export interface JournalEntry {
   id: UUID;
@@ -54,12 +61,13 @@ export interface JournalEntry {
   created_by: UUID;
   created_at: Date;
   updated_at: Date;
+  lines?: JournalLine[];
 }
 
 export interface JournalLine {
   account_id: UUID;
-  cost_center_id?: UUID;
-  description?: string;
+  cost_center_id?: UUID | null;
+  description?: string | null;
   debit: number;
   credit: number;
 }
@@ -125,10 +133,10 @@ export interface FiscalPeriod {
 export interface JournalEntryDTO {
   entry_date: Date;
   period_id: UUID;
-  reference_type: string;
-  reference_id: UUID;
-  reference_number: string;
-  description: string;
+  reference_type?: string;
+  reference_id?: UUID;
+  reference_number?: string;
+  description?: string;
   lines: JournalLine[];
   is_auto_generated?: boolean;
   created_by: UUID;
@@ -140,6 +148,7 @@ export interface AccountingService {
   getTrialBalance(periodId: UUID, branchId?: UUID): Promise<TrialBalance>;
   closePeriod(periodId: UUID, userId: UUID): Promise<FiscalPeriod>;
   getAccountBalance(accountId: UUID, asOfDate: Date): Promise<AccountBalance>;
+  getRecentJournalEntries(limit?: number): Promise<JournalEntry[]>;
 }
 
 export interface JournalBalanceValidationResult {

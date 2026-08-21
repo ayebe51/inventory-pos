@@ -627,5 +627,42 @@ describe('JournalEngineService — atomicity (Task 6.3)', () => {
       expect(result1.id).toBe('je-uuid-1');
       expect(result2.id).toBe('je-uuid-2');
     });
+
+    it('returns existing journal entry without creating a duplicate when reference_id already posted', async () => {
+      const existingJeRow = {
+        ...buildPrismaJeRow(),
+        id: 'je-existing-uuid',
+        je_number: 'JE-202608-00001',
+        reference_type: 'POS_SALE',
+        reference_id: 'pos-uuid-1',
+        is_auto_generated: true,
+        lines: [
+          { id: 'line-1', line_number: 1, account_id: 'acc-1', debit: 100, credit: 0 },
+          { id: 'line-2', line_number: 2, account_id: 'acc-2', debit: 0, credit: 100 },
+        ],
+      };
+
+      const mockFindFirst = jest.fn().mockResolvedValue(existingJeRow);
+      const mockCreate = jest.fn();
+
+      const tx = {
+        journalEntry: { findFirst: mockFindFirst, create: mockCreate },
+      } as unknown as Prisma.TransactionClient;
+
+      const event = buildBusinessEvent({ reference_type: 'POS_SALE', reference_id: 'pos-uuid-1' });
+      const [result] = await service.processEvent(event, tx);
+
+      expect(mockFindFirst).toHaveBeenCalledWith({
+        where: {
+          reference_type: 'POS_SALE',
+          reference_id: 'pos-uuid-1',
+          status: 'POSTED',
+          is_auto_generated: true,
+        },
+        include: { lines: true },
+      });
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(result.id).toBe('je-existing-uuid');
+    });
   });
 });

@@ -162,16 +162,16 @@ export interface BankStatementLineDTO {
 }
 
 export interface InvoiceService {
-  createSalesInvoice(data: CreateSalesInvoiceDTO): Promise<Invoice>;
-  createPurchaseInvoice(data: CreatePurchaseInvoiceDTO): Promise<Invoice>;
+  createSalesInvoice(data: CreateSalesInvoiceDTO, userId: UUID): Promise<Invoice>;
+  createPurchaseInvoice(data: CreatePurchaseInvoiceDTO, userId: UUID): Promise<Invoice>;
   post(id: UUID, userId: UUID): Promise<Invoice>;
-  applyPayment(invoiceId: UUID, paymentId: UUID, amount: number): Promise<InvoiceAllocation>;
-  dispute(id: UUID, reason: string): Promise<Invoice>;
+  applyPayment(invoiceId: UUID, paymentId: UUID, amount: number, userId: UUID): Promise<InvoiceAllocation>;
+  dispute(id: UUID, reason: string, userId: UUID): Promise<Invoice>;
   writeOff(id: UUID, userId: UUID, reason: string): Promise<Invoice>;
 }
 
 export interface PaymentService {
-  createPayment(data: CreatePaymentDTO): Promise<Payment>;
+  createPayment(data: CreatePaymentDTO, userId?: UUID): Promise<Payment>;
   approve(id: UUID, approverId: UUID): Promise<Payment>;
   post(id: UUID, userId: UUID): Promise<Payment>;
   allocateToInvoices(paymentId: UUID, allocations: AllocationDTO[]): Promise<void>;

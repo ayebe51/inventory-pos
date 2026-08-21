@@ -1,0 +1,354 @@
+.dashboardContainer {
+  padding: 0 12px 32px 12px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.greetingTitle {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.greetingSubtitle {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  margin: 0;
+}
+
+.capsuleNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--solid-bg-subtle, #F1F5F9);
+  padding: 4px;
+  border-radius: var(--r-full, 9999px);
+  border: 1px solid var(--solid-border, #E2E8F0);
+}
+
+.capsuleButton {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: var(--r-full, 9999px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease-out);
+}
+
+.capsuleButton:hover {
+  color: var(--text-primary);
+  background: var(--solid-border);
+}
+
+.capsuleButtonActive {
+  background: var(--dark-charcoal, #18181B);
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(24, 24, 27, 0.2);
+}
+
+.capsuleButtonCoral {
+  background: var(--accent-coral, #F05328);
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(240, 83, 40, 0.25);
+}
+
+.capsuleButtonCoral:hover {
+  background: var(--brand-600, #D94119) !important;
+}
+
+/* Stat Cards */
+.highlightStatCard {
+  background: linear-gradient(135deg, #F05328 0%, #D94119 100%);
+  border-radius: var(--r-2xl, 20px);
+  padding: 24px;
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(240, 83, 40, 0.22);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 175px;
+}
+
+.highlightStatCard::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 160px;
+  height: 160px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.highlightCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.highlightCardTitle {
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.highlightBadge {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(8px);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: var(--r-full, 9999px);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.highlightValue {
+  font-size: 30px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.03em;
+  margin: 10px 0 6px 0;
+}
+
+.secondaryStatCard {
+  background: var(--solid-bg, #FFFFFF);
+  border: 1px solid var(--solid-border, #E2E8F0);
+  border-radius: var(--r-2xl, 20px);
+  padding: 24px;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(15,22,41,0.04));
+  transition: all var(--dur-base) var(--ease-out);
+  min-height: 175px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.secondaryStatCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-200);
+}
+
+.statCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.statCardTitle {
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.statIconBox {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-lg, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 8px 0 4px 0;
+}
+
+.trendPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--r-full, 9999px);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.trendPillPositive {
+  background: var(--success-bg, #ECFDF5);
+  color: var(--success, #059669);
+}
+
+.trendPillNegative {
+  background: var(--danger-bg, #FEF2F2);
+  color: var(--danger, #DC2626);
+}
+
+/* Section Cards */
+.finexyCard {
+  background: var(--solid-bg, #FFFFFF);
+  border: 1px solid var(--solid-border, #E2E8F0);
+  border-radius: var(--r-2xl, 20px);
+  padding: 24px;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(15,22,41,0.04));
+}
+
+.finexyCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.finexyCardTitle {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Need Attention Action Items List */
+.attentionItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--solid-bg-subtle, #F8FAFC);
+  border: 1px solid var(--solid-border, #E2E8F0);
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.attentionItem:hover {
+  background: var(--solid-bg, #FFFFFF);
+  border-color: var(--brand-300, #FCD34D);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.attentionMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attentionDotRed { background: #DC2626; width: 9px; height: 9px; border-radius: 50%; }
+.attentionDotYellow { background: #D97706; width: 9px; height: 9px; border-radius: 50%; }
+.attentionDotBlue { background: #2563EB; width: 9px; height: 9px; border-radius: 50%; }
+
+.attentionActionBtn {
+  border: 1px solid var(--solid-border, #CBD5E1);
+  background: var(--solid-bg, #FFFFFF);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attentionActionBtn:hover {
+  background: var(--dark-charcoal, #18181B);
+  color: #FFFFFF;
+  border-color: var(--dark-charcoal, #18181B);
+}
+
+/* Empty State Card Container */
+.emptyStateBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+  padding: 24px;
+  text-align: center;
+  background: var(--solid-bg-subtle, #F8FAFC);
+  border: 2px dashed var(--solid-border, #E2E8F0);
+  border-radius: 16px;
+}
+
+.emptyStateTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 12px 0 4px 0;
+}
+
+.emptyStateSubtext {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  max-width: 380px;
+  margin-bottom: 16px;
+}
+
+/* Payment Drawer Mini Cards */
+.miniCardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.miniCardDark {
+  background: var(--dark-charcoal, #18181B);
+  color: #ffffff;
+  border-radius: var(--r-xl, 16px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100px;
+  position: relative;
+}
+
+.miniCardCoral {
+  background: linear-gradient(135deg, #F05328 0%, #E0441B 100%);
+  color: #ffffff;
+  border-radius: var(--r-xl, 16px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100px;
+  position: relative;
+}
+
+/* Table Dot Status */
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.statusDotSuccess {
+  background-color: var(--success, #059669);
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
+}
+
+.statusDotWarning {
+  background-color: var(--warning, #D97706);
+  box-shadow: 0 0 6px rgba(217, 119, 6, 0.4);
+}
+
+.statusDotDanger {
+  background-color: var(--danger, #DC2626);
+  box-shadow: 0 0 6px rgba(220, 38, 38, 0.4);
+}

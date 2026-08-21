@@ -87,8 +87,11 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
       const [nextCursor, keys] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
       cursor = nextCursor;
       if (keys.length > 0) {
-        await client.del(...keys);
+        // Use non-blocking UNLINK instead of DEL to prevent blocking Redis server thread
+        await client.unlink(...keys);
       }
+      // Yield Node.js event loop between batches
+      await new Promise((r) => setImmediate(r));
     } while (cursor !== '0');
   }
 

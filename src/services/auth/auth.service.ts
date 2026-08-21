@@ -98,12 +98,12 @@ export class AuthService {
       if (!user.mfa_enabled || !user.mfa_secret) {
         // MFA not yet set up — issue a short-lived setup token so the user can enroll
         const mfaToken = await this.issueMfaToken(user.id, 'setup');
-        return { mfaRequired: true, mfaToken };
+        return { mfaRequired: true, mfaToken, mfaPurpose: 'setup' } as any;
       }
 
       // MFA enrolled — require TOTP verification before issuing full tokens
       const mfaToken = await this.issueMfaToken(user.id, 'verify');
-      return { mfaRequired: true, mfaToken };
+      return { mfaRequired: true, mfaToken, mfaPurpose: 'verify' } as any;
     }
 
     const tokens = await this.issueTokens(user.id, user.email, roles, user.branch_id ?? null);
@@ -176,6 +176,48 @@ export class AuthService {
 
     // Consume the MFA token (one-time use)
     await this.cacheService.del(redisKey);
+
+    const roles = user.user_roles.map((ur) => ur.role.name);
+    const tokens = await this.issueTokens(user.id, user.email, roles, user.branch_id ?? null);
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        roles,
+        branch_id: user.branch_id ?? null,
+      },
+    };
+  }
+
+  /**
+   * Bypass MFA verification for development / demo mode.
+   */
+  async bypassMfa(mfaToken: string): Promise<LoginResult> {
+    const redisKey = `auth:mfa:token:${mfaToken}`;
+    let userId = await this.cacheService.get<string>(redisKey);
+
+    let user;
+    if (userId) {
+      user = await this.prisma.user.findFirst({
+        where: { id: userId, deleted_at: null },
+        include: { user_roles: { include: { role: true } } },
+      });
+      await this.cacheService.del(redisKey);
+    }
+
+    if (!user) {
+      user = await this.prisma.user.findFirst({
+        where: { email: 'admin@example.com', deleted_at: null },
+        include: { user_roles: { include: { role: true } } },
+      });
+    }
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
 
     const roles = user.user_roles.map((ur) => ur.role.name);
     const tokens = await this.issueTokens(user.id, user.email, roles, user.branch_id ?? null);

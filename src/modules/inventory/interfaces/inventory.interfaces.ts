@@ -100,6 +100,8 @@ export interface StockMovementDTO {
   movement_date: Date;
   qty_in: number;
   qty_out: number;
+  uom_id?: UUID;
+  conversion_rate?: number;
   unit_cost: number;
   notes?: string;
   created_by: UUID;
@@ -115,6 +117,7 @@ export interface StockTransferDTO {
 
 export interface StockTransferLineDTO {
   product_id: UUID;
+  uom_id: UUID;
   qty: number;
   unit_cost: number;
 }
@@ -128,6 +131,7 @@ export interface StockAdjustmentDTO {
 
 export interface StockAdjustmentLineDTO {
   product_id: UUID;
+  uom_id: UUID;
   qty_system: number;
   qty_actual: number;
   unit_cost: number;
@@ -146,7 +150,12 @@ export interface InventoryService {
   transferStock(data: StockTransferDTO): Promise<StockTransfer>;
   adjustStock(data: StockAdjustmentDTO, userId: UUID): Promise<StockAdjustment>;
   lockWarehouse(warehouseId: UUID, reason: string): Promise<void>;
-  calculateAverageCost(productId: UUID, warehouseId: UUID): Promise<number>;
+  calculateAverageCost(
+    productId: UUID,
+    warehouseId: UUID,
+    incomingQty?: number,
+    incomingCost?: number,
+  ): Promise<number>;
 }
 
 export interface StockOpnameService {

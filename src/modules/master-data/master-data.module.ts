@@ -18,6 +18,9 @@ import { CustomerController } from './controllers/customer.controller';
 import { SupplierController } from './controllers/supplier.controller';
 import { PriceListController } from './controllers/price-list.controller';
 
+import { CategoryService } from './services/category.service';
+import { CategoryController } from './controllers/category.controller';
+
 @Module({
   imports: [ConfigModule],
   controllers: [
@@ -28,6 +31,7 @@ import { PriceListController } from './controllers/price-list.controller';
     CustomerController,
     SupplierController,
     PriceListController,
+    CategoryController,
   ],
   providers: [
     PrismaService,
@@ -40,6 +44,7 @@ import { PriceListController } from './controllers/price-list.controller';
     CoaService,
     CustomerService,
     SupplierService,
+    CategoryService,
   ],
   exports: [
     ProductService,
@@ -49,6 +54,7 @@ import { PriceListController } from './controllers/price-list.controller';
     CoaService,
     CustomerService,
     SupplierService,
+    CategoryService,
   ],
 })
 export class MasterDataModule {}

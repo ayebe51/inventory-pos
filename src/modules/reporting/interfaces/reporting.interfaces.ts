@@ -52,6 +52,8 @@ export interface ExecutiveDashboard {
   cash_position: number;
   ar_outstanding: number;
   ap_outstanding: number;
+  inventory_value: number;
+  low_stock_alerts: number;
   top_products: TopProduct[];
   generated_at: Date;
 }
@@ -198,4 +200,14 @@ export interface ReportingService {
   getStockMovementReport(params: MovementParams): Promise<StockMovementReport>;
   getSalesReport(params: SalesParams): Promise<SalesReport>;
   getShiftReport(shiftId: UUID): Promise<ShiftReport>;
+  getRecentActivities(limit?: number): Promise<RecentActivityItem[]>;
+}
+
+export interface RecentActivityItem {
+  id: string;
+  text: string;
+  time: string;
+  color: string;
+  icon: string;
+  created_at: Date;
 }

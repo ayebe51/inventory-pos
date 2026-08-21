@@ -36,6 +36,7 @@ model Branch {
   invoices          Invoice[]
   payments          Payment[]
   chart_of_accounts ChartOfAccount[]
+  fixed_assets      FixedAsset[]      @relation("FixedAssetBranch")
 
   @@map("branches")
 }
@@ -404,6 +405,10 @@ model ChartOfAccount {
   auto_journal_credit  AutoJournalTemplate[] @relation("AutoJournalCredit")
   bank_statements      BankStatement[]
   bank_reconciliations BankReconciliation[]
+
+  fixed_assets                    FixedAsset[] @relation("AssetAccount")
+  fixed_assets_depreciation       FixedAsset[] @relation("DepreciationExpenseAccount")
+  fixed_assets_accum_depreciation FixedAsset[] @relation("AccumulatedDepreciationAccount")
 
   @@map("chart_of_accounts")
 }
@@ -1197,6 +1202,7 @@ model JournalEntry {
   lines           JournalEntryLine[]
 
   @@index([period_id, status])
+  @@index([reference_type, reference_id])
   @@map("journal_entries")
 }
 
@@ -1314,4 +1320,35 @@ model DocumentSequence {
 
   @@id([prefix, period])
   @@map("document_sequences")
+}
+
+// ============================================================
+// ASSET MANAGEMENT
+// ============================================================
+
+model FixedAsset {
+  id                       String   @id @default(uuid()) @db.Uuid
+  code                     String   @unique @db.VarChar(50)
+  name                     String   @db.VarChar(200)
+  purchase_date            DateTime
+  purchase_price           Decimal  @db.Decimal(18, 2)
+  salvage_value            Decimal  @default(0) @db.Decimal(18, 2)
+  useful_life_months       Int
+  accumulated_depreciation Decimal  @default(0) @db.Decimal(18, 2)
+  status                   String   @default("ACTIVE") // ACTIVE, DISPOSED
+  branch_id                String   @db.Uuid
+
+  asset_account_id                String @db.Uuid
+  depreciation_expense_account_id String @db.Uuid
+  accum_depreciation_account_id   String @db.Uuid
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  branch                       Branch         @relation("FixedAssetBranch", fields: [branch_id], references: [id])
+  asset_account                ChartOfAccount @relation("AssetAccount", fields: [asset_account_id], references: [id])
+  depreciation_expense_account ChartOfAccount @relation("DepreciationExpenseAccount", fields: [depreciation_expense_account_id], references: [id])
+  accum_depreciation_account   ChartOfAccount @relation("AccumulatedDepreciationAccount", fields: [accum_depreciation_account_id], references: [id])
+
+  @@map("fixed_assets")
 }

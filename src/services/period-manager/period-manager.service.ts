@@ -81,6 +81,17 @@ const INCOMPLETE_OPNAME_STATUSES = ['INITIATED', 'IN_PROGRESS'];
 export class PeriodManagerService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getAllPeriods(): Promise<FiscalPeriod[]> {
+    const periods = await this.prisma.fiscalPeriod.findMany({
+      orderBy: [
+        { year: 'desc' },
+        { month: 'desc' },
+      ],
+    });
+    return periods as FiscalPeriod[];
+  }
+
+
   /**
    * Create a new fiscal period in DRAFT status.
    * Validates no overlap with existing periods and calendar ordering.

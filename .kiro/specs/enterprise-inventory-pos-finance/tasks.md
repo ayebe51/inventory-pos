@@ -78,23 +78,23 @@
 
 ## Task 9: Purchase / Procurement Module
 
-- [-] 9.1 Implementasi `PurchaseRequestService`: buat PR dengan nomor PR-YYYYMM-XXXXX, status DRAFT
-- [ ] 9.2 Implementasi `PurchaseOrderService`: buat PO dari PR, state machine DRAFT → PENDING_APPROVAL → APPROVED → PARTIALLY_RECEIVED/FULLY_RECEIVED → CLOSED/CANCELLED
-- [ ] 9.3 Implementasi PO submit: tentukan approval level berdasarkan total amount termasuk pajak (BR-PUR-007)
-- [ ] 9.4 Implementasi PO approve/reject dengan validasi RBAC (PURCHASE.APPROVE) dan SOD-001
-- [ ] 9.5 Implementasi `GoodsReceiptService`: buat GR dari PO, validasi qty tidak melebihi PO qty × (1 + toleransi) (BR-PUR-003)
-- [ ] 9.6 Implementasi GR confirm: update qty_received di PO lines, update status PO, trigger WAC recalculation, trigger auto journal GR
-- [ ] 9.7 Implementasi 3-way matching: validasi PO qty vs GR qty vs supplier invoice qty dalam toleransi
-- [ ] 9.8 Validasi supplier invoice tidak melebihi PO amount + 5% (BR-PUR-008)
-- [ ] 9.9 REST API endpoints untuk PR, PO, GR dengan RBAC guard
-- [ ] 9.10 Unit test state machine PO dan property-based test untuk approval threshold
+- [x] 9.1 Implementasi `PurchaseRequestService`: buat PR dengan nomor PR-YYYYMM-XXXXX, status DRAFT
+- [x] 9.2 Implementasi `PurchaseOrderService`: buat PO dari PR, state machine DRAFT → PENDING_APPROVAL → APPROVED → PARTIALLY_RECEIVED/FULLY_RECEIVED → CLOSED/CANCELLED
+- [x] 9.3 Implementasi PO submit: tentukan approval level berdasarkan total amount termasuk pajak (BR-PUR-007)
+- [x] 9.4 Implementasi PO approve/reject dengan validasi RBAC (PURCHASE.APPROVE) dan SOD-001
+- [x] 9.5 Implementasi `GoodsReceiptService`: buat GR dari PO, validasi qty tidak melebihi PO qty × (1 + toleransi) (BR-PUR-003)
+- [x] 9.6 Implementasi GR confirm: update qty_received di PO lines, update status PO, trigger WAC recalculation, trigger auto journal GR
+- [x] 9.7 Implementasi 3-way matching: validasi PO qty vs GR qty vs supplier invoice qty dalam toleransi
+- [x] 9.8 Validasi supplier invoice tidak melebihi PO amount + 5% (BR-PUR-008)
+- [x] 9.9 REST API endpoints untuk PR, PO, GR dengan RBAC guard
+- [x] 9.10 Unit test state machine PO dan property-based test untuk approval threshold
 
 ## Task 10: Inventory Module
 
-- [ ] 10.1 Implementasi `InventoryService.recordMovement()`: append-only insert ke `inventory_ledger`, tidak ada UPDATE/DELETE (BR-INV-002)
-- [ ] 10.2 Implementasi `getStockBalance()`: `SUM(qty_in) - SUM(qty_out)` per (product_id, warehouse_id)
-- [ ] 10.3 Implementasi negative stock check: tolak transaksi jika balance akan negatif dengan error `INSUFFICIENT_STOCK` (BR-INV-001)
-- [ ] 10.4 Implementasi `calculateAverageCost()` dengan formula WAC: `ROUND((current_value + incoming_cost) / (current_qty + incoming_qty), 4)` (BR-INV-003)
+- [x] 10.1 Implementasi `InventoryService.recordMovement()`: append-only insert ke `inventory_ledger`, tidak ada UPDATE/DELETE (BR-INV-002)
+- [x] 10.2 Implementasi `getStockBalance()`: `SUM(qty_in) - SUM(qty_out)` per (product_id, warehouse_id)
+- [x] 10.3 Implementasi negative stock check: tolak transaksi jika balance akan negatif dengan error `INSUFFICIENT_STOCK` (BR-INV-001)
+- [x] 10.4 Implementasi `calculateAverageCost()` dengan formula WAC: `ROUND((current_value + incoming_cost) / (current_qty + incoming_qty), 4)` (BR-INV-003)
 - [ ] 10.5 Implementasi `transferStock()`: pessimistic locking (`SELECT FOR UPDATE NOWAIT`), atomik kurangi stok asal + tambah stok tujuan, verifikasi total stok tidak berubah
 - [ ] 10.6 Implementasi `adjustStock()`: validasi permission STOCK.ADJUST, wajib ada alasan, trigger auto journal
 - [ ] 10.7 Implementasi `StockOpnameService`: initiate (kunci warehouse), recordCount, requestRecount, finalize (buat adjustment + buka warehouse)

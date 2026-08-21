@@ -1,3 +1,4 @@
+import { AuditService } from '../../services/audit/audit.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -84,6 +85,7 @@ describe('AuthService — MFA (TOTP)', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: CacheService, useValue: mockCacheService },
+        { provide: AuditService, useValue: { log: jest.fn() } },
       ],
     }).compile();
 
