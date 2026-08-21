@@ -307,8 +307,8 @@ export const App: React.FC = () => {
                   <Route path="finance/reconciliation" element={<BankReconciliationPage />} />
                   <Route path="finance/periods" element={<FiscalPeriodPage />} />
                   <Route path="finance/assets" element={<FixedAssetPage />} />
-                  <Route path="payment" element={<PaymentPage />} />
-                  <Route path="bank-reconciliation" element={<BankReconciliationPage />} />
+                  <Route path="payment" element={<Navigate to="/finance/payments" replace />} />
+                  <Route path="bank-reconciliation" element={<Navigate to="/finance/reconciliation" replace />} />
 
                   {/* Invoicing AR/AP */}
                   <Route path="invoicing" element={<InvoicingPage />} />
