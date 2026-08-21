@@ -34,9 +34,15 @@ interface AuthRequest extends Request {
  *   POST /api/v1/pos/transactions      - Create transaction (all-in-one: items + payment)
  *   POST /api/v1/pos/transactions/:id/void - Void transaction
  */
+import { UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from '../../../common/interceptors/idempotency.interceptor';
+import { UseIdempotency } from '../../../common/decorators/idempotency.decorator';
+
 @ApiTags('POS - Point of Sales')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
+@UseInterceptors(IdempotencyInterceptor)
+@UseIdempotency()
 @Controller('api/v1/pos')
 export class POSController {
   constructor(private readonly posService: POSService) {}

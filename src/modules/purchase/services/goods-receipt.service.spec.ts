@@ -7,6 +7,8 @@ import { BusinessRuleException } from '../../../common/exceptions/business-rule.
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { NotFoundException } from '@nestjs/common';
 
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
+
 describe('GoodsReceiptService', () => {
   let service: GoodsReceiptService;
   let prisma: jest.Mocked<PrismaService>;
@@ -75,6 +77,7 @@ describe('GoodsReceiptService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AuditService, useValue: mockAudit },
         { provide: NumberingService, useValue: mockNumbering },
+        { provide: JournalEngineService, useValue: { processEvent: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../config/prisma.service';
 import { NumberingService, DocumentType } from '../numbering/numbering.service';
@@ -17,6 +17,8 @@ import {
 
 @Injectable()
 export class JournalEngineService implements AutoJournalEngine {
+  private readonly logger = new Logger(JournalEngineService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly numbering: NumberingService,
@@ -35,6 +37,60 @@ export class JournalEngineService implements AutoJournalEngine {
   async processEvent(event: BusinessEvent, tx?: Prisma.TransactionClient): Promise<JournalEntry[]> {
     // Use the provided tx client or fall back to the global prisma instance
     const client = tx ?? this.prisma;
+
+    // 0. Idempotency Check: Prevent duplicate posting of auto-generated journal entries
+    if (
+      client.journalEntry?.findFirst &&
+      event.reference_id &&
+      event.reference_id !== '00000000-0000-0000-0000-000000000000'
+    ) {
+      const existingJe = await client.journalEntry.findFirst({
+        where: {
+          reference_type: event.reference_type,
+          reference_id: event.reference_id,
+          status: 'POSTED',
+          is_auto_generated: true,
+        },
+        include: { lines: true },
+      });
+
+      if (existingJe) {
+        this.logger.warn(
+          `Idempotent processEvent: Journal entry ${existingJe.je_number} already posted for ${event.reference_type} ref=${event.reference_id}`,
+        );
+        const mappedExisting: JournalEntry = {
+          id: existingJe.id,
+          je_number: existingJe.je_number,
+          entry_date: existingJe.entry_date,
+          period_id: existingJe.period_id,
+          reference_type: existingJe.reference_type,
+          reference_id: existingJe.reference_id,
+          reference_number: existingJe.reference_number,
+          description: existingJe.description,
+          total_debit: Number(existingJe.total_debit),
+          total_credit: Number(existingJe.total_credit),
+          status: existingJe.status as JournalEntry['status'],
+          is_auto_generated: existingJe.is_auto_generated,
+          reversed_by: existingJe.reversed_by ?? null,
+          reversed_at: existingJe.reversed_at ?? null,
+          posted_by: existingJe.posted_by ?? null,
+          posted_at: existingJe.posted_at ?? null,
+          created_by: existingJe.created_by,
+          created_at: existingJe.created_at,
+          updated_at: existingJe.updated_at,
+          lines: existingJe.lines.map((l) => ({
+            id: l.id,
+            line_number: l.line_number,
+            account_id: l.account_id,
+            cost_center_id: l.cost_center_id ?? null,
+            description: l.description ?? null,
+            debit: Number(l.debit),
+            credit: Number(l.credit),
+          })),
+        };
+        return [mappedExisting];
+      }
+    }
 
     // 1. Validate fiscal period is OPEN (BR-ACC-002)
     await this.periodManager.validatePeriodOpen(event.period_id);

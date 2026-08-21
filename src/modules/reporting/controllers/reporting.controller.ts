@@ -144,6 +144,15 @@ export class ReportingController {
     return successResponse(data);
   }
 
+  @ApiOperation({ summary: 'Get Cash Flow Statement' })
+  @ApiQuery({ name: 'period_id', required: false, description: 'Period ID' })
+  @Get('financial/cash-flow-statement')
+  @RequirePermissions('REPORT.FINANCIAL')
+  async getCashFlowStatement(@Query('period_id') periodId?: string) {
+    const data = await this.reportingService.getCashFlowStatement(periodId ? (periodId as UUID) : undefined);
+    return successResponse(data);
+  }
+
   @ApiOperation({ summary: 'Get Sales Trend' })
   @ApiQuery({ name: 'days', required: true, description: 'Number of days' })
   @ApiQuery({ name: 'branch_id', required: false, description: 'Branch ID' })
@@ -154,6 +163,20 @@ export class ReportingController {
     @Query('branch_id') branchId?: string,
   ) {
     const data = await this.reportingService.getSalesTrend(days ? parseInt(days, 10) : 7, branchId);
+    return successResponse(data);
+  }
+
+  @ApiOperation({ summary: 'Get Monthly Sales Trend' })
+  @ApiQuery({ name: 'year', required: false, description: 'Year (default current year)' })
+  @ApiQuery({ name: 'branch_id', required: false, description: 'Branch ID' })
+  @Get('sales/trend/monthly')
+  @RequirePermissions('REPORT.FINANCIAL')
+  async getMonthlySalesTrend(
+    @Query('year') year?: string,
+    @Query('branch_id') branchId?: string,
+  ) {
+    const selectedYear = year ? parseInt(year, 10) : new Date().getFullYear();
+    const data = await this.reportingService.getMonthlySalesTrend(selectedYear, branchId);
     return successResponse(data);
   }
 

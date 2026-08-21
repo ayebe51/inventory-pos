@@ -31,7 +31,7 @@ export class CreditNoteService {
         throw new BusinessRuleException('Invalid credit note amount', ErrorCode.VALIDATION_ERROR);
       }
 
-      const cnNumber = await this.numbering.generate(DocumentType.INV); // Or CN doc type if available
+      const cnNumber = await this.numbering.generate(DocumentType.CN);
 
       const creditNote = await tx.invoice.create({
         data: {
@@ -81,23 +81,28 @@ export class CreditNoteService {
     const cn = await tx.invoice.findUnique({ where: { id: cnId } });
     if (!cn) return;
 
+    const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+    if (!period) {
+      throw new BusinessRuleException('No open fiscal period found for Credit Note posting', ErrorCode.NOT_FOUND);
+    }
+
     await this.journalEngine.processEvent({
-      event_type: 'SALES_RETURN', // Using a valid JournalEventType since CREDIT_NOTE isn't there
+      event_type: 'SALES_RETURN',
       reference_type: 'CREDIT_NOTE',
       reference_id: cn.id,
       reference_number: cn.invoice_number,
       amount: Number(cn.total_amount),
-      period_id: 'auto-resolve' as any, // Mocking period_id for now as it's typically auto-resolved inside PeriodManager
+      period_id: period.id,
       entry_date: cn.invoice_date,
       created_by: userId,
       metadata: {
         description: `Credit Note ${cn.invoice_number} for Invoice ${cn.reference_id}`
       }
-    });
+    }, tx);
 
     await tx.invoice.update({
       where: { id: cn.id },
-      data: { status: 'POSTED' } // Or 'PAID' since it's applied
+      data: { status: 'POSTED' }
     });
   }
 }

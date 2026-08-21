@@ -87,16 +87,19 @@
   --text-disabled:  #BAC2CF;
   --text-on-dark:   rgba(255,255,255,0.95);
 
-  /* ── Brand — Charcoal Graphite & Slate (Apple Pro Monochrome) ── */
-  --brand-50:  #F1F5F9;
-  --brand-100: #E2E8F0;
-  --brand-200: #CBD5E1;
-  --brand-400: #64748B;
-  --brand-500: #0F172A;
-  --brand-600: #1E293B;
-  --brand-700: #334155;
-  --brand-gradient: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
-  --brand-glow:     rgba(15,23,42,0.15);
+  /* ── Brand — Vibrant Coral (#F05328) & Dark Charcoal ── */
+  --brand-50:  #FFF5F2;
+  --brand-100: #FFE7E0;
+  --brand-200: #FFCFC2;
+  --brand-400: #FF8566;
+  --brand-500: #F05328;
+  --brand-600: #D94119;
+  --brand-700: #B3300F;
+  --brand-gradient: linear-gradient(135deg, #F05328 0%, #D94119 100%);
+  --brand-glow:     rgba(240,83,40,0.20);
+  --accent-coral:   #F05328;
+  --accent-coral-subtle: #FFF1ED;
+  --dark-charcoal:  #18181B;
 
   /* ── Status ───────────────────────────────────────────── */
   --success:        #059669;
@@ -164,15 +167,18 @@
   --text-on-dark:   rgba(255,255,255,0.95);
 
   /* Brand */
-  --brand-50:  rgba(241,245,249,0.08);
-  --brand-100: rgba(226,232,240,0.12);
-  --brand-200: rgba(203,213,225,0.18);
-  --brand-400: #94A3B8;
-  --brand-500: #F8FAFC;
-  --brand-600: #E2E8F0;
-  --brand-700: #CBD5E1;
-  --brand-gradient: linear-gradient(135deg, #334155 0%, #1E293B 100%);
-  --brand-glow: rgba(255,255,255,0.12);
+  --brand-50:  rgba(255,245,242,0.10);
+  --brand-100: rgba(255,231,224,0.15);
+  --brand-200: rgba(255,207,194,0.20);
+  --brand-400: #FF8566;
+  --brand-500: #FF6B4A;
+  --brand-600: #F05328;
+  --brand-700: #D94119;
+  --brand-gradient: linear-gradient(135deg, #FF6B4A 0%, #F05328 100%);
+  --brand-glow: rgba(255,107,74,0.25);
+  --accent-coral:   #FF6B4A;
+  --accent-coral-subtle: rgba(240,83,40,0.18);
+  --dark-charcoal:  #18181B;
 
   /* Status */
   --success:        #10B981;
@@ -315,6 +321,16 @@ input:-webkit-autofill:focus {
 /* ============================================================
    §6  SOLID WORKSPACE SURFACES
    ============================================================ */
+
+/* Page container — Global workspace alignment */
+.page-container {
+  padding: 0 12px 32px 12px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 
 /* AppCard — the primary workspace surface */
 .app-card {

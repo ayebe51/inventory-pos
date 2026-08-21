@@ -1,1 +1,2 @@
-// Interceptors placeholder — implementations added in later tasks
+export { IdempotencyInterceptor } from './idempotency.interceptor';
+

@@ -18,6 +18,7 @@ import { GoodsReceiptService } from './goods-receipt.service';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService } from '../../../services/numbering/numbering.service';
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 
 describe('GoodsReceiptService - WAC Property-Based Tests', () => {
   let service: GoodsReceiptService;
@@ -48,6 +49,7 @@ describe('GoodsReceiptService - WAC Property-Based Tests', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AuditService, useValue: mockAudit },
         { provide: NumberingService, useValue: mockNumbering },
+        { provide: JournalEngineService, useValue: { processEvent: jest.fn().mockResolvedValue([]) } },
       ],
     }).compile();
 

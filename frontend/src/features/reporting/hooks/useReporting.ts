@@ -44,3 +44,58 @@ export const useTrialBalance = (periodId: string) => {
   });
 };
 
+export const useIncomeStatement = (periodId: string) => {
+  return useQuery({
+    queryKey: ['reporting', 'income-statement', periodId],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/v1/reporting/financial/income-statement?period_id=${periodId}`);
+      return data.data;
+    },
+    enabled: !!periodId
+  });
+};
+
+export const useBalanceSheet = (asOfDate?: string) => {
+  return useQuery({
+    queryKey: ['reporting', 'balance-sheet', asOfDate],
+    queryFn: async () => {
+      const qs = asOfDate ? `?as_of_date=${asOfDate}` : '';
+      const { data } = await api.get(`/api/v1/reporting/financial/balance-sheet${qs}`);
+      return data.data;
+    }
+  });
+};
+
+export const useCashFlow = (periodId?: string) => {
+  return useQuery({
+    queryKey: ['reporting', 'cash-flow', periodId],
+    queryFn: async () => {
+      const qs = periodId ? `?period_id=${periodId}` : '';
+      const { data } = await api.get(`/api/v1/reporting/financial/cash-flow-statement${qs}`);
+      return data.data;
+    }
+  });
+};
+
+export const useARAging = (asOfDate?: string) => {
+  return useQuery({
+    queryKey: ['reporting', 'ar-aging', asOfDate],
+    queryFn: async () => {
+      const qs = asOfDate ? `?as_of_date=${asOfDate}` : '';
+      const { data } = await api.get(`/api/v1/reporting/aging/ar${qs}`);
+      return data.data;
+    }
+  });
+};
+
+export const useAPAging = (asOfDate?: string) => {
+  return useQuery({
+    queryKey: ['reporting', 'ap-aging', asOfDate],
+    queryFn: async () => {
+      const qs = asOfDate ? `?as_of_date=${asOfDate}` : '';
+      const { data } = await api.get(`/api/v1/reporting/aging/ap${qs}`);
+      return data.data;
+    }
+  });
+};
+

@@ -18,6 +18,7 @@ const ShiftPage = lazy(() => import('./features/pos/components/ShiftPage').then(
 const SalesOrderPage = lazy(() => import('./features/pos/components/SalesOrderPage').then((m) => ({ default: m.SalesOrderPage })));
 const SalesReturnPage = lazy(() => import('./features/pos/components/SalesReturnPage').then((m) => ({ default: m.SalesReturnPage })));
 const InventoryPage = lazy(() => import('./features/inventory/components/InventoryPage').then((m) => ({ default: m.InventoryPage })));
+const StockLedgerPage = lazy(() => import('./features/inventory/components/StockLedgerPage').then((m) => ({ default: m.StockLedgerPage })));
 const StockTransferPage = lazy(() => import('./features/inventory/components/StockTransferPage').then((m) => ({ default: m.StockTransferPage })));
 const StockOpnamePage = lazy(() => import('./features/inventory/components/StockOpnamePage').then((m) => ({ default: m.StockOpnamePage })));
 const FinancePage = lazy(() => import('./features/finance/components/FinancePage').then((m) => ({ default: m.FinancePage })));
@@ -116,9 +117,9 @@ export const App: React.FC = () => {
       controlHeightLG: 44,
       controlHeightSM: 30,
       lineWidth: 1,
-      // Brand
-      colorPrimary: dark ? '#6366F1' : '#4F46E5',
-      colorInfo:    dark ? '#6366F1' : '#4F46E5',
+      // Brand (Vibrant Coral Finexy Style)
+      colorPrimary: dark ? '#FF6B4A' : '#F05328',
+      colorInfo:    dark ? '#FF6B4A' : '#F05328',
       colorSuccess: dark ? '#10B981' : '#059669',
       colorWarning: dark ? '#F59E0B' : '#D97706',
       colorError:   dark ? '#EF4444' : '#DC2626',
@@ -138,7 +139,7 @@ export const App: React.FC = () => {
       colorTextDisabled:  dark ? 'rgba(255,255,255,0.20)' : '#BAC2CF',
       colorTextHeading:   dark ? 'rgba(255,255,255,0.92)' : '#0F1629',
       colorTextLabel:     dark ? 'rgba(255,255,255,0.58)' : '#4B5675',
-      colorLink:          dark ? '#818CF8' : '#4F46E5',
+      colorLink:          dark ? '#FF8566' : '#F05328',
     },
     components: {
       Layout: {
@@ -278,8 +279,11 @@ export const App: React.FC = () => {
                   <Route path="pos" element={<POSPage />} />
                   <Route path="pos/shift" element={<ShiftPage />} />
 
-                  {/* Inventory */}
+                  {/* Inventory & Stock */}
                   <Route path="inventory" element={<InventoryPage />} />
+                  <Route path="inventory/categories" element={<InventoryPage />} />
+                  <Route path="inventory/stock" element={<InventoryPage />} />
+                  <Route path="inventory/ledger" element={<StockLedgerPage />} />
                   <Route path="inventory/transfers" element={<StockTransferPage />} />
                   <Route path="inventory/opname" element={<StockOpnamePage />} />
                   <Route path="inventory/goods-receipt" element={<Navigate to="/purchase/receipts" replace />} />
@@ -291,11 +295,16 @@ export const App: React.FC = () => {
 
                   {/* Procurement */}
                   <Route path="purchase" element={<PurchasePage />} />
+                  <Route path="purchase/suppliers" element={<PurchasePage />} />
                   <Route path="purchase/requests" element={<PurchaseRequestPage />} />
                   <Route path="purchase/receipts" element={<PurchasePage />} />
+                  <Route path="purchase/returns" element={<PurchasePage />} />
 
                   {/* Finance / Accounting */}
                   <Route path="finance" element={<FinancePage />} />
+                  <Route path="finance/expenses" element={<FinancePage />} />
+                  <Route path="finance/payments" element={<PaymentPage />} />
+                  <Route path="finance/reconciliation" element={<BankReconciliationPage />} />
                   <Route path="finance/periods" element={<FiscalPeriodPage />} />
                   <Route path="finance/assets" element={<FixedAssetPage />} />
                   <Route path="payment" element={<PaymentPage />} />
@@ -306,6 +315,10 @@ export const App: React.FC = () => {
 
                   {/* Reports & Analytics */}
                   <Route path="reporting" element={<ReportingPage />} />
+                  <Route path="reporting/sales" element={<ReportingPage />} />
+                  <Route path="reporting/purchase" element={<ReportingPage />} />
+                  <Route path="reporting/inventory" element={<ReportingPage />} />
+                  <Route path="reporting/financial" element={<ReportingPage />} />
 
                   {/* Governance & Audit */}
                   <Route path="approvals" element={<ApprovalPage />} />
@@ -315,6 +328,8 @@ export const App: React.FC = () => {
                   <Route path="master-data" element={<MasterDataPage />} />
                   
                   {/* Admin & Security */}
+                  <Route path="admin" element={<UserManagementPage />} />
+                  <Route path="admin/store" element={<UserManagementPage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />
                   <Route path="admin/roles" element={<RoleManagementPage />} />
 

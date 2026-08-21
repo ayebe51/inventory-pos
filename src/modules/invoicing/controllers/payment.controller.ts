@@ -20,9 +20,15 @@ interface AuthRequest extends Request {
   user: { sub: string };
 }
 
+import { UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from '../../../common/interceptors/idempotency.interceptor';
+import { UseIdempotency } from '../../../common/decorators/idempotency.decorator';
+
 @ApiTags('Invoicing - Payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
+@UseInterceptors(IdempotencyInterceptor)
+@UseIdempotency()
 @Controller('api/v1/payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
@@ -32,7 +38,7 @@ export class PaymentController {
   @Post()
   @RequirePermissions('PAYMENT.CREATE')
   async registerPayment(@Body() body: CreatePaymentDTO, @Request() req: AuthRequest) {
-    const payment = await this.paymentService.createPayment(body as any);
+    const payment = await this.paymentService.createPayment(body as any, req.user?.sub as UUID);
     return successResponse(payment, 'Payment registered successfully');
   }
 

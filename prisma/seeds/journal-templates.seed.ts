@@ -298,6 +298,85 @@ const JOURNAL_TEMPLATES: JournalTemplateSeed[] = [
     debit_account_code: '6.202.000',  // Beban Piutang Tak Tertagih
     credit_account_code: '1.102.001', // Piutang Dagang
   },
+
+  /**
+   * POS_SALE_REVERSAL
+   * Triggered when: POS sale is voided
+   * Journal: Debit Pendapatan Penjualan, Credit Kas/Bank
+   */
+  {
+    event_type: 'POS_SALE_REVERSAL',
+    description: 'Pembatalan/Void Penjualan POS',
+    debit_account_code: '4.101.000',  // Pendapatan Penjualan
+    credit_account_code: '1.101.001', // Kas Kecil
+  },
+
+  /**
+   * POS_SALE_COGS_REVERSAL
+   * Triggered when: POS sale is voided (COGS reversal)
+   * Journal: Debit Persediaan Barang, Credit HPP
+   */
+  {
+    event_type: 'POS_SALE_COGS_REVERSAL',
+    description: 'Reversal HPP penjualan POS void',
+    debit_account_code: '1.103.001',  // Persediaan Barang Dagang
+    credit_account_code: '5.100.000', // HPP
+  },
+
+  /**
+   * CASH_IN
+   * Triggered when: Non-AR cash receipt is recorded
+   */
+  {
+    event_type: 'CASH_IN',
+    description: 'Penerimaan Kas/Bank Lainnya',
+    debit_account_code: '1.101.003',  // Bank
+    credit_account_code: '4.200.000', // Pendapatan Lain-lain
+  },
+
+  /**
+   * CASH_OUT
+   * Triggered when: Non-AP cash disbursement is recorded
+   */
+  {
+    event_type: 'CASH_OUT',
+    description: 'Pengeluaran Kas/Bank Lainnya',
+    debit_account_code: '6.100.000',  // Beban Operasional
+    credit_account_code: '1.101.003', // Bank
+  },
+
+  /**
+   * EXPENSE_PAYMENT
+   * Triggered when: Operational expense is recorded/paid
+   */
+  {
+    event_type: 'EXPENSE_PAYMENT',
+    description: 'Pembayaran Beban Operasional',
+    debit_account_code: '6.100.000',  // Beban Operasional
+    credit_account_code: '1.101.003', // Bank
+  },
+
+  /**
+   * TAX_PAYMENT
+   * Triggered when: Tax payment is recorded
+   */
+  {
+    event_type: 'TAX_PAYMENT',
+    description: 'Pembayaran Pajak',
+    debit_account_code: '2.102.001',  // PPN Keluaran
+    credit_account_code: '1.101.003', // Bank
+  },
+
+  /**
+   * INTER_ACCOUNT_TRANSFER
+   * Triggered when: Transfer between internal cash/bank accounts
+   */
+  {
+    event_type: 'INTER_ACCOUNT_TRANSFER',
+    description: 'Transfer Antar Rekening Kas/Bank',
+    debit_account_code: '1.101.004',  // Bank Operasional
+    credit_account_code: '1.101.003', // Bank Utama
+  },
 ];
 
 async function main() {

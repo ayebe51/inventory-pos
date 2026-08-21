@@ -22,7 +22,7 @@ export class PaymentService implements IPaymentService {
     private readonly journalEngine: JournalEngineService,
   ) {}
 
-  async createPayment(data: CreatePaymentDTO): Promise<Payment> {
+  async createPayment(data: CreatePaymentDTO, userId?: UUID): Promise<Payment> {
     return await this.prisma.$transaction(async (tx) => {
       // Create payment number PV or RCV depending on payment type
       const docType = data.payment_type === 'RECEIPT' ? DocumentType.RCV : DocumentType.PV;
@@ -30,8 +30,6 @@ export class PaymentService implements IPaymentService {
 
       // We assume bank_account_id is provided or a default payment_method_id is mapped.
       // The schema for Payment expects payment_method_id.
-      // Wait, we don't have payment_method_id in CreatePaymentDTO? 
-      // The schema requires it. Let's fetch a generic one or throw if not available.
       const paymentMethod = await tx.paymentMethod.findFirst({ where: { is_active: true } });
       if (!paymentMethod) throw new BusinessRuleException('No active payment methods found', ErrorCode.NOT_FOUND);
 
@@ -48,7 +46,7 @@ export class PaymentService implements IPaymentService {
           status: 'DRAFT',
           reference_number: data.reference,
           notes: data.notes,
-          created_by: data.customer_id || data.supplier_id || data.branch_id, // Default to a valid UUID since DTO lacks created_by
+          created_by: userId || data.customer_id || data.supplier_id || data.branch_id,
         }
       });
 
@@ -176,6 +174,49 @@ export class PaymentService implements IPaymentService {
     return await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({ where: { id } });
       if (!payment) throw new BusinessRuleException('Payment not found', ErrorCode.NOT_FOUND);
+
+      if (payment.status === 'POSTED') {
+        const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+        if (period) {
+          const originalJe = await tx.journalEntry.findFirst({
+            where: {
+              reference_type: 'PAYMENT',
+              reference_id: id,
+              status: 'POSTED',
+            },
+            include: { lines: true },
+          });
+
+          if (originalJe) {
+            const reversalLines = originalJe.lines.map((l) => ({
+              account_id: l.account_id,
+              cost_center_id: l.cost_center_id ?? undefined,
+              description: `Reversal of Payment ${payment.payment_number}: ${reason}`,
+              debit: Number(l.credit),
+              credit: Number(l.debit),
+            }));
+
+            await this.journalEngine.createManualEntry(
+              'PAYMENT_REVERSAL',
+              id,
+              `Reversal of Payment ${payment.payment_number}`,
+              new Date(),
+              reversalLines,
+              userId,
+              tx,
+            );
+
+            await tx.journalEntry.update({
+              where: { id: originalJe.id },
+              data: {
+                status: 'REVERSED',
+                reversed_by: userId,
+                reversed_at: new Date(),
+              },
+            });
+          }
+        }
+      }
 
       const updated = await tx.payment.update({
         where: { id },

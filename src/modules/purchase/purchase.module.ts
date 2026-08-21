@@ -12,6 +12,9 @@ import { PurchaseRequestController } from './controllers/purchase-request.contro
 import { PurchaseOrderController } from './controllers/purchase-order.controller';
 import { GoodsReceiptController } from './controllers/goods-receipt.controller';
 
+import { JournalEngineService } from '../../services/journal-engine/journal-engine.service';
+import { PeriodManagerService } from '../../services/period-manager/period-manager.service';
+
 @Module({
   controllers: [
     PurchaseRequestController,
@@ -24,6 +27,8 @@ import { GoodsReceiptController } from './controllers/goods-receipt.controller';
     NumberingService,
     RbacService,
     CacheService,
+    JournalEngineService,
+    PeriodManagerService,
     PurchaseRequestService,
     PurchaseOrderService,
     GoodsReceiptService,

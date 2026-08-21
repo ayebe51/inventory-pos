@@ -43,6 +43,13 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
     'DEPRECIATION',
     'BANK_RECONCILIATION_ADJ',
     'WRITE_OFF_AR',
+    'POS_SALE_REVERSAL',
+    'POS_SALE_COGS_REVERSAL',
+    'CASH_IN',
+    'CASH_OUT',
+    'EXPENSE_PAYMENT',
+    'TAX_PAYMENT',
+    'INTER_ACCOUNT_TRANSFER',
   ];
 
   beforeEach(async () => {
@@ -232,8 +239,8 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
           fc.float({ min: Math.fround(0.02), max: Math.fround(1_000_000), noNaN: true }),
           fc.float({ min: Math.fround(0.02), max: Math.fround(1_000_000), noNaN: true }),
           (debitAmt, creditAmt) => {
-            // Ensure difference is strictly > 0.01
-            fc.pre(Math.abs(debitAmt - creditAmt) > 0.01);
+            // Ensure difference in cents is strictly > 1 cent
+            fc.pre(Math.abs(Math.round(debitAmt * 100) - Math.round(creditAmt * 100)) > 1);
             const lines: JournalLine[] = [
               { account_id: 'acc-1', debit: debitAmt, credit: 0 },
               { account_id: 'acc-2', debit: 0, credit: creditAmt },
@@ -280,11 +287,11 @@ describe('JournalEngineService - All Event Types Balance (BR-ACC-001)', () => {
 
   describe('Event Type Coverage', () => {
     /**
-     * Verify that all 20 event types are covered in tests.
+     * Verify that all 27 event types are covered in tests.
      * This ensures no event type is missing from the test suite.
      */
-    it('should have all 20 event types defined', () => {
-      expect(ALL_EVENT_TYPES.length).toBe(20);
+    it('should have all 27 event types defined', () => {
+      expect(ALL_EVENT_TYPES.length).toBe(27);
     });
 
     /**
@@ -650,6 +657,18 @@ function generateMockJournalLines(eventType: JournalEventType, amount: number): 
       return [
         { account_id: 'income-summary', debit: amount, credit: 0 },
         { account_id: 'retained-earnings', debit: 0, credit: amount },
+      ];
+
+    case 'POS_SALE_REVERSAL':
+    case 'POS_SALE_COGS_REVERSAL':
+    case 'CASH_IN':
+    case 'CASH_OUT':
+    case 'EXPENSE_PAYMENT':
+    case 'TAX_PAYMENT':
+    case 'INTER_ACCOUNT_TRANSFER':
+      return [
+        { account_id: 'account-a', debit: amount, credit: 0 },
+        { account_id: 'account-b', debit: 0, credit: amount },
       ];
 
     default:

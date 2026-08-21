@@ -171,7 +171,7 @@ export interface InvoiceService {
 }
 
 export interface PaymentService {
-  createPayment(data: CreatePaymentDTO): Promise<Payment>;
+  createPayment(data: CreatePaymentDTO, userId?: UUID): Promise<Payment>;
   approve(id: UUID, approverId: UUID): Promise<Payment>;
   post(id: UUID, userId: UUID): Promise<Payment>;
   allocateToInvoices(paymentId: UUID, allocations: AllocationDTO[]): Promise<void>;

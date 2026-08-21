@@ -1,350 +1,437 @@
-/* Layout.module.css — Glass Sidebar + Glass Navbar */
+/* Layout.module.css — Mini ERP Architecture & Clean Header (KIRO POS) */
 
-/* ── Root Layout ───────────────────────────────────────── */
 .root {
   display: flex;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
-  background: transparent;
+  background: var(--bg-app, #F4F7FB);
+  position: relative;
 }
 
-/* ── Sidebar Shell ─────────────────────────────────────── */
-.sidebar {
+/* ── Left Sidebar Floating Rail (Mini ERP Architecture) ─────────────── */
+.sidebarRail {
   position: fixed;
-  top: 12px;
-  left: 12px;
-  bottom: 12px;
-  z-index: var(--z-sidebar, 100);
+  top: 16px;
+  left: 20px;
+  bottom: 16px;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-2xl);
-  overflow: hidden;
-  transition: width 250ms var(--ease-out);
-
-  /* Glass surface */
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-md);
-  -webkit-backdrop-filter: var(--blur-md);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-md);
-}
-
-/* Top-edge specular highlight */
-.sidebar::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 8%; right: 8%;
-  height: 1px;
-  background: linear-gradient(
-    90deg, transparent, var(--glass-highlight) 30%, var(--glass-highlight) 70%, transparent
-  );
-  border-radius: var(--r-2xl);
+  align-items: flex-start;
+  gap: 12px;
   pointer-events: none;
-  z-index: 2;
+  overflow: visible;
+  transition: width 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.sidebarExpanded  { width: 240px; }
-.sidebarCollapsed { width: 68px; }
+.sidebarRailCollapsed {
+  width: 64px;
+}
 
-/* ── Sidebar Logo ──────────────────────────────────────── */
-.sidebarLogo {
+.sidebarRailExpanded {
+  width: 240px;
+}
+
+/* Base Island Panel Styling */
+.islandBase {
+  pointer-events: auto;
+  box-sizing: border-box;
+  background: var(--solid-bg, #FFFFFF);
+  border: 1px solid var(--solid-border, #E5E9F0);
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(15,22,41,0.06));
+  display: flex;
+  flex-direction: column;
+  transition: width 250ms cubic-bezier(0.16, 1, 0.3, 1), border-radius 250ms ease, padding 250ms ease;
+  overflow-x: hidden;
+}
+
+.islandBaseCollapsed {
+  width: 60px;
+  border-radius: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+}
+
+.islandBaseExpanded {
+  width: 236px;
+  border-radius: 24px;
+  align-items: stretch;
+  padding: 12px;
+}
+
+/* Primary CTA Button: Buka POS Kasir (Top of Sidebar) */
+.posCtaBtn {
+  pointer-events: auto;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 18px 14px 14px;
+  justify-content: center;
+  gap: 10px;
+  height: 44px;
+  border-radius: var(--r-full, 9999px);
+  border: none;
+  background: linear-gradient(135deg, #F05328 0%, #D94119 100%);
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 800;
   cursor: pointer;
-  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 4px 14px rgba(240, 83, 40, 0.35);
+  transition: all var(--dur-fast) ease;
   flex-shrink: 0;
-  overflow: hidden;
-  transition: padding 250ms var(--ease-out);
+  letter-spacing: -0.01em;
 }
 
-.sidebarLogoCollapsed { padding: 18px 14px 14px; justify-content: center; }
+.posCtaBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(240, 83, 40, 0.45);
+}
 
-.logoMark {
+.posCtaBtnCollapsed {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+/* Island 2: Main Navigation Rail (Scrollable) */
+.islandNav {
+  gap: 4px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px;
+}
+
+/* Group Header Label */
+.navGroupHeader {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary, #94A3B8);
+  text-transform: uppercase;
+  margin: 12px 0 4px 8px;
+}
+
+.navIconBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.navIconBtn:hover {
+  color: var(--text-primary);
+  background: var(--solid-bg-subtle);
+  transform: scale(1.05);
+}
+
+.navIconBtnActive {
+  background: var(--dark-charcoal, #18181B) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(24, 24, 27, 0.3);
+}
+
+/* Expanded Navigation Item Row */
+.navRowExpanded {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--dur-fast) ease;
+  text-align: left;
+}
+
+.navRowExpanded:hover {
+  background: var(--solid-bg-subtle, #F1F5F9);
+  color: var(--text-primary);
+}
+
+.navRowExpandedActive {
+  background: var(--dark-charcoal, #18181B) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(24, 24, 27, 0.25);
+}
+
+/* Sub-Item Indented Indication */
+.navSubList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 14px;
+  margin-top: 2px;
+  border-left: 2px solid var(--solid-border, #E2E8F0);
+}
+
+.navSubItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: all var(--dur-fast) ease;
+  text-align: left;
+}
+
+.navSubItem:hover {
+  background: var(--solid-bg-subtle, #F1F5F9);
+  color: var(--text-primary);
+}
+
+.navSubItemActive {
+  color: var(--brand-500, #F05328) !important;
+  font-weight: 700;
+  background: var(--solid-bg-subtle, #FFF1ED) !important;
+}
+
+/* Footer & Sidebar Collapse Button */
+.islandFooter {
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.expandToggleBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  border-radius: var(--r-full, 9999px);
+  border: none;
+  background: var(--solid-bg-subtle, #F1F5F9);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.expandToggleBtn:hover {
+  background: var(--solid-border);
+  color: var(--text-primary);
+}
+
+/* ── Main Area Workspace ─────────────────────────────────────────────── */
+.mainContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  padding: 16px 24px 16px 0;
+  transition: margin-left 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mainContainerCollapsed {
+  margin-left: 96px;
+}
+
+.mainContainerExpanded {
+  margin-left: 272px;
+}
+
+/* ── Top Header Bar (Clean Header - No Top Nav Switcher) ─────────────── */
+.topHeaderBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+/* Top Island Base */
+.topIslandBase {
+  background: var(--solid-bg, #FFFFFF);
+  border: 1px solid var(--solid-border, #E5E9F0);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(15,22,41,0.04));
+  border-radius: var(--r-full, 9999px);
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+/* Header Island 1: Brand Logo Capsule */
+.islandBrand {
+  padding: 0 16px 0 6px;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.islandBrand:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--brand-200);
+}
+
+.brandLogoMark {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  background: var(--brand-gradient);
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F05328 0%, #D94119 100%);
+  color: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  color: #fff;
   font-size: 16px;
-  letter-spacing: -0.03em;
-  flex-shrink: 0;
-  box-shadow: 0 4px 10px var(--brand-glow);
+  box-shadow: 0 2px 8px rgba(240, 83, 40, 0.35);
 }
 
-.logoTextBlock {
-  overflow: hidden;
-  transition: opacity 200ms ease, max-width 250ms var(--ease-out);
-}
-
-.logoName {
-  font-size: var(--fs-md);
-  font-weight: 700;
+.brandTitle {
+  font-size: 14.5px;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.02em;
-  line-height: 1.2;
   white-space: nowrap;
 }
 
-.logoSub {
-  font-size: var(--fs-2xs);
-  color: var(--text-tertiary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-/* ── Nav Section Labels ─────────────────────────────────── */
-.navSection {
-  padding: 20px 14px 4px;
-  flex-shrink: 0;
-}
-
-.navSectionLabel {
-  font-size: var(--fs-2xs);
+/* Branch Selector Chip */
+.branchChip {
+  padding: 0 14px;
+  gap: 8px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--text-tertiary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0 6px;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-/* ── Nav Scroll Area ────────────────────────────────────── */
-.navScroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 4px 8px 8px;
-  scrollbar-width: none;
-}
-.navScroll::-webkit-scrollbar { display: none; }
-
-/* ── Collapse Toggle ────────────────────────────────────── */
-.collapseBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 8px;
-  height: 32px;
-  border-radius: var(--r-md);
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
-  flex-shrink: 0;
-}
-
-.collapseBtn:hover {
-  background: var(--glass-bg-hover);
   color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
 }
 
-/* ── User Profile Footer ────────────────────────────────── */
-.userSection {
-  padding: 8px 10px 10px;
-  border-top: 1px solid var(--glass-border);
-  flex-shrink: 0;
+.branchChip:hover {
+  border-color: var(--brand-200);
 }
 
-.userBtn {
+/* Floating Search Bar Shortcut */
+.searchChipBtn {
+  background: var(--solid-bg, #FFFFFF);
+  border: 1px solid var(--solid-border, #E2E8F0);
+  border-radius: var(--r-full, 9999px);
+  height: 44px;
+  padding: 0 18px;
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 8px 8px;
-  border: none;
-  border-radius: var(--r-lg);
-  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
   cursor: pointer;
-  transition: background var(--dur-fast) ease;
-  text-align: left;
-  overflow: hidden;
+  transition: all var(--dur-fast) ease;
+  min-width: 280px;
 }
 
-.userBtn:hover {
-  background: var(--glass-bg-hover);
+.searchChipBtn:hover {
+  border-color: var(--brand-400, #F05328);
+  box-shadow: 0 2px 10px rgba(240, 83, 40, 0.12);
+  color: var(--text-primary);
 }
 
-.userBtnCollapsed {
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.userAvatar {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-full);
-  background: var(--brand-gradient);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fs-sm);
+.searchKbd {
+  background: var(--solid-bg-subtle, #F1F5F9);
+  border: 1px solid var(--solid-border, #E2E8F0);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 10.5px;
   font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-  box-shadow: 0 2px 6px var(--brand-glow);
+  color: var(--text-secondary);
+  margin-left: auto;
 }
 
-.userInfo { overflow: hidden; flex: 1; }
-
-.userName {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-
-.userRole {
-  font-size: var(--fs-2xs);
-  color: var(--brand-400);
-  font-weight: 500;
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-/* ── Main Content Area ──────────────────────────────────── */
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  transition: margin-left 250ms var(--ease-out);
-}
-
-.mainExpanded  { margin-left: calc(240px + 12px + 12px); }
-.mainCollapsed { margin-left: calc(68px  + 12px + 12px); }
-
-/* ── Navbar ─────────────────────────────────────────────── */
-.navbar {
-  position: sticky;
-  top: 12px;
-  z-index: var(--z-navbar, 200);
-  margin: 12px 12px 0;
-  border-radius: var(--r-xl);
-  height: 54px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
+/* Quick Controls Capsule */
+.islandControls {
   gap: 8px;
-  flex-shrink: 0;
-
-  /* Glass */
-  background: var(--glass-bg);
-  backdrop-filter: var(--blur-md);
-  -webkit-backdrop-filter: var(--blur-md);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-sm);
+  padding: 0 12px;
 }
 
-/* Top-edge specular on navbar */
-.navbar::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(
-    90deg, transparent, var(--glass-highlight) 30%, var(--glass-highlight) 70%, transparent
-  );
-  border-radius: var(--r-xl);
-  pointer-events: none;
-}
-
-.navbarBreadcrumb {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
-}
-
-.navbarBreadcrumbText {
-  font-size: var(--fs-sm);
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
-.navbarBreadcrumbCurrent {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.navbarSep {
-  font-size: var(--fs-sm);
-  color: var(--text-tertiary);
-}
-
-.navbarActions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.navbarIconBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
+.controlIconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: none;
-  border-radius: var(--r-md);
   background: transparent;
   color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: background var(--dur-fast) ease, color var(--dur-fast) ease;
-  position: relative;
+  transition: all var(--dur-fast) ease;
 }
 
-.navbarIconBtn:hover {
-  background: var(--glass-bg-hover);
+.controlIconBtn:hover {
+  color: var(--text-primary);
+  background: var(--solid-bg-subtle);
+}
+
+/* User Profile Chip */
+.islandUser {
+  padding: 0 14px 0 6px;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--dur-fast) ease;
+}
+
+.islandUser:hover {
+  border-color: var(--brand-200);
+}
+
+.userAvatarCircle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--dark-charcoal, #18181B);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.userTextMeta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.userNameText {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.navbarDivider {
-  width: 1px;
-  height: 20px;
-  background: var(--glass-border);
-  margin: 0 4px;
-  flex-shrink: 0;
+.userRoleText {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
-/* ── Content Scroll ─────────────────────────────────────── */
-.content {
+/* Content Area Workspace */
+.contentArea {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--sp-6) 12px 24px;
-}
-
-/* ── Responsive ─────────────────────────────────────────── */
-@media (max-width: 1024px) {
-  .mainExpanded  { margin-left: calc(240px + 12px + 8px); }
-  .mainCollapsed { margin-left: calc(68px  + 12px + 8px); }
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    top: 0; left: 0; bottom: 0;
-    border-radius: 0;
-  }
-  .mainExpanded  { margin-left: 240px; }
-  .mainCollapsed { margin-left: 68px; }
-  .navbar { margin: 0; border-radius: 0; top: 0; }
-  .content { padding: var(--sp-4) var(--sp-4) 24px; }
+  padding-right: 8px;
 }

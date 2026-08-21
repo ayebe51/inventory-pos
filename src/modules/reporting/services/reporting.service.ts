@@ -288,15 +288,14 @@ export class ReportingService implements IReportingService {
 
   async getARAgingReport(params: AgingParams): Promise<ARAgingReport> {
     // Calculate aging buckets for AR (Sales Invoices)
-    const asOf = params.as_of_date.toISOString();
     const result = await this.prisma.$queryRawUnsafe<any[]>(`
       WITH buckets AS (
         SELECT 
           id,
-          outstanding_balance,
+          outstanding_amount,
           DATE_PART('day', $1::timestamp - due_date) as days_overdue
         FROM invoices
-        WHERE type = 'SALES' AND status NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')
+        WHERE invoice_type = 'SALES' AND status NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')
           AND invoice_date <= $1::timestamp
       )
       SELECT 
@@ -308,7 +307,7 @@ export class ReportingService implements IReportingService {
           ELSE '>90'
         END as bucket,
         COUNT(id) as invoice_count,
-        SUM(outstanding_balance) as total_amount
+        SUM(outstanding_amount) as total_amount
       FROM buckets
       GROUP BY 1
     `, params.as_of_date);
@@ -332,10 +331,10 @@ export class ReportingService implements IReportingService {
       WITH buckets AS (
         SELECT 
           id,
-          outstanding_balance,
+          outstanding_amount,
           DATE_PART('day', $1::timestamp - due_date) as days_overdue
         FROM invoices
-        WHERE type = 'PURCHASE' AND status NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')
+        WHERE invoice_type = 'PURCHASE' AND status NOT IN ('PAID', 'CANCELLED', 'WRITTEN_OFF')
           AND invoice_date <= $1::timestamp
       )
       SELECT 
@@ -347,7 +346,7 @@ export class ReportingService implements IReportingService {
           ELSE '>90'
         END as bucket,
         COUNT(id) as invoice_count,
-        SUM(outstanding_balance) as total_amount
+        SUM(outstanding_amount) as total_amount
       FROM buckets
       GROUP BY 1
     `, params.as_of_date);
@@ -501,12 +500,43 @@ export class ReportingService implements IReportingService {
     }));
   }
 
+  async getMonthlySalesTrend(year: number, branchId?: string): Promise<any> {
+    const trendResult = await this.prisma.$queryRawUnsafe<any[]>(`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('year', make_date($1::int, 1, 1)),
+          date_trunc('year', make_date($1::int, 1, 1)) + interval '11 months',
+          interval '1 month'
+        ) AS m
+      )
+      SELECT 
+        to_char(m, 'Mon') as date_label,
+        COALESCE(SUM(l.line_total), 0) as revenue
+      FROM months
+      LEFT JOIN pos_transactions t ON date_trunc('month', t.transaction_date) = m AND t.status = 'COMPLETED'
+        ${branchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = '${branchId}')` : ''}
+      LEFT JOIN pos_transaction_lines l ON l.transaction_id = t.id
+      GROUP BY m
+      ORDER BY m ASC
+    `, year);
+    
+    return trendResult.map(r => ({
+      date: r.date_label,
+      revenue: Number(r.revenue)
+    }));
+  }
+
   async getShiftReport(shiftId: UUID): Promise<ShiftReport> {
     const shift = await this.prisma.shift.findUnique({
       where: { id: shiftId },
       include: {
         pos_transactions: {
           where: { status: 'COMPLETED' },
+          include: {
+            payments: {
+              include: { payment_method: true }
+            }
+          }
         }
       }
     });
@@ -515,7 +545,23 @@ export class ReportingService implements IReportingService {
       throw new NotFoundException('Shift not found');
     }
 
-    const totalSales = shift.pos_transactions.reduce((sum, t) => sum + Number(t.paid_amount), 0);
+    let totalSales = 0;
+    let cashSales = 0;
+    let cardSales = 0;
+    let transferSales = 0;
+
+    for (const t of shift.pos_transactions) {
+      totalSales += Number(t.total_amount);
+      for (const p of t.payments) {
+        const type = p.payment_method?.type;
+        const amt = Number(p.amount);
+        if (type === 'CASH') cashSales += amt;
+        else if (type === 'CARD') cardSales += amt;
+        else if (type === 'TRANSFER') transferSales += amt;
+        else cashSales += amt;
+      }
+      cashSales -= Number(t.change_amount || 0);
+    }
 
     return {
       shift_id: shift.id,
@@ -524,9 +570,9 @@ export class ReportingService implements IReportingService {
       closing_balance: Number(shift.closing_balance || 0),
       total_transactions: shift.pos_transactions.length,
       total_sales: totalSales,
-      cash_sales: totalSales, // simplification
-      card_sales: 0,
-      transfer_sales: 0,
+      cash_sales: Math.max(0, cashSales),
+      card_sales: cardSales,
+      transfer_sales: transferSales,
       cash_difference: Number(shift.difference || 0),
       opened_at: shift.opened_at,
       closed_at: shift.closed_at || new Date(),
@@ -570,5 +616,68 @@ export class ReportingService implements IReportingService {
         created_at: log.created_at
       };
     });
+  }
+
+  async getCashFlowStatement(periodId?: UUID): Promise<any> {
+    const activePeriod = periodId
+      ? await this.prisma.fiscalPeriod.findUnique({ where: { id: periodId } })
+      : await this.prisma.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+
+    if (!activePeriod) {
+      return {
+        period_name: 'N/A',
+        operating_activities: { total: 0, items: [] },
+        investing_activities: { total: 0, items: [] },
+        financing_activities: { total: 0, items: [] },
+        net_cash_flow: 0,
+      };
+    }
+
+    // Aggregate cash inflows and outflows from posted journal entry lines
+    const cashLines = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT 
+        c.account_name,
+        c.account_type,
+        SUM(l.debit) as total_debit,
+        SUM(l.credit) as total_credit
+      FROM journal_entry_lines l
+      JOIN journal_entries j ON l.je_id = j.id
+      JOIN chart_of_accounts c ON l.account_id = c.id
+      WHERE j.period_id = $1::uuid AND j.status = 'POSTED'
+        AND c.account_category IN ('CASH', 'CLEARING')
+      GROUP BY c.account_name, c.account_type
+    `, activePeriod.id);
+
+    let operatingCash = 0;
+    const items: any[] = [];
+
+    for (const row of cashLines) {
+      const netChange = Number(row.total_debit) - Number(row.total_credit);
+      operatingCash += netChange;
+      items.push({
+        account_name: row.account_name,
+        inflow: Number(row.total_debit),
+        outflow: Number(row.total_credit),
+        net_flow: netChange,
+      });
+    }
+
+    return {
+      period_id: activePeriod.id,
+      period_name: activePeriod.period_name,
+      operating_activities: {
+        total: operatingCash,
+        items,
+      },
+      investing_activities: {
+        total: 0,
+        items: [],
+      },
+      financing_activities: {
+        total: 0,
+        items: [],
+      },
+      net_cash_flow: operatingCash,
+    };
   }
 }

@@ -22,14 +22,14 @@ export type AccountType = z.infer<typeof AccountTypeEnum>;
 // Level 4: "1.001.001.001"
 // Level 5: "1.001.001.001.001"
 
-const ACCOUNT_CODE_REGEX = /^[A-Za-z0-9\.\-]+$/;
+const ACCOUNT_CODE_REGEX = /^\d(\.\d{3}){0,4}$/;
 
 export function validateAccountCodeFormat(code: string): boolean {
   return ACCOUNT_CODE_REGEX.test(code);
 }
 
 export function getAccountCodeLevel(code: string): number {
-  if (!code || !ACCOUNT_CODE_REGEX.test(code)) return 1;
+  if (!code || !validateAccountCodeFormat(code)) return 0;
   return code.includes('.') ? code.split('.').length : 1;
 }
 

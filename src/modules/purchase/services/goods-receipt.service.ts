@@ -14,6 +14,8 @@ import {
   GoodsReceiptSchema,
 } from '../dto/purchase-order.dto';
 
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
+
 // ── Configuration ─────────────────────────────────────────────────────────────
 
 /**
@@ -61,6 +63,7 @@ export class GoodsReceiptService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly numbering: NumberingService,
+    private readonly journalEngine: JournalEngineService,
   ) {}
 
   /**
@@ -439,22 +442,13 @@ export class GoodsReceiptService {
       }
 
       // 4. Trigger auto journal for GR
-      const { JournalEngineService } = await import('../../../services/journal-engine/journal-engine.service');
-      const { NumberingService } = await import('../../../services/numbering/numbering.service');
-      const journalEngine = new JournalEngineService(
-        this.prisma,
-        new NumberingService(this.prisma),
-        periodManager,
-      );
-
-      // Calculate total amount for journal
       const totalAmount = gr.lines.reduce(
         (sum, line) => sum + Number(line.qty_received) * Number(line.unit_cost),
         0,
       );
 
       // Create journal event for GOODS_RECEIPT
-      await journalEngine.processEvent(
+      await this.journalEngine.processEvent(
         {
           event_type: 'GOODS_RECEIPT',
           reference_type: 'GR',

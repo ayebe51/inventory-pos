@@ -388,6 +388,45 @@ export class POSService implements IPOSService {
               }
             });
           }
+
+          // Post Journal Reversal if transaction was COMPLETED and period is OPEN
+          const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+          if (period && transaction.status === 'COMPLETED') {
+            await this.journalEngine.processEvent(
+              {
+                event_type: 'POS_SALE_REVERSAL',
+                reference_type: 'POS_VOID',
+                reference_id: transactionId,
+                reference_number: transaction.transaction_number,
+                entry_date: new Date(),
+                period_id: period.id,
+                amount: Number(transaction.total_amount),
+                created_by: supervisorId,
+              },
+              tx,
+            );
+
+            const ledgerEntries = await tx.inventoryLedger.findMany({
+              where: { reference_type: 'POS_TRANSACTION', reference_id: transactionId, transaction_type: 'SALES' },
+            });
+            const totalCogs = ledgerEntries.reduce((sum, entry) => sum + Number(entry.total_cost), 0);
+
+            if (totalCogs > 0) {
+              await this.journalEngine.processEvent(
+                {
+                  event_type: 'POS_SALE_COGS_REVERSAL',
+                  reference_type: 'POS_VOID',
+                  reference_id: transactionId,
+                  reference_number: transaction.transaction_number,
+                  entry_date: new Date(),
+                  period_id: period.id,
+                  amount: totalCogs,
+                  created_by: supervisorId,
+                },
+                tx,
+              );
+            }
+          }
         });
       } catch (err: any) {
         lastError = err;
@@ -472,9 +511,9 @@ export class POSService implements IPOSService {
         data: { status: 'CANCELLED' } // Assume cancelled status
       });
 
-      // Calculate totals for PAID transactions
+      // Calculate totals for COMPLETED transactions
       const txs = await tx.posTransaction.findMany({
-        where: { shift_id: shiftId, status: 'PAID' },
+        where: { shift_id: shiftId, status: 'COMPLETED' },
         include: { payments: { include: { payment_method: true } } }
       });
 

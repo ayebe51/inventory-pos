@@ -26,3 +26,14 @@ export const useRecentActivities = () => {
     }
   });
 };
+
+export const useMonthlyTrend = (year?: number) => {
+  const currentYear = year || new Date().getFullYear();
+  return useQuery({
+    queryKey: ['dashboard', 'monthly-trend', currentYear],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/v1/reporting/sales/trend/monthly?year=${currentYear}`);
+      return data.data;
+    }
+  });
+};

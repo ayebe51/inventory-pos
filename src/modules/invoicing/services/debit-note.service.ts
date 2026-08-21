@@ -31,7 +31,7 @@ export class DebitNoteService {
         throw new BusinessRuleException('Invalid debit note amount', ErrorCode.VALIDATION_ERROR);
       }
 
-      const dnNumber = await this.numbering.generate(DocumentType.INV); // Or DN doc type
+      const dnNumber = await this.numbering.generate(DocumentType.DN);
 
       const debitNote = await tx.invoice.create({
         data: {
@@ -81,6 +81,11 @@ export class DebitNoteService {
     const dn = await tx.invoice.findUnique({ where: { id: dnId } });
     if (!dn) return;
 
+    const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
+    if (!period) {
+      throw new BusinessRuleException('No open fiscal period found for Debit Note posting', ErrorCode.NOT_FOUND);
+    }
+
     // A Debit Note for purchase reduces Accounts Payable (Debit) and reduces Inventory/Expense (Credit)
     await this.journalEngine.processEvent({
       event_type: 'GOODS_RECEIPT', // or an appropriate JournalEventType for debit notes
@@ -88,13 +93,13 @@ export class DebitNoteService {
       reference_id: dn.id,
       reference_number: dn.invoice_number,
       amount: Number(dn.total_amount),
-      period_id: 'auto-resolve' as any,
+      period_id: period.id,
       entry_date: dn.invoice_date,
       created_by: userId,
       metadata: {
         description: `Debit Note ${dn.invoice_number} for Invoice ${dn.reference_id}`
       }
-    });
+    }, tx);
 
     await tx.invoice.update({
       where: { id: dn.id },

@@ -1202,6 +1202,7 @@ model JournalEntry {
   lines           JournalEntryLine[]
 
   @@index([period_id, status])
+  @@index([reference_type, reference_id])
   @@map("journal_entries")
 }
 
