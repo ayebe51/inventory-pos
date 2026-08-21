@@ -30,7 +30,7 @@
 }
 
 .sidebarRailExpanded {
-  width: 264px;
+  width: 252px;
 }
 
 /* Base Island Panel Styling */
@@ -55,7 +55,7 @@
 }
 
 .islandBaseExpanded {
-  width: 260px;
+  width: 248px;
   border-radius: 24px;
   align-items: stretch;
   padding: 12px;
@@ -101,7 +101,25 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 2px;
+  padding-right: 6px;
+  box-sizing: border-box;
+}
+
+.islandNav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.islandNav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.islandNav::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+.islandNav::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
 /* Group Header Label */
@@ -251,7 +269,7 @@
 }
 
 .mainContainerExpanded {
-  margin-left: 296px;
+  margin-left: 280px;
 }
 
 /* ── Top Header Bar (Clean Header - No Top Nav Switcher) ─────────────── */
