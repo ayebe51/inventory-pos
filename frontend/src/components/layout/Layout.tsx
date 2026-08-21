@@ -21,7 +21,6 @@ import {
   ChevronsRight,
   ChevronsLeft,
   Building2,
-  Box,
   Settings,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -40,7 +39,7 @@ interface NavGroup {
   }[];
 }
 
-/* 7 Kelompok Utama Navigasi Mini ERP Retail System */
+/* 7 Kelompok Utama Navigasi Mini ERP Retail System (Streamlined & Efficient) */
 const MINI_ERP_NAV_GROUPS: NavGroup[] = [
   {
     groupName: 'DASHBOARD',
@@ -49,11 +48,11 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupName: 'TRANSAKSI',
+    groupName: 'POS & PENJUALAN',
     items: [
       {
         key: '/pos',
-        label: 'POS Kasir',
+        label: 'POS Kasir & Sales',
         icon: <ShoppingCart size={17} />,
         subItems: [
           { key: '/pos', label: 'Kasir Checkout' },
@@ -65,26 +64,17 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupName: 'PRODUK & STOK',
+    groupName: 'INVENTORI & STOK',
     items: [
       {
         key: '/inventory',
-        label: 'Produk (Master Data)',
+        label: 'Produk & Stok',
         icon: <Package size={17} />,
         subItems: [
-          { key: '/inventory', label: 'Daftar Produk & Katalog' },
-          { key: '/inventory/categories', label: 'Kategori & Brand' },
-        ],
-      },
-      {
-        key: '/inventory/stock',
-        label: 'Persediaan Stok',
-        icon: <Box size={17} />,
-        subItems: [
-          { key: '/inventory/stock', label: 'Kondisi Stok Real-Time' },
-          { key: '/inventory/ledger', label: 'Mutasi & Kartu Stok' },
+          { key: '/inventory', label: 'Master Produk & Katalog' },
+          { key: '/inventory/stock', label: 'Persediaan & Mutasi' },
           { key: '/inventory/opname', label: 'Stock Opname' },
-          { key: '/inventory/transfers', label: 'Gudang & Transfer Stok' },
+          { key: '/inventory/transfers', label: 'Transfer Gudang' },
         ],
       },
     ],
@@ -94,62 +84,52 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     items: [
       {
         key: '/purchase',
-        label: 'Procurement',
+        label: 'Procurement (PO)',
         icon: <Truck size={17} />,
         subItems: [
-          { key: '/purchase/suppliers', label: 'Daftar Supplier' },
-          { key: '/purchase/requests', label: 'Purchase Request' },
           { key: '/purchase', label: 'Purchase Order (PO)' },
-          { key: '/purchase/receipts', label: 'Penerimaan Barang (GR)' },
-          { key: '/purchase/returns', label: 'Retur Pembelian' },
+          { key: '/purchase/requests', label: 'Purchase Request' },
+          { key: '/purchase/suppliers', label: 'Daftar Supplier' },
         ],
       },
     ],
   },
   {
-    groupName: 'KEUANGAN',
+    groupName: 'FINANCE & AKUNTANSI',
     items: [
       {
         key: '/finance',
-        label: 'Finance & Akuntansi',
+        label: 'Finance Hub',
         icon: <DollarSign size={17} />,
         subItems: [
           { key: '/finance', label: 'Kas & Rekening Bank' },
-          { key: '/finance/expenses', label: 'Pengeluaran & Pemasukan' },
-          { key: '/invoicing', label: 'Piutang & Hutang (AR/AP)' },
+          { key: '/invoicing', label: 'Hutang & Piutang (AP/AR)' },
           { key: '/finance/reconciliation', label: 'Jurnal & Rekonsiliasi' },
         ],
       },
     ],
   },
   {
-    groupName: 'LAPORAN',
+    groupName: 'LAPORAN & ANALITIK',
     items: [
       {
         key: '/reporting',
-        label: 'Laporan Executive',
+        label: 'Executive Reports',
         icon: <BarChart2 size={17} />,
-        subItems: [
-          { key: '/reporting/sales', label: 'Laporan Penjualan' },
-          { key: '/reporting/purchase', label: 'Laporan Pembelian' },
-          { key: '/reporting/inventory', label: 'Laporan Persediaan' },
-          { key: '/reporting/financial', label: 'Laporan Keuangan & Profit' },
-        ],
       },
     ],
   },
   {
-    groupName: 'ADMINISTRASI',
+    groupName: 'PENGATURAN',
     items: [
       {
         key: '/admin',
-        label: 'Pengaturan & System',
+        label: 'Pengaturan Toko',
         icon: <Settings size={17} />,
         subItems: [
           { key: '/admin/store', label: 'Profil Toko & Cabang' },
-          { key: '/admin/users', label: 'User & Role Management' },
-          { key: '/payment', label: 'Metode Pembayaran' },
-          { key: '/audit', label: 'Audit Log System' },
+          { key: '/admin/users', label: 'User & Hak Akses' },
+          { key: '/audit', label: 'Audit Log' },
         ],
       },
     ],
