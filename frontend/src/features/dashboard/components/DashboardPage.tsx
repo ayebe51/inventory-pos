@@ -190,9 +190,15 @@ export const DashboardPage: React.FC = () => {
         <div className={styles.capsuleNav}>
           <button
             className={`${styles.capsuleButton} ${styles.capsuleButtonCoral}`}
+            onClick={() => navigate('/pos/shift')}
+          >
+            <ShopOutlined style={{ marginRight: 6 }} /> Buka POS Kasir
+          </button>
+          <button
+            className={styles.capsuleButton}
             onClick={() => navigate('/inventory')}
           >
-            <PlusOutlined style={{ marginRight: 6 }} /> + Tambah Produk
+            <PlusOutlined style={{ marginRight: 6 }} /> + Produk
           </button>
           <button
             className={styles.capsuleButton}

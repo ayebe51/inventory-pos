@@ -264,27 +264,7 @@ export const Layout: React.FC = () => {
           isExpanded ? styles.sidebarRailExpanded : styles.sidebarRailCollapsed
         }`}
       >
-        {/* Top Special Action CTA: BUKA POS KASIR */}
-        {isExpanded ? (
-          <button
-            className={styles.posCtaBtn}
-            onClick={() => navigate('/pos/shift')}
-          >
-            <ShoppingCart size={18} />
-            <span>BUKA POS KASIR</span>
-          </button>
-        ) : (
-          <Tooltip title="Buka POS Kasir" placement="right">
-            <button
-              className={`${styles.posCtaBtn} ${styles.posCtaBtnCollapsed}`}
-              onClick={() => navigate('/pos/shift')}
-            >
-              <ShoppingCart size={20} />
-            </button>
-          </Tooltip>
-        )}
-
-        {/* Sidebar Island 2: Main Navigation Rail (7 Groups) */}
+        {/* Sidebar Island 1: Main Navigation Rail (7 Groups) */}
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
