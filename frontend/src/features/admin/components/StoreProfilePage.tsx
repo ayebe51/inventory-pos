@@ -14,7 +14,6 @@ import {
   Badge,
   Row,
   Col,
-  Statistic,
   Popconfirm,
   Descriptions,
 } from 'antd';
@@ -348,70 +347,98 @@ export const StoreProfilePage: React.FC = () => {
       </div>
 
       {/* Summary Stat Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={8}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }} align="stretch">
+        <Col xs={24} sm={8} style={{ display: 'flex' }}>
           <Card
             bordered={false}
+            styles={{ body: { padding: '16px 20px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' } }}
             style={{
+              width: '100%',
+              minHeight: 120,
               borderRadius: 16,
               background: 'var(--solid-bg)',
               boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
               border: '1px solid var(--solid-border)',
             }}
           >
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)' }}>HEAD OFFICE / PUSAT</span>}
-              value={headOffice ? headOffice.name : 'Utama'}
-              prefix={<Building size={18} style={{ color: '#F05328', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}
-            />
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-              Kode: {headOffice?.code || 'HO-Pusat'} • Entitas Induk
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>
+                HEAD OFFICE / PUSAT
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#FFF1ED', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F05328' }}>
+                  <Building size={18} />
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {headOffice ? headOffice.name : 'Utama'}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
+              Kode: <strong style={{ color: 'var(--text-primary)' }}>{headOffice?.code || 'HO-Pusat'}</strong> • Entitas Induk
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={8} style={{ display: 'flex' }}>
           <Card
             bordered={false}
+            styles={{ body: { padding: '16px 20px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' } }}
             style={{
+              width: '100%',
+              minHeight: 120,
               borderRadius: 16,
               background: 'var(--solid-bg)',
               boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
               border: '1px solid var(--solid-border)',
             }}
           >
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)' }}>TOTAL CABANG OPERASIONAL</span>}
-              value={regularBranches.length}
-              suffix={<span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Cabang</span>}
-              prefix={<Building2 size={18} style={{ color: '#3B82F6', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}
-            />
-            <div style={{ fontSize: 11, color: '#10B981', marginTop: 4, fontWeight: 600 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>
+                TOTAL CABANG OPERASIONAL
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
+                  <Building2 size={18} />
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {regularBranches.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Cabang</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
               {regularBranches.filter((b) => b.is_active).length} Cabang Aktif Digunakan
             </div>
           </Card>
         </Col>
 
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={8} style={{ display: 'flex' }}>
           <Card
             bordered={false}
+            styles={{ body: { padding: '16px 20px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' } }}
             style={{
+              width: '100%',
+              minHeight: 120,
               borderRadius: 16,
               background: 'var(--solid-bg)',
               boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
               border: '1px solid var(--solid-border)',
             }}
           >
-            <Statistic
-              title={<span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)' }}>TOTAL GUDANG FISIK</span>}
-              value={warehouses.length}
-              suffix={<span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Gudang</span>}
-              prefix={<WarehouseIcon size={18} style={{ color: '#10B981', marginRight: 8 }} />}
-              valueStyle={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}
-            />
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>
+                TOTAL GUDANG FISIK
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
+                  <WarehouseIcon size={18} />
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {warehouses.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Gudang</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
               Tersebar di seluruh cabang operasional
             </div>
           </Card>
