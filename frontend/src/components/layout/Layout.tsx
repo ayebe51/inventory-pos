@@ -274,7 +274,9 @@ export const Layout: React.FC = () => {
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
-          } ${styles.sidebarIslandBrand}`}
+          } ${styles.sidebarIslandBrand} ${
+            !isExpanded ? styles.sidebarIslandBrandCollapsed : ''
+          }`}
           onClick={() => navigate('/')}
           style={{ cursor: 'pointer' }}
         >
