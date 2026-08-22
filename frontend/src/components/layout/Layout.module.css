@@ -48,15 +48,15 @@
 
 .islandBaseCollapsed {
   width: 60px;
-  border-radius: 28px;
+  border-radius: 20px;
   align-items: center;
   justify-content: flex-start;
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .islandBaseExpanded {
   width: 248px;
-  border-radius: 24px;
+  border-radius: 20px;
   align-items: stretch;
   padding: 12px;
 }
@@ -78,6 +78,9 @@
 }
 
 .sidebarIslandBrandCollapsed {
+  width: 60px !important;
+  height: 60px !important;
+  border-radius: 20px !important;
   justify-content: center !important;
   padding: 0 !important;
 }
@@ -133,15 +136,17 @@
 }
 
 .islandNavCollapsed {
-  padding: 8px 0 !important;
+  padding: 10px 0 !important;
   align-items: center !important;
   height: auto !important;
+  border-radius: 20px !important;
 }
 
 .islandNavExpanded {
   padding: 12px !important;
   padding-right: 6px !important;
   align-items: stretch !important;
+  border-radius: 20px !important;
 }
 
 .islandNav::-webkit-scrollbar {
@@ -172,29 +177,31 @@
 }
 
 .navIconBtn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-secondary, #64748B);
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0 auto;
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
 }
 
 .navIconBtn:hover {
-  color: var(--text-primary);
-  background: var(--solid-bg-subtle);
-  transform: scale(1.05);
+  color: var(--brand-500, #F05328);
+  background: var(--solid-bg-subtle, #F1F5F9);
+  transform: scale(1.04);
 }
 
 .navIconBtnActive {
-  background: var(--dark-charcoal, #18181B) !important;
+  background: linear-gradient(135deg, #F05328 0%, #D94119 100%) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 4px 12px rgba(24, 24, 27, 0.3);
+  box-shadow: 0 4px 14px rgba(240, 83, 40, 0.35) !important;
+  border-radius: 12px !important;
 }
 
 /* Expanded Navigation Item Row */
@@ -269,6 +276,8 @@
   gap: 6px;
   flex-shrink: 0;
   margin-top: auto;
+  border-radius: 20px !important;
+  padding: 8px 0 !important;
 }
 
 .expandToggleBtn {
