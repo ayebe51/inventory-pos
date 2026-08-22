@@ -92,6 +92,35 @@ export class SalesOrderController {
     };
   }
 
+  @ApiOperation({ summary: 'List all Delivery Orders' })
+  @ApiQuery({ name: 'so_id', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
+  @Get('delivery-orders/list')
+  @RequirePermissions('SALES.READ')
+  async listDeliveryOrders(
+    @Query('so_id') soId?: string,
+    @Query('page') page?: string,
+    @Query('per_page') perPage?: string,
+  ) {
+    const result = await this.salesOrderService.listDeliveryOrders({
+      so_id: soId as UUID,
+      page: page ? parseInt(page, 10) : 1,
+      per_page: perPage ? parseInt(perPage, 10) : 20,
+    });
+    return successResponse(result.data, 'Delivery orders retrieved successfully', result.meta);
+  }
+
+  @ApiOperation({ summary: 'Get Delivery Order by ID' })
+  @ApiParam({ name: 'id', description: 'Delivery Order ID' })
+  @Get('delivery-orders/:id')
+  @RequirePermissions('SALES.READ')
+  async getDeliveryOrder(@Param('id') id: string) {
+    const doRecord = await this.salesOrderService.getDeliveryOrderById(id as UUID);
+    if (!doRecord) return { success: false, message: 'Delivery Order not found', data: null as any };
+    return successResponse(doRecord);
+  }
+
   @ApiOperation({ summary: 'Get Sales Order by ID' })
   @ApiParam({ name: 'id', description: 'Sales Order ID' })
   @Get(':id')

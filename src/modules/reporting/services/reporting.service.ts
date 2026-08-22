@@ -366,22 +366,38 @@ export class ReportingService implements IReportingService {
 
   async getStockPositionReport(params: StockParams): Promise<StockPositionReport> {
     const asOf = params.as_of_date || new Date();
-    // Query inventory ledger for stock position
+    // Query inventory ledger for stock position using partitioned deterministic latest-row snapshot
     const result = await this.prisma.$queryRawUnsafe<any[]>(`
+      WITH latest_ledger AS (
+        SELECT 
+          product_id,
+          warehouse_id,
+          running_qty,
+          running_cost,
+          ROW_NUMBER() OVER (
+            PARTITION BY product_id, warehouse_id 
+            ORDER BY movement_date DESC, created_at DESC, id DESC
+          ) as rn
+        FROM inventory_ledger
+        WHERE movement_date <= $1::timestamp
+      )
       SELECT 
         p.id as product_id,
         p.code as product_code,
         p.name as product_name,
         w.id as warehouse_id,
         w.name as warehouse_name,
-        COALESCE(SUM(l.qty_in) - SUM(l.qty_out), 0) as qty_on_hand,
-        COALESCE(SUM(l.total_cost), 0) as total_value
-      FROM products p
-      CROSS JOIN warehouses w
-      LEFT JOIN inventory_ledger l ON p.id = l.product_id AND w.id = l.warehouse_id AND l.movement_date <= $1::timestamp
-      WHERE ($2::uuid IS NULL OR w.id = $2::uuid)
-      GROUP BY p.id, p.code, p.name, w.id, w.name
-      HAVING COALESCE(SUM(l.qty_in) - SUM(l.qty_out), 0) > 0
+        ll.running_qty as qty_on_hand,
+        ll.running_cost as total_value
+      FROM latest_ledger ll
+      JOIN products p ON ll.product_id = p.id
+      JOIN warehouses w ON ll.warehouse_id = w.id
+      WHERE ll.rn = 1 
+        AND ll.running_qty > 0
+        AND ($2::uuid IS NULL OR w.id = $2::uuid)
+        AND p.deleted_at IS NULL
+        AND w.deleted_at IS NULL
+      ORDER BY p.code ASC, w.name ASC
     `, asOf, params.warehouse_id || null);
 
     return {

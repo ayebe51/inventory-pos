@@ -7,11 +7,12 @@ import { DebitNoteService } from './services/debit-note.service';
 import { AuditModule } from '../../services/audit/audit.module';
 import { NumberingModule } from '../../services/numbering/numbering.module';
 import { JournalEngineModule } from '../../services/journal-engine/journal-engine.module';
+import { PurchaseModule } from '../purchase/purchase.module';
 import { InvoiceController } from './controllers/invoice.controller';
 import { PaymentController } from './controllers/payment.controller';
 
 @Module({
-  imports: [AuditModule, NumberingModule, JournalEngineModule],
+  imports: [AuditModule, NumberingModule, JournalEngineModule, PurchaseModule],
   controllers: [InvoiceController, PaymentController],
   providers: [
     InvoiceService,

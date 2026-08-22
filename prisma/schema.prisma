@@ -33,6 +33,7 @@ model Branch {
   purchase_orders   PurchaseOrder[]
   shifts            Shift[]
   sales_orders      SalesOrder[]
+  purchase_returns  PurchaseReturn[]
   invoices          Invoice[]
   payments          Payment[]
   chart_of_accounts ChartOfAccount[]
@@ -68,6 +69,7 @@ model Warehouse {
   stock_opnames        StockOpname[]
   shifts               Shift[]
   sales_orders         SalesOrder[]
+  purchase_returns     PurchaseReturn[]
   delivery_orders      DeliveryOrder[]
   sales_returns        SalesReturn[]
 
@@ -114,6 +116,7 @@ model User {
   delivery_orders_created         DeliveryOrder[]       @relation("DOCreatedBy")
   sales_returns_approved          SalesReturn[]         @relation("SRApprovedBy")
   sales_returns_created           SalesReturn[]         @relation("SRCreatedBy")
+  purchase_returns_created        PurchaseReturn[]      @relation("PRetCreatedBy")
   invoices_posted                 Invoice[]             @relation("InvoicePostedBy")
   invoices_created                Invoice[]             @relation("InvoiceCreatedBy")
   payments_approved               Payment[]             @relation("PaymentApprovedBy")
@@ -243,6 +246,7 @@ model UnitOfMeasure {
   pos_lines         PosTransactionLine[]
   so_lines          SalesOrderLine[]
   return_lines      SalesReturnLine[]
+  pr_return_lines   PurchaseReturnLine[]
 
   @@map("units_of_measure")
 }
@@ -277,23 +281,24 @@ model Product {
   updated_at        DateTime  @updatedAt
   deleted_at        DateTime?
 
-  category         Category              @relation(fields: [category_id], references: [id])
-  brand            Brand?                @relation(fields: [brand_id], references: [id])
-  uom              UnitOfMeasure         @relation("ProductBaseUOM", fields: [uom_id], references: [id])
-  uom_purchase     UnitOfMeasure?        @relation("ProductPurchaseUOM", fields: [uom_purchase_id], references: [id])
-  uom_sales        UnitOfMeasure?        @relation("ProductSalesUOM", fields: [uom_sales_id], references: [id])
-  price_list_items PriceListItem[]
-  pr_lines         PurchaseRequestLine[]
-  po_lines         PurchaseOrderLine[]
-  gr_lines         GoodsReceiptLine[]
-  inventory_ledger InventoryLedger[]
-  transfer_lines   StockTransferLine[]
-  adjustment_lines StockAdjustmentLine[]
-  opname_lines     StockOpnameLine[]
-  pos_lines        PosTransactionLine[]
-  so_lines         SalesOrderLine[]
-  return_lines     SalesReturnLine[]
-  invoice_lines    InvoiceLine[]
+  category              Category              @relation(fields: [category_id], references: [id])
+  brand                 Brand?                @relation(fields: [brand_id], references: [id])
+  uom                   UnitOfMeasure         @relation("ProductBaseUOM", fields: [uom_id], references: [id])
+  uom_purchase          UnitOfMeasure?        @relation("ProductPurchaseUOM", fields: [uom_purchase_id], references: [id])
+  uom_sales             UnitOfMeasure?        @relation("ProductSalesUOM", fields: [uom_sales_id], references: [id])
+  price_list_items      PriceListItem[]
+  pr_lines              PurchaseRequestLine[]
+  po_lines              PurchaseOrderLine[]
+  gr_lines              GoodsReceiptLine[]
+  inventory_ledger      InventoryLedger[]
+  transfer_lines        StockTransferLine[]
+  adjustment_lines      StockAdjustmentLine[]
+  opname_lines          StockOpnameLine[]
+  pos_lines             PosTransactionLine[]
+  so_lines              SalesOrderLine[]
+  return_lines          SalesReturnLine[]
+  invoice_lines         InvoiceLine[]
+  purchase_return_lines PurchaseReturnLine[]
 
   // Partial index idx_products_active (WHERE deleted_at IS NULL AND is_active = true)
   // is defined in migration 20260410102336_master_data_tables via raw SQL —
@@ -338,9 +343,10 @@ model Supplier {
   updated_at         DateTime  @updatedAt
   deleted_at         DateTime?
 
-  purchase_orders PurchaseOrder[]
-  goods_receipts  GoodsReceipt[]
-  invoices        Invoice[]
+  purchase_orders  PurchaseOrder[]
+  goods_receipts   GoodsReceipt[]
+  purchase_returns PurchaseReturn[]
+  invoices         Invoice[]
   payments        Payment[]
 
   @@map("suppliers")
@@ -991,6 +997,49 @@ model SalesReturnLine {
   uom          UnitOfMeasure @relation(fields: [uom_id], references: [id])
 
   @@map("sales_return_lines")
+}
+
+model PurchaseReturn {
+  id            String    @id @default(uuid()) @db.Uuid
+  return_number String    @unique @db.VarChar(30)
+  supplier_id   String    @db.Uuid
+  branch_id     String    @db.Uuid
+  warehouse_id  String    @db.Uuid
+  po_id         String?   @db.Uuid
+  gr_id         String?   @db.Uuid
+  return_date   DateTime  @default(now())
+  reason        String    @db.Text
+  total_amount  Decimal   @default(0) @db.Decimal(18, 2)
+  status        String    @default("CONFIRMED") @db.VarChar(20)
+  created_by    String    @db.Uuid
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  supplier        Supplier             @relation(fields: [supplier_id], references: [id])
+  branch          Branch               @relation(fields: [branch_id], references: [id])
+  warehouse       Warehouse            @relation(fields: [warehouse_id], references: [id])
+  created_by_user User                 @relation("PRetCreatedBy", fields: [created_by], references: [id])
+  lines           PurchaseReturnLine[]
+
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnLine {
+  id         String   @id @default(uuid()) @db.Uuid
+  return_id  String   @db.Uuid
+  product_id String   @db.Uuid
+  qty        Decimal  @db.Decimal(18, 4)
+  uom_id     String   @db.Uuid
+  unit_cost  Decimal  @default(0) @db.Decimal(18, 4)
+  line_total Decimal  @default(0) @db.Decimal(18, 2)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  purchase_return PurchaseReturn @relation(fields: [return_id], references: [id])
+  product         Product        @relation(fields: [product_id], references: [id])
+  uom             UnitOfMeasure  @relation(fields: [uom_id], references: [id])
+
+  @@map("purchase_return_lines")
 }
 
 // ============================================================

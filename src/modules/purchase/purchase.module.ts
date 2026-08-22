@@ -8,9 +8,11 @@ import { PurchaseRequestService } from './services/purchase-request.service';
 import { PurchaseOrderService } from './services/purchase-order.service';
 import { GoodsReceiptService } from './services/goods-receipt.service';
 import { ThreeWayMatchingService } from './services/three-way-matching.service';
+import { PurchaseReturnService } from './services/purchase-return.service';
 import { PurchaseRequestController } from './controllers/purchase-request.controller';
 import { PurchaseOrderController } from './controllers/purchase-order.controller';
 import { GoodsReceiptController } from './controllers/goods-receipt.controller';
+import { PurchaseReturnController } from './controllers/purchase-return.controller';
 
 import { JournalEngineService } from '../../services/journal-engine/journal-engine.service';
 import { PeriodManagerService } from '../../services/period-manager/period-manager.service';
@@ -20,6 +22,7 @@ import { PeriodManagerService } from '../../services/period-manager/period-manag
     PurchaseRequestController,
     PurchaseOrderController,
     GoodsReceiptController,
+    PurchaseReturnController,
   ],
   providers: [
     PrismaService,
@@ -33,7 +36,14 @@ import { PeriodManagerService } from '../../services/period-manager/period-manag
     PurchaseOrderService,
     GoodsReceiptService,
     ThreeWayMatchingService,
+    PurchaseReturnService,
   ],
-  exports: [PurchaseRequestService, PurchaseOrderService, GoodsReceiptService, ThreeWayMatchingService],
+  exports: [
+    PurchaseRequestService,
+    PurchaseOrderService,
+    GoodsReceiptService,
+    ThreeWayMatchingService,
+    PurchaseReturnService,
+  ],
 })
 export class PurchaseModule {}

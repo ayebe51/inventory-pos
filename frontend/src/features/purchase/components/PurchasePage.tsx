@@ -6,13 +6,16 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, SearchOutlined, CheckOutlined,
-  CloseOutlined, FileDoneOutlined, ReloadOutlined,
+  CloseOutlined, FileDoneOutlined, ReloadOutlined, RollbackOutlined,
 } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../../lib/api';
 import { usePurchaseOrders, useApprovePO, useRejectPO } from '../hooks/usePurchase';
 import type { PurchaseOrder } from '../types/purchase.types';
 import { PurchaseDrawer } from './PurchaseDrawer';
 import { GoodsReceiptDrawer } from './GoodsReceiptDrawer';
+import { PurchaseReturnDrawer } from './PurchaseReturnDrawer';
 
 const { Title, Text } = Typography;
 
@@ -31,12 +34,31 @@ export const PurchasePage: React.FC = () => {
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [grDrawerOpen, setGrDrawerOpen] = useState(false);
+  const [returnDrawerOpen, setReturnDrawerOpen] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [search, setSearch] = useState('');
 
+  const activeKey = location.pathname.includes('/receipts')
+    ? 'receipts'
+    : location.pathname.includes('/returns')
+    ? 'returns'
+    : 'orders';
+
   const { data, isLoading, refetch } = usePurchaseOrders({ search: search || '' });
+  const { data: returnsData, isLoading: isReturnsLoading, refetch: refetchReturns } = useQuery({
+    queryKey: ['purchase-returns'],
+    queryFn: () => api.get('/api/v1/purchase-returns').then((r: any) => r.data),
+    enabled: activeKey === 'returns',
+  });
+
   const approvePO = useApprovePO();
   const rejectPO = useRejectPO();
+
+  const handleTabChange = (key: 'orders' | 'receipts' | 'returns') => {
+    if (key === 'receipts') navigate('/purchase/receipts');
+    else if (key === 'returns') navigate('/purchase/returns');
+    else navigate('/purchase');
+  };
 
   const columns: ColumnsType<PurchaseOrder> = [
     {
@@ -84,40 +106,39 @@ export const PurchasePage: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
-      fixed: 'right',
+      width: 130,
+      align: 'center',
       render: (_, record) => (
-        <Space size={4}>
+        <Space size={8}>
           {record.status === 'PENDING_APPROVAL' && (
             <>
-              <Tooltip title="Approve">
+              <Tooltip title="Approve PO">
                 <Button
                   type="text"
                   size="small"
-                  icon={<CheckOutlined />}
-                  style={{ color: '#34D399' }}
-                  onClick={() => approvePO.mutate(record.id)}
+                  icon={<CheckOutlined style={{ color: '#34D399' }} />}
                   loading={approvePO.isPending}
+                  onClick={() => approvePO.mutate(record.id)}
                 />
               </Tooltip>
-              <Tooltip title="Reject">
+              <Tooltip title="Reject PO">
                 <Button
                   type="text"
                   size="small"
-                  icon={<CloseOutlined />}
                   danger
+                  icon={<CloseOutlined />}
+                  loading={rejectPO.isPending}
                   onClick={() => rejectPO.mutate({ id: record.id, reason: 'Rejected by manager' })}
                 />
               </Tooltip>
             </>
           )}
-          {(record.status === 'APPROVED' || record.status === 'PARTIALLY_RECEIVED') && (
-            <Tooltip title="Create Goods Receipt">
+          {['APPROVED', 'PARTIALLY_RECEIVED'].includes(record.status) && (
+            <Tooltip title="Receive Goods (GR)">
               <Button
                 type="text"
                 size="small"
-                icon={<FileDoneOutlined />}
-                style={{ color: 'var(--brand-600)' }}
+                icon={<FileDoneOutlined style={{ color: 'var(--brand-600)' }} />}
                 onClick={() => { setSelectedPO(record); setGrDrawerOpen(true); }}
               />
             </Tooltip>
@@ -127,14 +148,45 @@ export const PurchasePage: React.FC = () => {
     },
   ];
 
-  const activeKey = location.pathname.includes('/receipts') ? 'receipts' : 'orders';
-  const handleTabChange = (key: string) => {
-    navigate(key === 'receipts' ? '/purchase/receipts' : '/purchase');
-  };
+  const returnColumns: ColumnsType<any> = [
+    {
+      title: 'Return #',
+      dataIndex: 'return_number',
+      width: 180,
+      render: (v) => <Text code style={{ color: '#F43F5E' }}>{v}</Text>,
+    },
+    {
+      title: 'Supplier',
+      dataIndex: ['supplier', 'name'],
+      ellipsis: true,
+    },
+    {
+      title: 'Warehouse',
+      dataIndex: ['warehouse', 'name'],
+    },
+    {
+      title: 'Date',
+      dataIndex: 'return_date',
+      width: 130,
+      render: (d) => new Date(d).toLocaleDateString('id-ID'),
+    },
+    {
+      title: 'Total Amount',
+      dataIndex: 'total_amount',
+      align: 'right',
+      width: 180,
+      render: (v) => <Text className="number-display" style={{ fontWeight: 600 }}>Rp {v?.toLocaleString('id-ID') ?? '—'}</Text>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 120,
+      render: (s) => <Tag color="error">{s}</Tag>,
+    },
+  ];
 
   return (
     <div className="page-container" style={{ paddingBottom: 40 }}>
-      {/* Eyebrow Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{
           display: 'inline-flex',
@@ -151,29 +203,41 @@ export const PurchasePage: React.FC = () => {
           textTransform: 'uppercase',
           marginBottom: 8
         }}>
-          <span>Procurement & Vendor Management</span>
+          <span>Procurement & Supply Chain</span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div>
             <Title level={2} className="page-title" style={{ margin: '0 0 6px 0', fontSize: 28, fontWeight: 800, letterSpacing: '-0.025em' }}>
-              Procurement & Purchase
+              Purchasing Management
             </Title>
-            <Text className="page-subtitle" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Manage vendor purchase orders, approval workflows, and receiving goods (GR).
+            <Text style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
+              Manage purchase orders, receiving, and vendor returns.
             </Text>
           </div>
 
-          {activeKey === 'orders' && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setDrawerOpen(true)}
-              style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
-            >
-              Create PO
-            </Button>
-          )}
+          <Space>
+            {activeKey === 'returns' ? (
+              <Button
+                type="primary"
+                danger
+                icon={<RollbackOutlined />}
+                onClick={() => setReturnDrawerOpen(true)}
+                style={{ height: 40, borderRadius: 10, fontWeight: 700 }}
+              >
+                Buat Retur Pembelian
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setDrawerOpen(true)}
+                style={{ height: 40, borderRadius: 10, fontWeight: 700, boxShadow: '0 4px 12px var(--brand-glow)' }}
+              >
+                Create PO
+              </Button>
+            )}
+          </Space>
         </div>
       </div>
 
@@ -186,7 +250,6 @@ export const PurchasePage: React.FC = () => {
           background: 'var(--solid-bg)'
         }}
       >
-        {/* Custom Pill Navigation Bar */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -241,6 +304,28 @@ export const PurchasePage: React.FC = () => {
           >
             <span>Goods Receipts</span>
           </button>
+
+          <button
+            onClick={() => handleTabChange('returns')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '9px 20px',
+              borderRadius: 9999,
+              border: 'none',
+              background: activeKey === 'returns' ? '#18181B' : 'transparent',
+              color: activeKey === 'returns' ? '#FFFFFF' : 'var(--text-secondary)',
+              fontWeight: activeKey === 'returns' ? 600 : 500,
+              fontSize: 13.5,
+              cursor: 'pointer',
+              boxShadow: activeKey === 'returns' ? '0 4px 12px rgba(24, 24, 27, 0.25)' : 'none',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span>Purchase Returns (Retur Beli)</span>
+          </button>
         </div>
 
         {activeKey === 'orders' ? (
@@ -269,6 +354,23 @@ export const PurchasePage: React.FC = () => {
               style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
             />
           </>
+        ) : activeKey === 'returns' ? (
+          <>
+            <div style={{ marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetchReturns()} style={{ borderRadius: 8 }}>
+                Refresh
+              </Button>
+            </div>
+            <Table
+              columns={returnColumns}
+              dataSource={returnsData?.data || []}
+              loading={isReturnsLoading}
+              rowKey="id"
+              scroll={{ x: 800 }}
+              pagination={{ pageSize: 10 }}
+              size="middle"
+            />
+          </>
         ) : (
           <div style={{ padding: '40px 0', textAlign: 'center' }}>
             <Text style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500 }}>
@@ -287,6 +389,10 @@ export const PurchasePage: React.FC = () => {
         open={grDrawerOpen}
         onClose={() => { setGrDrawerOpen(false); setSelectedPO(null); }}
         purchaseOrder={selectedPO}
+      />
+      <PurchaseReturnDrawer
+        open={returnDrawerOpen}
+        onClose={() => setReturnDrawerOpen(false)}
       />
     </div>
   );

@@ -21,8 +21,8 @@ import {
   ChevronsRight,
   ChevronsLeft,
   Building2,
-  Box,
   Settings,
+  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -40,7 +40,7 @@ interface NavGroup {
   }[];
 }
 
-/* 7 Kelompok Utama Navigasi Mini ERP Retail System */
+/* Kelompok Utama Navigasi Mini ERP Retail System (Streamlined & Efficient) */
 const MINI_ERP_NAV_GROUPS: NavGroup[] = [
   {
     groupName: 'DASHBOARD',
@@ -49,15 +49,15 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupName: 'TRANSAKSI',
+    groupName: 'POS & PENJUALAN',
     items: [
       {
         key: '/pos',
-        label: 'POS Kasir',
+        label: 'POS Kasir & Sales',
         icon: <ShoppingCart size={17} />,
         subItems: [
           { key: '/pos', label: 'Kasir Checkout' },
-          { key: '/sales', label: 'Daftar Transaksi' },
+          { key: '/sales', label: 'Sales Orders (B2B)' },
           { key: '/sales/returns', label: 'Retur Penjualan' },
           { key: '/pos/shift', label: 'Shift Kasir & Laci' },
         ],
@@ -65,26 +65,16 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    groupName: 'PRODUK & STOK',
+    groupName: 'INVENTORI & STOK',
     items: [
       {
         key: '/inventory',
-        label: 'Produk (Master Data)',
+        label: 'Produk & Stok',
         icon: <Package size={17} />,
         subItems: [
-          { key: '/inventory', label: 'Daftar Produk & Katalog' },
-          { key: '/inventory/categories', label: 'Kategori & Brand' },
-        ],
-      },
-      {
-        key: '/inventory/stock',
-        label: 'Persediaan Stok',
-        icon: <Box size={17} />,
-        subItems: [
-          { key: '/inventory/stock', label: 'Kondisi Stok Real-Time' },
-          { key: '/inventory/ledger', label: 'Mutasi & Kartu Stok' },
+          { key: '/inventory', label: 'Master Produk & Katalog' },
           { key: '/inventory/opname', label: 'Stock Opname' },
-          { key: '/inventory/transfers', label: 'Gudang & Transfer Stok' },
+          { key: '/inventory/transfers', label: 'Transfer Gudang' },
         ],
       },
     ],
@@ -94,62 +84,58 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     items: [
       {
         key: '/purchase',
-        label: 'Procurement',
+        label: 'Procurement (PO)',
         icon: <Truck size={17} />,
         subItems: [
-          { key: '/purchase/suppliers', label: 'Daftar Supplier' },
-          { key: '/purchase/requests', label: 'Purchase Request' },
           { key: '/purchase', label: 'Purchase Order (PO)' },
-          { key: '/purchase/receipts', label: 'Penerimaan Barang (GR)' },
-          { key: '/purchase/returns', label: 'Retur Pembelian' },
+          { key: '/purchase/requests', label: 'Purchase Request' },
         ],
       },
     ],
   },
   {
-    groupName: 'KEUANGAN',
+    groupName: 'FINANCE & AKUNTANSI',
     items: [
       {
         key: '/finance',
-        label: 'Finance & Akuntansi',
+        label: 'Finance Hub',
         icon: <DollarSign size={17} />,
         subItems: [
           { key: '/finance', label: 'Kas & Rekening Bank' },
-          { key: '/finance/expenses', label: 'Pengeluaran & Pemasukan' },
-          { key: '/invoicing', label: 'Piutang & Hutang (AR/AP)' },
+          { key: '/invoicing', label: 'Hutang & Piutang (AP/AR)' },
+          { key: '/finance/payments', label: 'Pembayaran (AR/AP)' },
           { key: '/finance/reconciliation', label: 'Jurnal & Rekonsiliasi' },
         ],
       },
     ],
   },
   {
-    groupName: 'LAPORAN',
+    groupName: 'LAPORAN & ANALITIK',
     items: [
       {
         key: '/reporting',
-        label: 'Laporan Executive',
+        label: 'Executive Reports',
         icon: <BarChart2 size={17} />,
-        subItems: [
-          { key: '/reporting/sales', label: 'Laporan Penjualan' },
-          { key: '/reporting/purchase', label: 'Laporan Pembelian' },
-          { key: '/reporting/inventory', label: 'Laporan Persediaan' },
-          { key: '/reporting/financial', label: 'Laporan Keuangan & Profit' },
-        ],
       },
     ],
   },
   {
-    groupName: 'ADMINISTRASI',
+    groupName: 'PENGATURAN',
     items: [
       {
+        key: '/master-data',
+        label: 'Data Master',
+        icon: <Layers size={17} />,
+      },
+      {
         key: '/admin',
-        label: 'Pengaturan & System',
+        label: 'Pengaturan Toko',
         icon: <Settings size={17} />,
         subItems: [
           { key: '/admin/store', label: 'Profil Toko & Cabang' },
-          { key: '/admin/users', label: 'User & Role Management' },
-          { key: '/payment', label: 'Metode Pembayaran' },
-          { key: '/audit', label: 'Audit Log System' },
+          { key: '/admin/users', label: 'User & Hak Akses' },
+          { key: '/admin/roles', label: 'Kelola Peran & Akses' },
+          { key: '/audit', label: 'Audit Log' },
         ],
       },
     ],
@@ -163,9 +149,9 @@ export const Layout: React.FC = () => {
   const [openGroupKeys, setOpenGroupKeys] = useState<Record<string, boolean>>({
     '/pos': true,
     '/inventory': true,
-    '/inventory/stock': true,
     '/purchase': true,
     '/finance': true,
+    '/admin': true,
   });
 
   const { user, clearAuth } = useAuthStore();
@@ -284,27 +270,7 @@ export const Layout: React.FC = () => {
           isExpanded ? styles.sidebarRailExpanded : styles.sidebarRailCollapsed
         }`}
       >
-        {/* Top Special Action CTA: BUKA POS KASIR */}
-        {isExpanded ? (
-          <button
-            className={styles.posCtaBtn}
-            onClick={() => navigate('/pos/shift')}
-          >
-            <ShoppingCart size={18} />
-            <span>BUKA POS KASIR</span>
-          </button>
-        ) : (
-          <Tooltip title="Buka POS Kasir" placement="right">
-            <button
-              className={`${styles.posCtaBtn} ${styles.posCtaBtnCollapsed}`}
-              onClick={() => navigate('/pos/shift')}
-            >
-              <ShoppingCart size={20} />
-            </button>
-          </Tooltip>
-        )}
-
-        {/* Sidebar Island 2: Main Navigation Rail (7 Groups) */}
+        {/* Sidebar Island 1: Main Navigation Rail (7 Groups) */}
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed

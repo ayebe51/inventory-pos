@@ -1,4 +1,3 @@
-import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 /**
  * Unit tests for InvoiceService
  *
@@ -11,10 +10,12 @@ import { InvoiceService } from './invoice.service';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
+import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
 import { CreatePurchaseInvoiceDTO } from '../interfaces/invoicing.interfaces';
+import { ThreeWayMatchingService } from '../../purchase/services/three-way-matching.service';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,12 @@ const mockNumberingService = {
   generate: jest.fn().mockResolvedValue('INV-202501-00001'),
 };
 
+const mockThreeWayMatchingService = {
+  validate: jest.fn().mockResolvedValue({ isValid: true, violations: [], summary: {} }),
+  validateAndThrow: jest.fn().mockResolvedValue(undefined),
+  getMatchingReport: jest.fn().mockResolvedValue({}),
+};
+
 function setupTransactionMock() {
   mockPrismaService.$transaction.mockImplementation(async (fn: (tx: any) => Promise<any>) => {
     const txClient = {
@@ -149,7 +156,8 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: AuditService, useValue: mockAuditService },
         { provide: NumberingService, useValue: mockNumberingService },
-        { provide: JournalEngineService, useValue: { postInvoice: jest.fn() } },
+        { provide: JournalEngineService, useValue: { processEvent: jest.fn(), postInvoice: jest.fn() } },
+        { provide: ThreeWayMatchingService, useValue: mockThreeWayMatchingService },
       ],
     }).compile();
 
@@ -158,8 +166,6 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
     setupTransactionMock();
   });
 
-  // ── Helper function to calculate invoice total ────────────────────────────
-
   function calculateInvoiceTotal(lines: CreatePurchaseInvoiceDTO['lines']): number {
     return lines.reduce((sum, line) => {
       const subtotal = line.qty * line.unit_price;
@@ -167,8 +173,6 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
       return sum + subtotal + taxAmount;
     }, 0);
   }
-
-  // ── Happy path: Invoice amount exactly at PO amount ───────────────────────
 
   describe('Happy path: Invoice amount exactly at PO amount', () => {
     it('should create invoice when amount equals PO amount (Rp 10,000,000)', async () => {
@@ -313,7 +317,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(invoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -348,7 +352,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(invoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -391,7 +395,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(invoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -411,7 +415,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(baseInvoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -432,7 +436,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(baseInvoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -451,7 +455,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(baseInvoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -469,7 +473,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(baseInvoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;
@@ -485,7 +489,7 @@ describe('InvoiceService - BR-PUR-008 Validation', () => {
 
       try {
         await service.createPurchaseInvoice(baseInvoiceData, USER_ID);
-        fail('should have thrown BusinessRuleException');
+        expect(true).toBe(false);
       } catch (err) {
         expect(err).toBeInstanceOf(BusinessRuleException);
         const response = (err as BusinessRuleException).getResponse() as any;

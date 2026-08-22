@@ -1,11 +1,7 @@
 import {
-  Body,
   Controller,
   Get,
-  Param,
-  Post,
   Query,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -15,10 +11,6 @@ import { RequirePermissions } from '../../../common/decorators/permissions.decor
 import { APService } from '../services/ap.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
-
-interface AuthRequest extends Request {
-  user: { sub: string };
-}
 
 @ApiTags('Finance - Accounts Payable')
 @ApiBearerAuth()
@@ -33,25 +25,5 @@ export class APController {
   async getOutstanding(@Query('branch_id') branchId?: UUID) {
     const data = await this.apService.getAPOutstanding(branchId);
     return successResponse(data);
-  }
-
-  @ApiOperation({ summary: 'Record payment to supplier' })
-  @Post('invoices/:id/payment')
-  @RequirePermissions('INVOICE.MANAGE')
-  async recordPayment(
-    @Param('id') id: UUID,
-    @Body('amount') amount: number,
-    @Body('payment_method_id') paymentMethodId: UUID,
-    @Body('reference_number') referenceNumber: string,
-    @Request() req: AuthRequest,
-  ) {
-    const result = await this.apService.recordSupplierPayment(
-      id,
-      amount,
-      paymentMethodId,
-      req.user.sub as UUID,
-      referenceNumber,
-    );
-    return successResponse(result, 'Supplier payment recorded successfully');
   }
 }
