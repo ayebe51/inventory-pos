@@ -385,7 +385,9 @@ export const Layout: React.FC = () => {
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
-          } ${styles.islandFooter}`}
+          } ${styles.islandFooter} ${
+            isExpanded ? styles.islandFooterExpanded : styles.islandFooterCollapsed
+          }`}
         >
           {isExpanded ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
