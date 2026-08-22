@@ -43,7 +43,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
 
   const { data: branchesResponse } = useQuery({
     queryKey: ['branches'],
-    queryFn: () => api.get('/api/v1/master-data/branches').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/organization/branches').then((r) => r.data),
   });
   const branches = branchesResponse?.data || [];
 

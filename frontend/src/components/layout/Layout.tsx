@@ -22,6 +22,7 @@ import {
   ChevronsLeft,
   Building2,
   Settings,
+  Layers,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -39,7 +40,7 @@ interface NavGroup {
   }[];
 }
 
-/* 7 Kelompok Utama Navigasi Mini ERP Retail System (Streamlined & Efficient) */
+/* Kelompok Utama Navigasi Mini ERP Retail System (Streamlined & Efficient) */
 const MINI_ERP_NAV_GROUPS: NavGroup[] = [
   {
     groupName: 'DASHBOARD',
@@ -56,7 +57,7 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
         icon: <ShoppingCart size={17} />,
         subItems: [
           { key: '/pos', label: 'Kasir Checkout' },
-          { key: '/sales', label: 'Daftar Transaksi' },
+          { key: '/sales', label: 'Sales Orders (B2B)' },
           { key: '/sales/returns', label: 'Retur Penjualan' },
           { key: '/pos/shift', label: 'Shift Kasir & Laci' },
         ],
@@ -72,7 +73,6 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
         icon: <Package size={17} />,
         subItems: [
           { key: '/inventory', label: 'Master Produk & Katalog' },
-          { key: '/inventory/stock', label: 'Persediaan & Mutasi' },
           { key: '/inventory/opname', label: 'Stock Opname' },
           { key: '/inventory/transfers', label: 'Transfer Gudang' },
         ],
@@ -89,7 +89,6 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
         subItems: [
           { key: '/purchase', label: 'Purchase Order (PO)' },
           { key: '/purchase/requests', label: 'Purchase Request' },
-          { key: '/purchase/suppliers', label: 'Daftar Supplier' },
         ],
       },
     ],
@@ -104,6 +103,7 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
         subItems: [
           { key: '/finance', label: 'Kas & Rekening Bank' },
           { key: '/invoicing', label: 'Hutang & Piutang (AP/AR)' },
+          { key: '/finance/payments', label: 'Pembayaran (AR/AP)' },
           { key: '/finance/reconciliation', label: 'Jurnal & Rekonsiliasi' },
         ],
       },
@@ -123,12 +123,18 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
     groupName: 'PENGATURAN',
     items: [
       {
+        key: '/master-data',
+        label: 'Data Master',
+        icon: <Layers size={17} />,
+      },
+      {
         key: '/admin',
         label: 'Pengaturan Toko',
         icon: <Settings size={17} />,
         subItems: [
           { key: '/admin/store', label: 'Profil Toko & Cabang' },
           { key: '/admin/users', label: 'User & Hak Akses' },
+          { key: '/admin/roles', label: 'Kelola Peran & Akses' },
           { key: '/audit', label: 'Audit Log' },
         ],
       },
@@ -143,9 +149,9 @@ export const Layout: React.FC = () => {
   const [openGroupKeys, setOpenGroupKeys] = useState<Record<string, boolean>>({
     '/pos': true,
     '/inventory': true,
-    '/inventory/stock': true,
     '/purchase': true,
     '/finance': true,
+    '/admin': true,
   });
 
   const { user, clearAuth } = useAuthStore();

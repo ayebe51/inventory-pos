@@ -1,37 +1,20 @@
 import React from 'react';
-import { Card, Table, Tag, Button, Typography, Space, Statistic, Row, Col, Modal, Input, message } from 'antd';
+import { Card, Table, Tag, Button, Typography, Statistic, Row, Col, Alert } from 'antd';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
 
 const { Text } = Typography;
 
 export const ARSubPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [selectedInvoice, setSelectedInvoice] = React.useState<any>(null);
-  const [isWriteOffOpen, setIsWriteOffOpen] = React.useState(false);
-  const [reason, setReason] = React.useState('');
+  const navigate = useNavigate();
 
   const { data: outstandingInvoices, isLoading } = useQuery({
     queryKey: ['finance', 'ar', 'outstanding'],
     queryFn: async () => {
       const res = await api.get('/api/v1/finance/ar/outstanding');
       return res.data.data || [];
-    },
-  });
-
-  const writeOffMutation = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const res = await api.post(`/api/v1/finance/ar/invoices/${id}/write-off`, { reason });
-      return res.data;
-    },
-    onSuccess: () => {
-      message.success('Bad debt written off successfully');
-      queryClient.invalidateQueries({ queryKey: ['finance', 'ar', 'outstanding'] });
-      setIsWriteOffOpen(false);
-    },
-    onError: (err: any) => {
-      message.error(err.response?.data?.message || 'Failed to write off bad debt');
     },
   });
 
@@ -77,23 +60,6 @@ export const ARSubPage: React.FC = () => {
         </Text>
       ),
     },
-    {
-      title: 'ACTION',
-      key: 'action',
-      align: 'center' as const,
-      render: (_: any, record: any) => (
-        <Button
-          danger
-          size="small"
-          onClick={() => {
-            setSelectedInvoice(record);
-            setIsWriteOffOpen(true);
-          }}
-        >
-          Write Off
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -121,6 +87,18 @@ export const ARSubPage: React.FC = () => {
         </Col>
       </Row>
 
+      <Alert
+        type="info"
+        showIcon
+        message="Untuk mengelola invoice, melunasi tagihan, atau melakukan write-off, gunakan halaman Invoicing & Billing."
+        action={
+          <Button size="small" type="primary" onClick={() => navigate('/invoicing')}>
+            Buka Invoicing & Billing →
+          </Button>
+        }
+        style={{ marginBottom: 20, borderRadius: 10 }}
+      />
+
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -138,29 +116,6 @@ export const ARSubPage: React.FC = () => {
           pagination={{ pageSize: 10 }}
         />
       </Card>
-
-      <Modal
-        title="Write Off Bad Debt (AR)"
-        open={isWriteOffOpen}
-        onCancel={() => setIsWriteOffOpen(false)}
-        onOk={() => {
-          if (selectedInvoice) {
-            writeOffMutation.mutate({ id: selectedInvoice.id, reason });
-          }
-        }}
-        confirmLoading={writeOffMutation.isPending}
-      >
-        <Space direction="vertical" style={{ width: '100%', padding: '12px 0' }}>
-          <Text>Are you sure you want to write off invoice <strong>{selectedInvoice?.invoice_number}</strong> of <strong>Rp {(selectedInvoice?.outstanding_amount || 0).toLocaleString('id-ID')}</strong>?</Text>
-          <Text type="secondary">This will post a `WRITE_OFF_AR` journal entry to General Ledger.</Text>
-          <Input.TextArea
-            rows={3}
-            placeholder="Reason for write off..."
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </Space>
-      </Modal>
     </div>
   );
 };

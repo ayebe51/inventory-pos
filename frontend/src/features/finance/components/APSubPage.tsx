@@ -1,40 +1,20 @@
 import React from 'react';
-import { Card, Table, Tag, Button, Typography, Space, Statistic, Row, Col, Modal, Form, InputNumber, message } from 'antd';
+import { Card, Table, Tag, Button, Typography, Statistic, Row, Col, Alert } from 'antd';
 import { BookOutlined } from '@ant-design/icons';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
 
 const { Text } = Typography;
 
 export const APSubPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [selectedInvoice, setSelectedInvoice] = React.useState<any>(null);
-  const [isPaymentOpen, setIsPaymentOpen] = React.useState(false);
-  const [payAmount, setPayAmount] = React.useState<number>(0);
+  const navigate = useNavigate();
 
   const { data: outstandingPayables, isLoading } = useQuery({
     queryKey: ['finance', 'ap', 'outstanding'],
     queryFn: async () => {
       const res = await api.get('/api/v1/finance/ap/outstanding');
       return res.data.data || [];
-    },
-  });
-
-  const paymentMutation = useMutation({
-    mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
-      const res = await api.post(`/api/v1/finance/ap/invoices/${id}/payment`, {
-        amount,
-        payment_method_id: '11111111-1111-1111-1111-111111111111', // default payment method
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      message.success('Supplier payment recorded successfully');
-      queryClient.invalidateQueries({ queryKey: ['finance', 'ap', 'outstanding'] });
-      setIsPaymentOpen(false);
-    },
-    onError: (err: any) => {
-      message.error(err.response?.data?.message || 'Failed to record supplier payment');
     },
   });
 
@@ -80,24 +60,6 @@ export const APSubPage: React.FC = () => {
         </Text>
       ),
     },
-    {
-      title: 'ACTION',
-      key: 'action',
-      align: 'center' as const,
-      render: (_: any, record: any) => (
-        <Button
-          type="primary"
-          size="small"
-          onClick={() => {
-            setSelectedInvoice(record);
-            setPayAmount(record.outstanding_amount);
-            setIsPaymentOpen(true);
-          }}
-        >
-          Pay Supplier
-        </Button>
-      ),
-    },
   ];
 
   return (
@@ -125,6 +87,18 @@ export const APSubPage: React.FC = () => {
         </Col>
       </Row>
 
+      <Alert
+        type="info"
+        showIcon
+        message="Untuk mencatat pembayaran ke supplier (AP) atau voucher pembayaran, gunakan halaman Pembayaran."
+        action={
+          <Button size="small" type="primary" onClick={() => navigate('/finance/payments')}>
+            Buka Pembayaran (AR/AP) →
+          </Button>
+        }
+        style={{ marginBottom: 20, borderRadius: 10 }}
+      />
+
       <Card
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -142,34 +116,6 @@ export const APSubPage: React.FC = () => {
           pagination={{ pageSize: 10 }}
         />
       </Card>
-
-      <Modal
-        title="Record Supplier Payment"
-        open={isPaymentOpen}
-        onCancel={() => setIsPaymentOpen(false)}
-        onOk={() => {
-          if (selectedInvoice && payAmount > 0) {
-            paymentMutation.mutate({ id: selectedInvoice.id, amount: payAmount });
-          }
-        }}
-        confirmLoading={paymentMutation.isPending}
-      >
-        <Space direction="vertical" style={{ width: '100%', padding: '12px 0' }}>
-          <Text>Pay supplier <strong>{selectedInvoice?.supplier_name}</strong> for invoice <strong>{selectedInvoice?.invoice_number}</strong></Text>
-          <Text type="secondary">Outstanding balance: Rp {(selectedInvoice?.outstanding_amount || 0).toLocaleString('id-ID')}</Text>
-          <Form layout="vertical">
-            <Form.Item label="Payment Amount (Rp)">
-              <InputNumber
-                style={{ width: '100%' }}
-                min={1}
-                max={selectedInvoice?.outstanding_amount}
-                value={payAmount}
-                onChange={(val) => setPayAmount(val || 0)}
-              />
-            </Form.Item>
-          </Form>
-        </Space>
-      </Modal>
     </div>
   );
 };

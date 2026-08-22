@@ -13,6 +13,8 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
 import { InvoiceService } from '../services/invoice.service';
+import { CreditNoteService } from '../services/credit-note.service';
+import { DebitNoteService } from '../services/debit-note.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
 import { CreateSalesInvoiceDTO, CreatePurchaseInvoiceDTO } from '../dto/invoicing.dto';
@@ -26,7 +28,11 @@ interface AuthRequest extends Request {
 @UseGuards(JwtAuthGuard, RbacGuard)
 @Controller('api/v1/invoices')
 export class InvoiceController {
-  constructor(private readonly invoiceService: InvoiceService) {}
+  constructor(
+    private readonly invoiceService: InvoiceService,
+    private readonly creditNoteService: CreditNoteService,
+    private readonly debitNoteService: DebitNoteService,
+  ) {}
 
   @ApiOperation({ summary: 'Create a new sales invoice' })
   @ApiBody({ type: CreateSalesInvoiceDTO })
@@ -87,6 +93,64 @@ export class InvoiceController {
   async dispute(@Param('id') id: string, @Body('reason') reason: string, @Request() req: AuthRequest) {
     const invoice = await this.invoiceService.dispute(id as UUID, reason, req.user.sub as UUID);
     return successResponse(invoice, 'Invoice status set to disputed');
+  }
+
+  @ApiOperation({ summary: 'Create a Credit Note for a Sales Invoice' })
+  @ApiParam({ name: 'id', description: 'Sales Invoice ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', example: 500000 },
+        reason: { type: 'string', example: 'Damaged item credit adjustment' }
+      },
+      required: ['amount', 'reason']
+    }
+  })
+  @Post(':id/credit-note')
+  @RequirePermissions('INVOICE.CREATE')
+  async createCreditNote(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Body('reason') reason: string,
+    @Request() req: AuthRequest,
+  ) {
+    const cn = await this.creditNoteService.createCreditNote(
+      id as UUID,
+      Number(amount),
+      reason,
+      req.user.sub as UUID,
+    );
+    return successResponse(cn, 'Credit Note created successfully');
+  }
+
+  @ApiOperation({ summary: 'Create a Debit Note for a Purchase Invoice' })
+  @ApiParam({ name: 'id', description: 'Purchase Invoice ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', example: 300000 },
+        reason: { type: 'string', example: 'Supplier overcharge debit adjustment' }
+      },
+      required: ['amount', 'reason']
+    }
+  })
+  @Post(':id/debit-note')
+  @RequirePermissions('INVOICE.CREATE')
+  async createDebitNote(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Body('reason') reason: string,
+    @Request() req: AuthRequest,
+  ) {
+    const dn = await this.debitNoteService.createDebitNote(
+      id as UUID,
+      Number(amount),
+      reason,
+      req.user.sub as UUID,
+    );
+    return successResponse(dn, 'Debit Note created successfully');
   }
 
   @Get()

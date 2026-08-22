@@ -90,6 +90,14 @@ export class SalesOrderService implements ISalesOrderService {
       if (!so) throw new BusinessRuleException('SO not found', ErrorCode.NOT_FOUND);
       if (so.status !== 'PENDING_APPROVAL') throw new BusinessRuleException('SO is not pending approval', ErrorCode.BUSINESS_RULE_VIOLATION);
 
+      // Enforce Segregation of Duties (SoD): Creator cannot approve their own SO
+      if (so.created_by && so.created_by === userId) {
+        throw new BusinessRuleException(
+          'Segregation of Duties violation: The creator of a Sales Order cannot approve it.',
+          ErrorCode.BUSINESS_RULE_VIOLATION,
+        );
+      }
+
       const updated = await tx.salesOrder.update({
         where: { id },
         data: {
@@ -372,5 +380,61 @@ export class SalesOrderService implements ISalesOrderService {
       data,
       meta: { total, page, per_page },
     };
+  }
+
+  async listDeliveryOrders(params?: {
+    so_id?: UUID;
+    page?: number;
+    per_page?: number;
+  }) {
+    const page = params?.page || 1;
+    const perPage = params?.per_page || 20;
+    const skip = (page - 1) * perPage;
+
+    const where: any = {};
+    if (params?.so_id) where.so_id = params.so_id;
+
+    const [data, total] = await Promise.all([
+      this.prisma.deliveryOrder.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: { delivery_date: 'desc' },
+        include: {
+          sales_order: {
+            include: {
+              customer: true,
+              lines: {
+                include: { product: true },
+              },
+            },
+          },
+          warehouse: true,
+        },
+      }),
+      this.prisma.deliveryOrder.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, per_page: perPage },
+    };
+  }
+
+  async getDeliveryOrderById(id: UUID) {
+    return this.prisma.deliveryOrder.findUnique({
+      where: { id },
+      include: {
+        sales_order: {
+          include: {
+            customer: true,
+            lines: {
+              include: { product: true },
+            },
+          },
+        },
+        warehouse: true,
+      },
+    });
   }
 }

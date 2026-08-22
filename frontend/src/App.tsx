@@ -281,13 +281,12 @@ export const App: React.FC = () => {
 
                   {/* Inventory & Stock */}
                   <Route path="inventory" element={<InventoryPage />} />
-                  <Route path="inventory/categories" element={<InventoryPage />} />
-                  <Route path="inventory/stock" element={<InventoryPage />} />
+                  <Route path="inventory/categories" element={<Navigate to="/master-data" replace />} />
+                  <Route path="inventory/stock" element={<Navigate to="/inventory" replace />} />
                   <Route path="inventory/ledger" element={<StockLedgerPage />} />
                   <Route path="inventory/transfers" element={<StockTransferPage />} />
                   <Route path="inventory/opname" element={<StockOpnamePage />} />
                   <Route path="inventory/goods-receipt" element={<Navigate to="/purchase/receipts" replace />} />
-                  <Route path="inventory/goods-receipts" element={<Navigate to="/purchase/receipts" replace />} />
 
                   {/* Sales */}
                   <Route path="sales" element={<SalesOrderPage />} />
@@ -295,7 +294,7 @@ export const App: React.FC = () => {
 
                   {/* Procurement */}
                   <Route path="purchase" element={<PurchasePage />} />
-                  <Route path="purchase/suppliers" element={<PurchasePage />} />
+                  <Route path="purchase/suppliers" element={<Navigate to="/master-data" replace />} />
                   <Route path="purchase/requests" element={<PurchaseRequestPage />} />
                   <Route path="purchase/receipts" element={<PurchasePage />} />
                   <Route path="purchase/returns" element={<PurchasePage />} />
@@ -328,7 +327,7 @@ export const App: React.FC = () => {
                   <Route path="master-data" element={<MasterDataPage />} />
                   
                   {/* Admin & Security */}
-                  <Route path="admin" element={<UserManagementPage />} />
+                  <Route path="admin" element={<Navigate to="/admin/users" replace />} />
                   <Route path="admin/store" element={<UserManagementPage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />
                   <Route path="admin/roles" element={<RoleManagementPage />} />

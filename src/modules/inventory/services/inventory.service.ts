@@ -377,6 +377,53 @@ export class InventoryService implements IInventoryService {
   }
 
   /**
+   * List stock transfers with optional filtering and pagination
+   */
+  async listStockTransfers(params?: {
+    from_warehouse_id?: UUID;
+    to_warehouse_id?: UUID;
+    page?: number;
+    per_page?: number;
+  }): Promise<{ data: any[]; meta: { total: number; page: number; per_page: number } }> {
+    const page = params?.page || 1;
+    const perPage = params?.per_page || 20;
+    const skip = (page - 1) * perPage;
+
+    const where: any = {};
+    if (params?.from_warehouse_id) where.from_warehouse_id = params.from_warehouse_id;
+    if (params?.to_warehouse_id) where.to_warehouse_id = params.to_warehouse_id;
+
+    const [data, total] = await Promise.all([
+      this.prisma.stockTransfer.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: { transfer_date: 'desc' },
+        include: {
+          from_warehouse: true,
+          to_warehouse: true,
+          lines: {
+            include: {
+              product: true,
+              uom: true,
+            },
+          },
+        },
+      }),
+      this.prisma.stockTransfer.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        per_page: perPage,
+      },
+    };
+  }
+
+  /**
    * Adjust stock with reason
    *
    * @param data Stock adjustment data

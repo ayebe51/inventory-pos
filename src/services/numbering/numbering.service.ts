@@ -19,6 +19,7 @@ export enum DocumentType {
   DN = 'DN',   // Debit Note
   TO = 'TO',   // Transfer Order
   SHF = 'SHF', // POS Shift
+  PRET = 'PRET', // Purchase Return
 }
 
 /** POS uses daily period (YYYYMMDD); all others use monthly (YYYYMM) */

@@ -61,6 +61,17 @@ export class OrganizationController {
   }
 
   /**
+   * GET /api/v1/organization/branches
+   * Return flat list of active branches.
+   */
+  @ApiOperation({ summary: 'Get list of all active branches' })
+  @Get('branches')
+  async listBranches() {
+    const branches = await this.organizationService.listBranches();
+    return successResponse(branches);
+  }
+
+  /**
    * GET /api/v1/organization/hierarchy
    * Return full hierarchy tree (or subtree if branchId query param provided).
    */

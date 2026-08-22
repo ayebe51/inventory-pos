@@ -230,4 +230,15 @@ export class OrganizationService {
 
     return roots;
   }
+
+  /**
+   * Get all active branches as flat list
+   */
+  async listBranches(): Promise<Branch[]> {
+    const rows = await (this.prisma.branch as any).findMany({
+      where: { deleted_at: null, is_active: true },
+      orderBy: { name: 'asc' },
+    });
+    return rows.map(mapBranch);
+  }
 }

@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RbacGuard } from '../../../common/guards/rbac.guard';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
@@ -24,6 +26,32 @@ interface AuthRequest extends Request {
 @Controller('api/v1/inventory/stock-transfers')
 export class StockTransferController {
   constructor(private readonly inventoryService: InventoryService) {}
+
+  /**
+   * GET /api/v1/inventory/stock-transfers
+   * List all stock transfers
+   */
+  @ApiOperation({ summary: 'List all stock transfers' })
+  @ApiQuery({ name: 'from_warehouse_id', required: false })
+  @ApiQuery({ name: 'to_warehouse_id', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'per_page', required: false })
+  @Get()
+  @RequirePermissions('STOCK.TRANSFER')
+  async listTransfers(
+    @Query('from_warehouse_id') fromWarehouseId?: string,
+    @Query('to_warehouse_id') toWarehouseId?: string,
+    @Query('page') page?: string,
+    @Query('per_page') perPage?: string,
+  ) {
+    const result = await this.inventoryService.listStockTransfers({
+      from_warehouse_id: fromWarehouseId as UUID,
+      to_warehouse_id: toWarehouseId as UUID,
+      page: page ? parseInt(page, 10) : 1,
+      per_page: perPage ? parseInt(perPage, 10) : 20,
+    });
+    return successResponse(result.data, 'Stock transfers retrieved successfully', result.meta);
+  }
 
   /**
    * POST /api/v1/inventory/stock-transfers

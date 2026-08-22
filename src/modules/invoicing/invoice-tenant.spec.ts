@@ -25,12 +25,14 @@ describe('P0-002 Cross-Branch Tenant Isolation Unit Test', () => {
     mockAudit = { record: jest.fn() };
     mockNumbering = { generate: jest.fn() };
     mockJournalEngine = { processEvent: jest.fn() };
+    const mockThreeWayMatching = { validateAndThrow: jest.fn().mockResolvedValue({ isValid: true }) };
 
     invoiceService = new InvoiceService(
       mockPrisma as any,
       mockAudit as any,
       mockNumbering as any,
       mockJournalEngine as any,
+      mockThreeWayMatching as any,
     );
   });
 

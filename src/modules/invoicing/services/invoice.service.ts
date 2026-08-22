@@ -6,6 +6,7 @@ import { JournalEngineService } from '../../../services/journal-engine/journal-e
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
+import { ThreeWayMatchingService } from '../../purchase/services/three-way-matching.service';
 import {
   Invoice,
   InvoiceStatus,
@@ -66,6 +67,7 @@ export class InvoiceService implements IInvoiceService {
     private readonly audit: AuditService,
     private readonly numbering: NumberingService,
     private readonly journalEngine: JournalEngineService,
+    private readonly threeWayMatching: ThreeWayMatchingService,
   ) {}
 
   /**
@@ -242,9 +244,17 @@ export class InvoiceService implements IInvoiceService {
     );
     const totalAmount = subtotal + taxAmount;
 
-    // BR-PUR-008: Validate invoice amount does not exceed PO amount + 5%
+    // BR-PUR-003 & BR-PUR-008: Validate 3-way matching against PO and Goods Receipts
     if (data.po_id) {
       await this.validatePurchaseInvoiceAmount(data.po_id, totalAmount);
+      await this.threeWayMatching.validateAndThrow({
+        po_id: data.po_id,
+        invoice_lines: data.lines.map((l) => ({
+          product_id: l.product_id,
+          qty: l.qty,
+          unit_price: l.unit_price,
+        })),
+      });
     }
 
     // Generate invoice number
@@ -382,6 +392,24 @@ export class InvoiceService implements IInvoiceService {
         `Cannot post invoice in ${existing.status} status. Invoice must be in DRAFT status.`,
         ErrorCode.BUSINESS_RULE_VIOLATION,
       );
+    }
+
+    // Server-side boundary check: Enforce 3-way matching before posting purchase invoice
+    if (existing.invoice_type === 'PURCHASE' && existing.reference_type === 'PO' && existing.reference_id) {
+      const invWithLines = await this.prisma.invoice.findUnique({
+        where: { id },
+        include: { lines: true },
+      });
+      if (invWithLines && invWithLines.lines.length > 0) {
+        await this.threeWayMatching.validateAndThrow({
+          po_id: existing.reference_id as UUID,
+          invoice_lines: invWithLines.lines.map((l) => ({
+            product_id: l.product_id as UUID,
+            qty: Number(l.qty),
+            unit_price: Number(l.unit_price),
+          })),
+        });
+      }
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
