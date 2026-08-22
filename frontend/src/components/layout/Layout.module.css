@@ -61,6 +61,22 @@
   padding: 12px;
 }
 
+/* Sidebar Island 1: KIRO POS Brand Island (Top Left) */
+.sidebarIslandBrand {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) ease, box-shadow var(--dur-fast) ease;
+}
+
+.sidebarIslandBrand:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg, 0 6px 20px rgba(15,22,41,0.10));
+}
+
 /* Primary CTA Button: Buka POS Kasir (Top of Sidebar) */
 .posCtaBtn {
   pointer-events: auto;

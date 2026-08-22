@@ -35,6 +35,7 @@ const ApprovalPage = lazy(() => import('./features/approvals/components/Approval
 const AuditTrailPage = lazy(() => import('./features/approvals/components/AuditTrailPage').then((m) => ({ default: m.AuditTrailPage })));
 const UserManagementPage = lazy(() => import('./features/admin/components/UserManagementPage').then((m) => ({ default: m.UserManagementPage })));
 const RoleManagementPage = lazy(() => import('./features/admin/components/RoleManagementPage').then((m) => ({ default: m.RoleManagementPage })));
+const StoreProfilePage = lazy(() => import('./features/admin/components/StoreProfilePage').then((m) => ({ default: m.StoreProfilePage })));
 const PageLoader = () => (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -328,7 +329,7 @@ export const App: React.FC = () => {
                   
                   {/* Admin & Security */}
                   <Route path="admin" element={<Navigate to="/admin/users" replace />} />
-                  <Route path="admin/store" element={<UserManagementPage />} />
+                  <Route path="admin/store" element={<StoreProfilePage />} />
                   <Route path="admin/users" element={<UserManagementPage />} />
                   <Route path="admin/roles" element={<RoleManagementPage />} />
 

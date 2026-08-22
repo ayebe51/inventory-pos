@@ -270,7 +270,24 @@ export const Layout: React.FC = () => {
           isExpanded ? styles.sidebarRailExpanded : styles.sidebarRailCollapsed
         }`}
       >
-        {/* Sidebar Island 1: Main Navigation Rail (7 Groups) */}
+        {/* Sidebar Island 1: KIRO POS Brand Island (Top Left) */}
+        <div
+          className={`${styles.islandBase} ${
+            isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
+          } ${styles.sidebarIslandBrand}`}
+          onClick={() => navigate('/')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className={styles.brandLogoMark}>K</div>
+          {isExpanded && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <span className={styles.brandTitle}>KIRO POS</span>
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 600, letterSpacing: '0.04em' }}>ENTERPRISE SYSTEM</span>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Island 2: Main Navigation Rail (7 Groups) - Directly below KIRO POS */}
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
@@ -413,13 +430,8 @@ export const Layout: React.FC = () => {
       >
         {/* ── Top Header Bar (Clean Header - No Top Nav Switcher) ───────── */}
         <header className={styles.topHeaderBar}>
-          {/* Header Left: Brand Logo + Branch Selector Chip */}
+          {/* Header Left: Branch Selector Chip */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div className={`${styles.topIslandBase} ${styles.islandBrand}`} onClick={() => navigate('/')}>
-              <div className={styles.brandLogoMark}>K</div>
-              <span className={styles.brandTitle}>KIRO POS</span>
-            </div>
-
             <Dropdown
               menu={{
                 items: [
