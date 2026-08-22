@@ -50,7 +50,7 @@
   width: 60px;
   border-radius: 28px;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 10px 0;
 }
 
@@ -123,12 +123,23 @@
 
 /* Island 2: Main Navigation Rail (Scrollable) */
 .islandNav {
-  gap: 4px;
+  gap: 6px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 6px;
   box-sizing: border-box;
+  justify-content: flex-start !important;
+}
+
+.islandNavCollapsed {
+  padding: 12px 0 !important;
+  align-items: center !important;
+}
+
+.islandNavExpanded {
+  padding: 12px !important;
+  padding-right: 6px !important;
+  align-items: stretch !important;
 }
 
 .islandNav::-webkit-scrollbar {

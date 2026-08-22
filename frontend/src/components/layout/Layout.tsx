@@ -293,7 +293,9 @@ export const Layout: React.FC = () => {
         <div
           className={`${styles.islandBase} ${
             isExpanded ? styles.islandBaseExpanded : styles.islandBaseCollapsed
-          } ${styles.islandNav}`}
+          } ${styles.islandNav} ${
+            isExpanded ? styles.islandNavExpanded : styles.islandNavCollapsed
+          }`}
         >
           {MINI_ERP_NAV_GROUPS.map((group) => (
             <div key={group.groupName} style={{ width: '100%' }}>
