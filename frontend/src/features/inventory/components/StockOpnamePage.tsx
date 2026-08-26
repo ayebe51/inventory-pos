@@ -43,6 +43,9 @@ export const StockOpnamePage: React.FC = () => {
       setInitDrawerOpen(false);
       form.resetFields();
     },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal memulai stock opname');
+    },
   });
 
   const record = useMutation({
@@ -51,6 +54,9 @@ export const StockOpnamePage: React.FC = () => {
       message.success('Counts recorded');
       setRecordDrawerOpen(false);
       setLines([]);
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal menyimpan hasil hitung');
     },
   });
 
@@ -61,6 +67,9 @@ export const StockOpnamePage: React.FC = () => {
       setSelectedOpname(null); // Or data.opname
       refetchOpnames();
       qc.invalidateQueries({ queryKey: ['inventory'] });
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal finalize opname');
     },
   });
 
@@ -89,7 +98,7 @@ export const StockOpnamePage: React.FC = () => {
           {record.status === 'IN_PROGRESS' && (
             <>
               <Button size="small" onClick={() => setRecordDrawerOpen(true)} icon={<SaveOutlined />}>Record</Button>
-              <Button size="small" type="primary" onClick={() => finalize.mutate(record.id)} icon={<CheckCircleOutlined />}>Finalize</Button>
+              <Button size="small" type="primary" loading={finalize.isPending} disabled={finalize.isPending} onClick={() => finalize.mutate(record.id)} icon={<CheckCircleOutlined />}>Finalize</Button>
             </>
           )}
         </Space>
@@ -113,6 +122,7 @@ export const StockOpnamePage: React.FC = () => {
         <Table
           columns={columns}
           dataSource={opnames}
+          scroll={{ x: 'max-content' }}
           loading={isLoadingOpnames}
           rowKey="id"
           size="small"

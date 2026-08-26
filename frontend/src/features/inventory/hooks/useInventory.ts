@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { api } from '../../../lib/api';
 import type { PaginatedProducts, Product } from '../types/inventory.types';
 
@@ -8,6 +9,11 @@ interface UseProductsParams {
   name?: string;
   code?: string;
 }
+
+const extractApiError = (err: any): string =>
+  err?.response?.data?.error?.message ||
+  (Array.isArray(err?.response?.data?.message) ? err.response.data.message[0] : err?.response?.data?.message) ||
+  'Terjadi kesalahan. Coba lagi.';
 
 export const useProducts = (params?: UseProductsParams) => {
   return useQuery<PaginatedProducts>({
@@ -27,8 +33,12 @@ export const useCreateProduct = () => {
       return data;
     },
     onSuccess: () => {
+      message.success('Produk berhasil dibuat');
       queryClient.invalidateQueries({ queryKey: ['products'] });
-    }
+    },
+    onError: (err: any) => {
+      message.error(extractApiError(err));
+    },
   });
 };
 
@@ -40,8 +50,12 @@ export const useUpdateProduct = () => {
       return data;
     },
     onSuccess: () => {
+      message.success('Produk berhasil diperbarui');
       queryClient.invalidateQueries({ queryKey: ['products'] });
-    }
+    },
+    onError: (err: any) => {
+      message.error(extractApiError(err));
+    },
   });
 };
 
@@ -53,8 +67,12 @@ export const useDeleteProduct = () => {
       return data;
     },
     onSuccess: () => {
+      message.success('Produk berhasil dihapus');
       queryClient.invalidateQueries({ queryKey: ['products'] });
-    }
+    },
+    onError: (err: any) => {
+      message.error(extractApiError(err));
+    },
   });
 };
 

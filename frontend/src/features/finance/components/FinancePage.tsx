@@ -92,7 +92,8 @@ export const FinancePage: React.FC = () => {
                 dataSource={data?.recentTransactions}
                 columns={columns}
                 rowKey="id"
-                pagination={false}
+                scroll={{ x: 'max-content' }}
+          pagination={false}
                 loading={isLoading}
                 size="middle"
                 style={{ background: 'var(--solid-bg)', borderRadius: 12, overflow: 'hidden' }}

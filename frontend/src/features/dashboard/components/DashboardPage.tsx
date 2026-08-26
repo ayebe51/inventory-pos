@@ -7,16 +7,15 @@ import {
   PlusOutlined,
   ShopOutlined,
   FileAddOutlined,
-  ArrowUpOutlined,
   CheckCircleOutlined,
   RightOutlined,
   WalletOutlined,
-  QrcodeOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import ReactECharts from 'echarts-for-react';
 import { useThemeStore } from '../../../store/themeStore';
+import { useAuthStore } from '../../../store/authStore';
 import { useDashboardData, useRecentActivities, useMonthlyTrend } from '../hooks/useDashboardData';
 import styles from './DashboardPage.module.css';
 
@@ -26,6 +25,7 @@ export const DashboardPage: React.FC = () => {
   const { data } = useDashboardData();
   const { data: monthlyTrend } = useMonthlyTrend();
   const { data: recentActivities = [], isLoading: isLoadingActivities } = useRecentActivities();
+  const user = useAuthStore((s) => s.user);
   const { token } = antTheme.useToken();
   const { isDarkMode } = useThemeStore();
   const navigate = useNavigate();
@@ -57,21 +57,20 @@ export const DashboardPage: React.FC = () => {
     year: 'numeric',
   });
 
+  const hour = new Date().getHours();
+  const greeting = hour < 11 ? 'Selamat Pagi' : hour < 15 ? 'Selamat Siang' : hour < 18 ? 'Selamat Sore' : 'Selamat Malam';
+
   const isWeekly = chartTimeframe === 'weekly';
 
   const xAxisData = isWeekly
-    ? data?.salesTrend?.map((d: any) => d.date) || ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
-    : monthlyTrend?.map((d: any) => d.date) || ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    ? data?.salesTrend?.map((d: any) => d.date) || []
+    : monthlyTrend?.map((d: any) => d.date) || [];
 
   const salesData = isWeekly
-    ? data?.salesTrend?.map((d: any) => d.revenue) || [0, 0, 0, 0, 0, 0, 0]
-    : monthlyTrend?.map((d: any) => d.revenue) || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ? data?.salesTrend?.map((d: any) => d.revenue) || []
+    : monthlyTrend?.map((d: any) => d.revenue) || [];
 
-  const profitData = isWeekly
-    ? data?.salesTrend?.map((d: any) => Math.round(d.revenue * 0.35)) || [0, 0, 0, 0, 0, 0, 0]
-    : monthlyTrend?.map((d: any) => Math.round(d.revenue * 0.35)) || [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-  const hasSalesData = data?.total_sales !== undefined && data?.total_sales > 0;
+  const hasSalesData = salesData.some((v: number) => v > 0);
 
   const revenueChartOption = {
     backgroundColor: 'transparent',
@@ -82,16 +81,11 @@ export const DashboardPage: React.FC = () => {
       textStyle: { color: token.colorText },
       formatter: (params: any[]) => {
         const p1 = params[0];
-        const p2 = params[1];
         const val1 = Number(p1?.value) || 0;
-        const val2 = Number(p2?.value) || 0;
         return `
           <div style="font-weight:600;margin-bottom:4px;">${p1?.name || ''}</div>
           <div style="color:#F05328;display:flex;justify-content:space-between;gap:12px;">
-            <span>● Omset POS:</span> <b>Rp ${val1.toLocaleString('id-ID')}</b>
-          </div>
-          <div style="color:${isDarkMode ? '#94A3B8' : '#18181B'};display:flex;justify-content:space-between;gap:12px;">
-            <span>● Est. Margin:</span> <b>Rp ${val2.toLocaleString('id-ID')}</b>
+            <span>● Omset Penjualan:</span> <b>Rp ${val1.toLocaleString('id-ID')}</b>
           </div>
         `;
       },
@@ -112,22 +106,12 @@ export const DashboardPage: React.FC = () => {
     },
     series: [
       {
-        name: 'Omset POS',
+        name: 'Omset Penjualan',
         type: 'bar',
         barMaxWidth: isWeekly ? 24 : 16,
         data: salesData,
         itemStyle: {
           color: '#F05328',
-          borderRadius: [6, 6, 0, 0],
-        },
-      },
-      {
-        name: 'Est. Margin',
-        type: 'bar',
-        barMaxWidth: isWeekly ? 24 : 16,
-        data: profitData,
-        itemStyle: {
-          color: isDarkMode ? '#334155' : '#18181B',
           borderRadius: [6, 6, 0, 0],
         },
       },
@@ -180,7 +164,7 @@ export const DashboardPage: React.FC = () => {
       {/* Header Row (Greetings + Quick Action Buttons) */}
       <div className={styles.headerRow}>
         <div>
-          <h1 className={styles.greetingTitle}>Selamat Pagi, Admin 👋</h1>
+          <h1 className={styles.greetingTitle}>{greeting}, {user?.name || 'Admin'} 👋</h1>
           <p className={styles.greetingSubtitle}>
             {todayFormatted} · Ringkasan operasional toko, penjualan, & kesehatan stok hari ini.
           </p>
@@ -215,17 +199,14 @@ export const DashboardPage: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <div className={styles.highlightStatCard}>
             <div className={styles.highlightCardHeader}>
-              <span className={styles.highlightCardTitle}>Penjualan Hari Ini</span>
-              <span className={styles.highlightBadge}>
-                <ArrowUpOutlined /> +12.5% vs kemarin
-              </span>
+              <span className={styles.highlightCardTitle}>Total Penjualan</span>
             </div>
             <div>
               <div className={styles.highlightValue}>
-                {formatCurrency(data?.total_sales)}
+                {formatCurrency(data?.total_sales ?? 0)}
               </div>
               <span style={{ fontSize: 12, opacity: 0.9 }}>
-                124 Transaksi Selesai Hari Ini
+                Akumulasi POS + invoice (posted/paid)
               </span>
             </div>
           </div>
@@ -242,10 +223,10 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div>
               <div className={styles.statValue}>
-                {formatCurrency(data?.cash_position || 18250000)}
+                {formatCurrency(data?.cash_position ?? 0)}
               </div>
               <span className={`${styles.trendPill} ${styles.trendPillPositive}`}>
-                <CheckCircleOutlined /> Cash Rp 7,25M · Bank Rp 11M
+                <CheckCircleOutlined /> Piutang {formatCurrency(data?.ar_outstanding ?? 0)}
               </span>
             </div>
           </div>
@@ -262,10 +243,10 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div>
               <div className={styles.statValue}>
-                {formatCurrency(data?.inventory_value || 45200000)}
+                {formatCurrency(data?.inventory_value ?? 0)}
               </div>
               <span style={{ fontSize: 12, color: token.colorTextSecondary }}>
-                450 SKU Persediaan Terdaftar
+                Nilai persediaan berdasarkan ledger
               </span>
             </div>
           </div>
@@ -282,10 +263,10 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div>
               <div className={styles.statValue}>
-                12 <span style={{ fontSize: 14, fontWeight: 600, color: token.colorTextSecondary }}>SKU</span>
+                {data?.low_stock_alerts ?? 0} <span style={{ fontSize: 14, fontWeight: 600, color: token.colorTextSecondary }}>SKU</span>
               </div>
               <span className={`${styles.trendPill} ${styles.trendPillNegative}`}>
-                8 Menipis · 4 Habis [Periksa Stok →]
+                Stok ≤ 5 unit — klik untuk periksa →
               </span>
             </div>
           </div>
@@ -326,13 +307,11 @@ export const DashboardPage: React.FC = () => {
 
             {/* Educational Action Empty State if Sales == 0 */}
             {!hasSalesData ? (
-              <ReactECharts option={revenueChartOption} style={{ height: 310 }} opts={{ renderer: 'svg' }} />
-            ) : (
               <div className={styles.emptyStateBox}>
                 <RocketOutlined style={{ fontSize: 36, color: '#F05328' }} />
                 <h4 className={styles.emptyStateTitle}>Belum Ada Transaksi Hari Ini</h4>
                 <p className={styles.emptyStateSubtext}>
-                  Grafik tren omset penjualan dan profitabilitas akan otomatis muncul setelah transaksi pertama Anda tercatat di kasir.
+                  Grafik tren omset penjualan akan otomatis muncul setelah transaksi pertama Anda tercatat di kasir.
                 </p>
                 <Button
                   type="primary"
@@ -343,6 +322,8 @@ export const DashboardPage: React.FC = () => {
                   Buka POS Kasir Sekarang
                 </Button>
               </div>
+            ) : (
+              <ReactECharts option={revenueChartOption} style={{ height: 310 }} opts={{ renderer: 'svg' }} />
             )}
           </div>
         </Col>
@@ -356,26 +337,15 @@ export const DashboardPage: React.FC = () => {
                 <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>Aksi Membutuhkan Tindakan</Text>
               </div>
 
-              {/* Action Attention Items */}
-              <div className={styles.attentionItem}>
-                <div className={styles.attentionMeta}>
-                  <span className={styles.attentionDotRed} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>4 Produk Habis Total</div>
-                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Indomie, Kopi ABC, Aqua 600ml...</div>
-                  </div>
-                </div>
-                <button className={styles.attentionActionBtn} onClick={() => navigate('/purchase')}>
-                  + Restock
-                </button>
-              </div>
-
+              {/* Action Attention Items — real data from executive dashboard */}
               <div className={styles.attentionItem}>
                 <div className={styles.attentionMeta}>
                   <span className={styles.attentionDotYellow} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>8 Produk Stok Menipis</div>
-                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Mendekati batas minimum reorder</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>
+                      {data?.low_stock_alerts ?? 0} Produk Stok Menipis
+                    </div>
+                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Stok ≤ 5 unit di seluruh gudang</div>
                   </div>
                 </div>
                 <button className={styles.attentionActionBtn} onClick={() => navigate('/inventory')}>
@@ -385,32 +355,36 @@ export const DashboardPage: React.FC = () => {
 
               <div className={styles.attentionItem}>
                 <div className={styles.attentionMeta}>
-                  <span className={styles.attentionDotYellow} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>2 PO Menunggu Approval</div>
-                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>PO-2026-0045 & PO-2026-0046</div>
-                  </div>
-                </div>
-                <button className={styles.attentionActionBtn} onClick={() => navigate('/approvals')}>
-                  Review
-                </button>
-              </div>
-
-              <div className={styles.attentionItem}>
-                <div className={styles.attentionMeta}>
                   <span className={styles.attentionDotBlue} />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>3 Invoice Belum Lunas</div>
-                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Jatuh tempo minggu ini</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>
+                      Piutang Belum Lunas: {formatCurrency(data?.ar_outstanding ?? 0)}
+                    </div>
+                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Invoice penjualan posted/partial</div>
                   </div>
                 </div>
                 <button className={styles.attentionActionBtn} onClick={() => navigate('/invoicing')}>
                   Tagihan
                 </button>
               </div>
+
+              <div className={styles.attentionItem}>
+                <div className={styles.attentionMeta}>
+                  <span className={styles.attentionDotRed} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: token.colorText }}>
+                      Hutang Usaha: {formatCurrency(data?.ap_outstanding ?? 0)}
+                    </div>
+                    <div style={{ fontSize: 11, color: token.colorTextSecondary }}>Invoice pembelian belum dibayar</div>
+                  </div>
+                </div>
+                <button className={styles.attentionActionBtn} onClick={() => navigate('/finance')}>
+                  Kelola
+                </button>
+              </div>
             </div>
 
-            {/* Real Stock Status Breakdown (Replacing Vanity Metric "88%") */}
+            {/* Real Stock Status Breakdown */}
             <div style={{ background: token.colorBgLayout, padding: 16, borderRadius: 16, border: `1px solid ${token.colorBorderSecondary}`, marginTop: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: token.colorText }}>Kondisi Stok Barang</span>
@@ -419,14 +393,8 @@ export const DashboardPage: React.FC = () => {
                 </Button>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginTop: 4, fontSize: 12 }}>
-                <span style={{ padding: '4px 8px', borderRadius: 8, background: '#ECFDF5', color: '#059669', fontWeight: 600 }}>
-                  🟢 438 SKU Aman
-                </span>
-                <span style={{ padding: '4px 8px', borderRadius: 8, background: '#FEF3C7', color: '#D97706', fontWeight: 600 }}>
-                  🟡 8 Menipis
-                </span>
-                <span style={{ padding: '4px 8px', borderRadius: 8, background: '#FEF2F2', color: '#DC2626', fontWeight: 600 }}>
-                  🔴 4 Habis
+                <span style={{ padding: '4px 8px', borderRadius: 8, background: (data?.low_stock_alerts ?? 0) > 0 ? '#FEF3C7' : '#ECFDF5', color: (data?.low_stock_alerts ?? 0) > 0 ? '#D97706' : '#059669', fontWeight: 600 }}>
+                  {(data?.low_stock_alerts ?? 0) > 0 ? `🟡 ${data.low_stock_alerts} SKU Perlu Restock` : '🟢 Semua Stok Aman'}
                 </span>
               </div>
             </div>
@@ -445,12 +413,12 @@ export const DashboardPage: React.FC = () => {
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12.5, opacity: 0.85, fontWeight: 500 }}>Laci Kasir (Shift Aktif)</span>
+              <span style={{ fontSize: 12.5, opacity: 0.85, fontWeight: 500 }}>Posisi Kas & Bank</span>
               <WalletOutlined style={{ fontSize: 18 }} />
             </div>
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>Kas Tunai: Rp 3.250.000</div>
-              <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>Lihat Detail & Setor Kas →</span>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>{formatCurrency(data?.cash_position ?? 0)}</div>
+              <span style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>Kelola Keuangan →</span>
             </div>
           </div>
         </Col>
@@ -464,12 +432,12 @@ export const DashboardPage: React.FC = () => {
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12.5, opacity: 0.9, fontWeight: 500 }}>Pembayaran Non-Tunai</span>
-              <QrcodeOutlined style={{ fontSize: 18 }} />
+              <span style={{ fontSize: 12.5, opacity: 0.9, fontWeight: 500 }}>Total Pembelian</span>
+              <ShoppingCartOutlined style={{ fontSize: 18 }} />
             </div>
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>QRIS & Bank: Rp 5.200.000</div>
-              <span style={{ fontSize: 12, opacity: 0.9, fontWeight: 600 }}>✓ Otomatis Terrekonsiliasi →</span>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>{formatCurrency(data?.total_purchases ?? 0)}</div>
+              <span style={{ fontSize: 12, opacity: 0.9, fontWeight: 600 }}>Invoice pembelian posted/paid →</span>
             </div>
           </div>
         </Col>
@@ -491,12 +459,9 @@ export const DashboardPage: React.FC = () => {
 
         <Table
           columns={columns}
-          dataSource={recentActivities.length > 0 ? recentActivities : [
-            { id: 1, text: 'INV-2026-00124', time: new Date().toISOString() },
-            { id: 2, text: 'INV-2026-00123', time: new Date(Date.now() - 300000).toISOString() },
-            { id: 3, text: 'INV-2026-00122', time: new Date(Date.now() - 600000).toISOString() },
-          ]}
+          dataSource={recentActivities}
           rowKey={(record, idx) => record.id || idx || String(Math.random())}
+          scroll={{ x: 'max-content' }}
           pagination={false}
           loading={isLoadingActivities}
           size="middle"

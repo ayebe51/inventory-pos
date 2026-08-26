@@ -283,6 +283,7 @@ export const UserManagementPage: React.FC = () => {
           dataSource={filteredUsers}
           rowKey="id"
           loading={usersLoading}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           size="middle"
           style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}

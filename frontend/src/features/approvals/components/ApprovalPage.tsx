@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Typography, Tag, Space, Card, Modal, Input } from 'antd';
+import { Table, Button, Typography, Tag, Space, Card, Modal, Input, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -35,15 +35,26 @@ export const ApprovalPage: React.FC = () => {
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/approvals/${id}/approve`, { notes: 'Approved via UI' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['approvals'] })
+    onSuccess: () => {
+      message.success('Permintaan disetujui');
+      qc.invalidateQueries({ queryKey: ['approvals'] });
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal menyetujui permintaan');
+    },
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string, reason: string }) => api.post(`/api/v1/approvals/${id}/reject`, { reason }),
     onSuccess: () => {
+      message.success('Permintaan ditolak');
       qc.invalidateQueries({ queryKey: ['approvals'] });
       setRejectModalOpen(false);
       setRejectReason('');
+    },
+    onError: (err: any) => {
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Gagal menolak permintaan');
+      setRejectModalOpen(false);
     }
   });
 
@@ -137,8 +148,8 @@ export const ApprovalPage: React.FC = () => {
             size="small"
             type="primary"
             icon={<CheckCircleOutlined />}
-            loading={approveMutation.isPending}
             onClick={() => approveMutation.mutate(record.id)}
+            loading={approveMutation.isPending}
             style={{ borderRadius: 6, fontWeight: 600, background: '#10B981', borderColor: '#10B981' }}
           >
             Approve

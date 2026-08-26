@@ -25,13 +25,13 @@ export const ReportingPage: React.FC = () => {
   const [reportType, setReportType] = useState<ReportType>('sales');
   const [asOfDate, setAsOfDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   
-  const { data: execData, isLoading: isExecLoading, refetch: refetchExec } = useExecutiveDashboard(asOfDate);
-  const { data: invData, isLoading: isInvLoading, refetch: refetchInv } = useInventoryPosition(asOfDate);
-  const { data: incomeData, isLoading: isIncomeLoading, refetch: refetchIncome } = useIncomeStatement('');
-  const { data: balanceData, isLoading: isBalanceLoading, refetch: refetchBalance } = useBalanceSheet(asOfDate);
-  const { data: cashFlowData, isLoading: isCashFlowLoading, refetch: refetchCashFlow } = useCashFlow('');
-  const { data: arAgingData, isLoading: isArLoading, refetch: refetchAr } = useARAging(asOfDate);
-  const { data: apAgingData, isLoading: isApLoading, refetch: refetchAp } = useAPAging(asOfDate);
+  const { data: execData, isLoading: isExecLoading, refetch: refetchExec } = useExecutiveDashboard(asOfDate, { enabled: reportType === 'sales' });
+  const { data: invData, isLoading: isInvLoading, refetch: refetchInv } = useInventoryPosition(asOfDate, { enabled: reportType === 'inventory' });
+  const { data: incomeData, isLoading: isIncomeLoading, refetch: refetchIncome } = useIncomeStatement('', { enabled: reportType === 'income_statement' });
+  const { data: balanceData, isLoading: isBalanceLoading, refetch: refetchBalance } = useBalanceSheet(asOfDate, { enabled: reportType === 'balance_sheet' });
+  const { data: cashFlowData, isLoading: isCashFlowLoading, refetch: refetchCashFlow } = useCashFlow('', { enabled: reportType === 'cash_flow' });
+  const { data: arAgingData, isLoading: isArLoading, refetch: refetchAr } = useARAging(asOfDate, { enabled: reportType === 'ar_aging' });
+  const { data: apAgingData, isLoading: isApLoading, refetch: refetchAp } = useAPAging(asOfDate, { enabled: reportType === 'ap_aging' });
 
   const refetchAll = () => {
     refetchExec();

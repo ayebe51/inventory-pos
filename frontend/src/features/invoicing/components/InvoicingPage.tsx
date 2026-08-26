@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import {
   Table, Tag, Button, Space, Typography, Card,
-  Drawer, Form, Input, Select,
+  Drawer, Form, Input, Select, InputNumber,
   Row, Col, Tooltip, message, Modal,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useQuery } from '@tanstack/react-query';
 import {
   PlusOutlined, SendOutlined, StopOutlined,
-  ReloadOutlined, WarningOutlined, FallOutlined
+  ReloadOutlined, WarningOutlined, FallOutlined, DeleteOutlined
 } from '@ant-design/icons';
-import { 
+import api from '../../../lib/api';
+import {
   useInvoices, useCreateInvoice, usePostInvoice, useCancelInvoice,
-  useDisputeInvoice, useWriteOffInvoice 
+  useDisputeInvoice, useWriteOffInvoice
 } from '../hooks/useInvoicing';
 
 const { Title, Text } = Typography;
+
+const unwrapList = (d: any): any[] => d?.data ?? (Array.isArray(d) ? d : []);
 
 const INVOICE_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
   DRAFT:     { color: '#94A3B8', label: 'Draft' },
@@ -39,10 +43,45 @@ export const InvoicingPage: React.FC = () => {
   const disputeInvoice = useDisputeInvoice();
   const writeOffInvoice = useWriteOffInvoice();
 
+  const { data: customerData } = useQuery({
+    queryKey: ['customers', 'invoice-options'],
+    queryFn: () => api.get('/api/v1/master-data/customers?per_page=100').then((r) => r.data),
+    enabled: drawerOpen && activeTab === 'sales',
+  });
+  const { data: supplierData } = useQuery({
+    queryKey: ['suppliers', 'invoice-options'],
+    queryFn: () => api.get('/api/v1/master-data/suppliers?per_page=100').then((r) => r.data),
+    enabled: drawerOpen && activeTab === 'purchase',
+  });
+  const { data: warehouseData } = useQuery({
+    queryKey: ['warehouses', 'invoice-options'],
+    queryFn: () => api.get('/api/v1/master-data/warehouses?per_page=50').then((r) => r.data),
+  });
+  const { data: productData } = useQuery({
+    queryKey: ['products', 'invoice-options'],
+    queryFn: () => api.get('/api/v1/master-data/products?per_page=200&is_active=true').then((r) => r.data),
+    enabled: drawerOpen,
+  });
+
+  const customers = unwrapList(customerData);
+  const suppliers = unwrapList(supplierData);
+  const warehouses = unwrapList(warehouseData);
+  const products = unwrapList(productData);
+
   const handleCreate = async () => {
     try {
       const values = await form.validateFields();
-      await createInvoice.mutateAsync({ ...values, type: activeTab.toUpperCase() });
+      await createInvoice.mutateAsync({
+        ...values,
+        type: activeTab.toUpperCase(),
+        branch_id: warehouses[0]?.branch_id || values.branch_id,
+        lines: (values.lines || []).map((l: any) => ({
+          product_id: l.product_id,
+          qty: Number(l.qty),
+          unit_price: Number(l.unit_price),
+          tax_pct: l.tax_pct ?? 11,
+        })),
+      });
       message.success('Invoice created!');
       setDrawerOpen(false);
       form.resetFields();
@@ -303,22 +342,79 @@ export const InvoicingPage: React.FC = () => {
         }
       >
         <Form form={form} layout="vertical">
-          <Form.Item name={activeTab === 'sales' ? 'customer_id' : 'supplier_id'} label={activeTab === 'sales' ? 'Customer' : 'Supplier'} rules={[{ required: true }]}>
-            <Select placeholder={`Select ${activeTab === 'sales' ? 'customer' : 'supplier'}`} showSearch optionFilterProp="label" />
+          <Form.Item name={activeTab === 'sales' ? 'customer_id' : 'supplier_id'} label={activeTab === 'sales' ? 'Customer' : 'Supplier'} rules={[{ required: true, message: 'Required' }]}>
+            <Select
+              placeholder={`Select ${activeTab === 'sales' ? 'customer' : 'supplier'}`}
+              showSearch
+              optionFilterProp="label"
+              options={(activeTab === 'sales' ? customers : suppliers).map((c: any) => ({
+                value: c.id,
+                label: `${c.code ? c.code + ' — ' : ''}${c.name}`,
+              }))}
+            />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="invoice_date" label="Invoice Date" rules={[{ required: true }]}>
+              <Form.Item name="invoice_date" label="Invoice Date" rules={[{ required: true, message: 'Required' }]}>
                 <Input type="date" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="due_date" label="Due Date">
+              <Form.Item name="due_date" label="Due Date" rules={[{ required: true, message: 'Required' }]}>
                 <Input type="date" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="notes" label="Notes">
+
+          <Text style={{ fontWeight: 600 }}>Line Items</Text>
+          <Form.List
+            name="lines"
+            rules={[{ validator: async (_, v) => (!v || v.length === 0 ? Promise.reject(new Error('Add at least one line item')) : Promise.resolve()) }]}
+          >
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field) => (
+                  <Space key={field.key} align="baseline" style={{ display: 'flex', marginTop: 8 }} wrap>
+                    <Form.Item name={[field.name, 'product_id']} noStyle rules={[{ required: true, message: 'Product required' }]}>
+                      <Select
+                        placeholder="Product"
+                        showSearch
+                        optionFilterProp="label"
+                        style={{ minWidth: 200 }}
+                        options={products.map((p: any) => ({ value: p.id, label: p.name }))}
+                        onSelect={(pid: string) => {
+                          const p = products.find((x: any) => x.id === pid);
+                          if (p) {
+                            const price = activeTab === 'sales'
+                              ? (p.selling_price ?? 0)
+                              : (p.standard_cost ?? 0);
+                            form.setFieldValue(['lines', field.name, 'unit_price'], price);
+                          }
+                        }}
+                      />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'qty']} noStyle rules={[{ required: true, message: 'Qty' }]}>
+                      <InputNumber placeholder="Qty" min={0.0001} style={{ width: 90 }} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'unit_price']} noStyle rules={[{ required: true, message: 'Price' }]}>
+                      <InputNumber placeholder="Unit Price" min={0} style={{ width: 130 }} formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')} />
+                    </Form.Item>
+                    <Form.Item name={[field.name, 'tax_pct']} initialValue={11} noStyle>
+                      <InputNumber placeholder="Tax %" min={0} max={100} style={{ width: 80 }} />
+                    </Form.Item>
+                    {fields.length > 1 && (
+                      <Button type="text" danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
+                    )}
+                  </Space>
+                ))}
+                <Button type="dashed" block icon={<PlusOutlined />} style={{ marginTop: 12 }} onClick={() => add({ qty: 1, tax_pct: 11 })}>
+                  Add Line Item
+                </Button>
+              </>
+            )}
+          </Form.List>
+
+          <Form.Item name="notes" label="Notes" style={{ marginTop: 16 }}>
             <Input.TextArea rows={3} />
           </Form.Item>
         </Form>

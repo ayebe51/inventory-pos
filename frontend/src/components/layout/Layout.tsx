@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Dropdown, Badge, Tooltip, Popover, Button } from 'antd';
+import { Dropdown, Tooltip, Popover } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   LayoutDashboard,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { CommandPalette } from './CommandPalette';
 import styles from './Layout.module.css';
@@ -144,8 +145,15 @@ const MINI_ERP_NAV_GROUPS: NavGroup[] = [
 
 export const Layout: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(true);
+const navigate = useNavigate();
+const [isExpanded, setIsExpanded] = useState(true);
+
+const { data: branchData } = useQuery({
+  queryKey: ['branches'],
+  queryFn: () => api.get('/api/v1/organization/branches').then((r) => r.data),
+  staleTime: 5 * 60_000,
+});
+const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.data ?? []);
   const [openGroupKeys, setOpenGroupKeys] = useState<Record<string, boolean>>({
     '/pos': true,
     '/inventory': true,
@@ -169,64 +177,15 @@ export const Layout: React.FC = () => {
     setOpenGroupKeys((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Activity Center Notification Popover Content
+  // Activity Center Notification Popover Content — honest empty state until a
+  // real notification source is wired (no fabricated counts/items)
   const notificationContent = (
-    <div style={{ width: 310, padding: '4px 0' }}>
-      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 8, color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Pusat Notifikasi Aktivitas</span>
-        <span style={{ fontSize: 11, background: '#FEF2F2', color: '#DC2626', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>5 Perlu Aksi</span>
+    <div style={{ width: 310, padding: '12px 4px', textAlign: 'center' }}>
+      <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 10, color: 'var(--text-primary)', textAlign: 'left' }}>
+        Pusat Notifikasi Aktivitas
       </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FCA5A5' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#DC2626' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#991B1B' }}>🔴 4 Produk Habis Total</span>
-          </div>
-          <Button size="small" type="primary" danger style={{ borderRadius: 6, fontSize: 11, height: 24 }} onClick={() => navigate('/purchase')}>
-            + Restock
-          </Button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#FEF3C7', border: '1px solid #FCD34D' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D97706' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>🟡 8 Produk Di Bawah Min.</span>
-          </div>
-          <Button size="small" style={{ borderRadius: 6, fontSize: 11, height: 24 }} onClick={() => navigate('/inventory')}>
-            Periksa
-          </Button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#FEF3C7', border: '1px solid #FCD34D' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#D97706' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#92400E' }}>🟡 2 PO Menunggu Approval</span>
-          </div>
-          <Button size="small" style={{ borderRadius: 6, fontSize: 11, height: 24 }} onClick={() => navigate('/approvals')}>
-            Review
-          </Button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#EFF6FF', border: '1px solid #93C5FD' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563EB' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1E40AF' }}>🔵 3 Invoice Belum Lunas</span>
-          </div>
-          <Button size="small" style={{ borderRadius: 6, fontSize: 11, height: 24 }} onClick={() => navigate('/invoicing')}>
-            Tagihan
-          </Button>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#ECFDF5', border: '1px solid #6EE7B7' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#059669' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#065F46' }}>🟢 Stock Opname Selesai</span>
-          </div>
-          <Button size="small" style={{ borderRadius: 6, fontSize: 11, height: 24 }} onClick={() => navigate('/inventory/opname')}>
-            Lihat
-          </Button>
-        </div>
+      <div style={{ color: 'var(--text-tertiary)', fontSize: 12.5, padding: '18px 8px' }}>
+        Belum ada notifikasi.
       </div>
     </div>
   );
@@ -436,21 +395,22 @@ export const Layout: React.FC = () => {
       >
         {/* ── Top Header Bar (Clean Header - No Top Nav Switcher) ───────── */}
         <header className={styles.topHeaderBar}>
-          {/* Header Left: Branch Selector Chip */}
+          {/* Header Left: Branch Selector Chip (real branches) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Dropdown
               menu={{
-                items: [
-                  { key: 'b1', label: '🏢 Cabang Utama (Surabaya)' },
-                  { key: 'b2', label: '🏬 Cabang Malang (Toko 2)' },
-                  { key: 'b3', label: '🏭 Gudang Pusat Sidoarjo' },
-                ],
+                items: (branches.length > 0
+                  ? branches
+                  : [{ id: 'none', name: 'Tidak ada cabang terdaftar' }]
+                ).map((b: any) => ({ key: b.id, label: b.name })),
+                selectable: true,
+                defaultSelectedKeys: branches[0] ? [branches[0].id] : [],
               }}
               trigger={['click']}
             >
               <div className={`${styles.topIslandBase} ${styles.branchChip}`}>
                 <Building2 size={15} style={{ color: '#F05328' }} />
-                <span>Cabang Utama (Surabaya)</span>
+                <span>{branches[0]?.name ?? 'Cabang'}</span>
                 <ChevronDown size={14} style={{ color: 'var(--text-tertiary)' }} />
               </div>
             </Dropdown>
@@ -475,9 +435,7 @@ export const Layout: React.FC = () => {
             <div className={`${styles.topIslandBase} ${styles.islandControls}`}>
               <Popover content={notificationContent} trigger="click" placement="bottomRight">
                 <button className={styles.controlIconBtn}>
-                  <Badge count={5} size="small" offset={[2, -2]}>
-                    <Bell size={16} style={{ color: 'var(--text-secondary)' }} />
-                  </Badge>
+                  <Bell size={16} style={{ color: 'var(--text-secondary)' }} />
                 </button>
               </Popover>
 

@@ -9,6 +9,7 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: true, // Important for cookies if we use them
+  timeout: 30_000,
 });
 
 // Flag to prevent multiple simultaneous refresh requests
@@ -51,8 +52,8 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Do not intercept 401 errors for login endpoint
-    if (originalRequest.url?.includes('/auth/login')) {
+    // Do not intercept 401 errors for login or refresh endpoints
+    if (originalRequest.url?.includes('/auth/login') || originalRequest.url?.includes('/auth/refresh')) {
       return Promise.reject(error);
     }
 
@@ -77,8 +78,9 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refresh_token');
         if (!refreshToken) throw new Error('No refresh token available');
 
-        // Note: adjust the endpoint to match your actual backend auth refresh route
-        const { data } = await axios.post('http://localhost:3000/api/v1/auth/refresh', {
+        // Note: uses the same baseURL as the main instance so refresh works in
+        // any deployed environment (nginx proxies /api same-origin)
+        const { data } = await api.post('/api/v1/auth/refresh', {
           refreshToken,
         });
 

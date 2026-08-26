@@ -241,6 +241,7 @@ export const RoleManagementPage: React.FC = () => {
           dataSource={filteredRoles}
           rowKey="id"
           loading={rolesLoading}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           size="middle"
           style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
