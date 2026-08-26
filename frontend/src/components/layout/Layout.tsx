@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Dropdown, Tooltip, Popover } from 'antd';
 import type { MenuProps } from 'antd';
@@ -28,6 +28,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { useLogout } from '../../features/auth/hooks/useAuth';
 import { CommandPalette } from './CommandPalette';
 import styles from './Layout.module.css';
 
@@ -162,16 +163,10 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
     '/admin': true,
   });
 
-  const { user, clearAuth } = useAuthStore();
+  const { user } = useAuthStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
 
-  const handleLogout = useCallback(async () => {
-    try {
-      await api.post('/api/v1/auth/logout');
-    } catch (_) {}
-    clearAuth();
-    navigate('/login');
-  }, [clearAuth, navigate]);
+  const logout = useLogout();
 
   const toggleGroup = (key: string) => {
     setOpenGroupKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -217,7 +212,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
       icon: <LogOut size={14} />,
       label: 'Keluar (Sign out)',
       danger: true,
-      onClick: handleLogout,
+          onClick: logout,
     },
   ];
 

@@ -1,13 +1,17 @@
 import { Module } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { RbacService } from './services/rbac/rbac.service';
 import { appConfig, databaseConfig, validateAppConfig } from './config';
 import { redisConfig } from './config/redis.config';
 import { AppController } from './app.controller';
 import { PrismaService } from './config/prisma.service';
 import { PrismaModule } from './config/prisma.module';
 import { PrismaReadService } from './config/prisma-read.service';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RbacGuard } from './common/guards/rbac.guard';
 import { CacheModule } from './services/cache/cache.module';
 import { RbacModule } from './services/rbac/rbac.module';
 import { MasterDataModule } from './modules/master-data/master-data.module';
@@ -53,7 +57,16 @@ import { ExportModule } from './services/export/export.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
-    PrismaService, 
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useFactory: (rbacService: RbacService) => new RbacGuard(new Reflector(), rbacService),
+      inject: [RbacService],
+    },
+    PrismaService,
     PrismaReadService
   ],
   exports: [PrismaService, PrismaReadService],

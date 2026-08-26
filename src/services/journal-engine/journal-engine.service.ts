@@ -264,7 +264,7 @@ export class JournalEngineService implements AutoJournalEngine {
           total_debit: totalDebit,
           total_credit: totalCredit,
           status: 'POSTED',
-          is_auto_generated: true,
+          is_auto_generated: false,
           created_by,
           lines: {
             create: lines.map((line, i) => ({

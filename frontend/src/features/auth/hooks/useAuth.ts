@@ -61,7 +61,12 @@ export const useLogout = () => {
   const navigate = useNavigate();
   const { clearAuth } = useAuthStore();
 
-  return () => {
+  return async () => {
+    try {
+      await api.post('/api/v1/auth/logout');
+    } catch (_) {
+      // clear local state regardless — never trap the user on a dead session
+    }
     clearAuth();
     navigate('/login');
   };

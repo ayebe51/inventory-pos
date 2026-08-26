@@ -18,12 +18,14 @@ import {
   MfaSetupConfirmSchema,
 } from './dto/login.dto';
 import { successResponse } from '../../common/types/api-response.type';
+import { Public } from '../../common/decorators/public.decorator';
 
 @Controller('api/v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: unknown) {
@@ -32,6 +34,7 @@ export class AuthController {
     return successResponse(result, 'Login successful');
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() body: unknown) {
@@ -65,6 +68,7 @@ export class AuthController {
    * Initiate MFA enrollment. Returns TOTP secret + otpauth URL for QR code.
    * Requires a valid mfaToken issued during login (purpose: 'setup').
    */
+  @Public()
   @Post('mfa/setup')
   @HttpCode(HttpStatus.OK)
   async mfaSetup(@Body() body: unknown) {
@@ -78,6 +82,7 @@ export class AuthController {
    * Confirm MFA enrollment by verifying the first TOTP code.
    * On success, returns full JWT tokens.
    */
+  @Public()
   @Post('mfa/setup/confirm')
   @HttpCode(HttpStatus.OK)
   async mfaSetupConfirm(@Body() body: unknown) {
@@ -91,8 +96,7 @@ export class AuthController {
    * Verify TOTP code for users with MFA already enrolled.
    * On success, returns full JWT tokens.
    */
-  @Post('mfa/verify')
-  @HttpCode(HttpStatus.OK)
+  @Public()
   @Post('mfa/verify')
   @HttpCode(HttpStatus.OK)
   async mfaVerify(@Body() body: unknown) {
