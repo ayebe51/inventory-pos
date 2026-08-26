@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Card, Typography, Button, Input, Steps, message, Result, Space } from 'antd';
-import { QrcodeOutlined, KeyOutlined, CheckCircleOutlined, RocketOutlined } from '@ant-design/icons';
+import { QrcodeOutlined, KeyOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import QRCode from 'qrcode';
 import api from '../../../lib/api';
 import { useAuthStore } from '../../../store/authStore';
 
@@ -27,39 +28,17 @@ export const MFASetupPage: React.FC = () => {
     try {
       const res = await api.post('/api/v1/auth/mfa/setup', { mfaToken });
       const data = res.data.data;
-      
-      const qrData = encodeURIComponent(data.otpauthUrl);
-      setQrCodeUrl(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrData}`);
+
+      const dataUrl = await QRCode.toDataURL(data.otpauthUrl, {
+        width: 150,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+      });
+      setQrCodeUrl(dataUrl);
       setSecret(data.secret);
       setCurrent(1);
     } catch (e: any) {
       message.error(e.response?.data?.message || 'Failed to initiate MFA setup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBypass = async () => {
-    const mfaToken = localStorage.getItem('mfa_token');
-    setLoading(true);
-    try {
-      const res = await api.post('/api/v1/auth/mfa/bypass', { mfaToken });
-      const data = res.data.data;
-      
-      localStorage.removeItem('mfa_token');
-      localStorage.setItem('refresh_token', data.refreshToken || '');
-      
-      setAuth({
-        id: data.user.id,
-        name: data.user.full_name,
-        email: data.user.email,
-        role: data.user.roles?.[0] || 'admin'
-      } as any, data.accessToken);
-
-      message.success('Welcome! Logged in successfully.');
-      navigate('/');
-    } catch (e: any) {
-      message.error(e.response?.data?.message || 'Bypass failed.');
     } finally {
       setLoading(false);
     }
@@ -106,17 +85,6 @@ export const MFASetupPage: React.FC = () => {
           <Space direction="vertical" size="middle" style={{ width: '100%', maxWidth: 320 }}>
             <Button type="primary" size="large" block onClick={handleStartSetup} loading={loading}>
               Set up Authenticator App
-            </Button>
-            <Button
-              type="default"
-              size="large"
-              block
-              icon={<RocketOutlined />}
-              onClick={handleBypass}
-              loading={loading}
-              style={{ borderColor: 'var(--brand-500)', color: 'var(--brand-500)', fontWeight: 600 }}
-            >
-              Skip MFA & Enter Dashboard (Demo)
             </Button>
           </Space>
         </div>

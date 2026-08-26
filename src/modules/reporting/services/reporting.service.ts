@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaReadService } from '../../../config/prisma-read.service';
+import { assertOptionalUuid } from '../../../common/utils/uuid.util';
 import {
   ReportingService as IReportingService,
   DashboardParams,
@@ -31,21 +32,22 @@ export class ReportingService implements IReportingService {
 
   async getExecutiveDashboard(params: DashboardParams): Promise<ExecutiveDashboard> {
     const asOfDate = params.as_of_date || new Date();
-    
+    const branchId = assertOptionalUuid(params.branch_id, 'branch_id');
+
     // Total Sales (POS Completed + Sales Invoices Posted/Paid)
     const posSalesResult = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT COALESCE(SUM(total_amount), 0) as total
       FROM pos_transactions
       WHERE status = 'COMPLETED' AND transaction_date <= $1
-      ${params.branch_id ? `AND shift_id IN (SELECT id FROM shifts WHERE branch_id = '${params.branch_id}')` : ''}
-    `, asOfDate);
-    
+      ${branchId ? `AND shift_id IN (SELECT id FROM shifts WHERE branch_id = $2::uuid)` : ''}
+    `, asOfDate, ...(branchId ? [branchId] : []));
+
     const invoiceSalesResult = await this.prisma.$queryRawUnsafe<any[]>(`
       SELECT COALESCE(SUM(total_amount), 0) as total
       FROM invoices
       WHERE invoice_type = 'SALES' AND status IN ('POSTED', 'PAID') AND invoice_date <= $1
-      ${params.branch_id ? `AND branch_id = '${params.branch_id}'` : ''}
-    `, asOfDate);
+      ${branchId ? `AND branch_id = $2::uuid` : ''}
+    `, asOfDate, ...(branchId ? [branchId] : []));
 
     const total_sales = Number(posSalesResult[0]?.total || 0) + Number(invoiceSalesResult[0]?.total || 0);
 
@@ -54,32 +56,32 @@ export class ReportingService implements IReportingService {
       SELECT COALESCE(SUM(total_amount), 0) as total
       FROM invoices
       WHERE invoice_type = 'PURCHASE' AND status IN ('POSTED', 'PAID') AND invoice_date <= $1
-      ${params.branch_id ? `AND branch_id = '${params.branch_id}'` : ''}
-    `, asOfDate);
+      ${branchId ? `AND branch_id = $2::uuid` : ''}
+    `, asOfDate, ...(branchId ? [branchId] : []));
     const total_purchases = Number(purchaseResult[0]?.total || 0);
 
     // AR and AP Outstanding
     const outstandingResult = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
+      SELECT
         SUM(CASE WHEN invoice_type = 'SALES' THEN outstanding_amount ELSE 0 END) as ar_total,
         SUM(CASE WHEN invoice_type = 'PURCHASE' THEN outstanding_amount ELSE 0 END) as ap_total
       FROM invoices
       WHERE status IN ('POSTED', 'PARTIAL') AND invoice_date <= $1
-      ${params.branch_id ? `AND branch_id = '${params.branch_id}'` : ''}
-    `, asOfDate);
-    
+      ${branchId ? `AND branch_id = $2::uuid` : ''}
+    `, asOfDate, ...(branchId ? [branchId] : []));
+
     const ar_outstanding = Number(outstandingResult[0]?.ar_total || 0);
     const ap_outstanding = Number(outstandingResult[0]?.ap_total || 0);
 
     const cashResult = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
+      SELECT
         COALESCE(SUM(CASE WHEN c.normal_balance = 'DEBIT' THEN l.debit - l.credit ELSE l.credit - l.debit END), 0) as balance
       FROM journal_entry_lines l
       JOIN journal_entries j ON l.je_id = j.id
       JOIN chart_of_accounts c ON l.account_id = c.id
       WHERE j.status = 'POSTED' AND j.entry_date <= $1 AND c.account_type IN ('CASH', 'BANK', 'CASH_AND_BANK')
-      ${params.branch_id ? `AND c.branch_id = '${params.branch_id}'` : ''}
-    `, asOfDate);
+      ${branchId ? `AND c.branch_id = $2::uuid` : ''}
+    `, asOfDate, ...(branchId ? [branchId] : []));
     const cash_position = Number(cashResult[0]?.balance || 0);
 
     // Inventory Value & Low Stock
@@ -455,20 +457,21 @@ export class ReportingService implements IReportingService {
   }
 
   async getSalesReport(params: SalesParams): Promise<SalesReport> {
+    const branchId = assertOptionalUuid(params.branch_id, 'branch_id');
     const posSales = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
+      SELECT
         SUM(l.line_total) as revenue,
         SUM(l.qty * COALESCE(p.standard_cost, 0)) as cogs
       FROM pos_transaction_lines l
       JOIN pos_transactions t ON l.transaction_id = t.id
       JOIN products p ON l.product_id = p.id
-      WHERE t.status = 'COMPLETED' 
+      WHERE t.status = 'COMPLETED'
         AND t.transaction_date >= $1 AND t.transaction_date <= $2
-        ${params.branch_id ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = '${params.branch_id}')` : ''}
-    `, params.from_date, params.to_date);
+        ${branchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = $3::uuid)` : ''}
+    `, params.from_date, params.to_date, ...(branchId ? [branchId] : []));
 
     const invoiceSales = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
+      SELECT
         SUM(l.line_total) as revenue,
         SUM(l.qty * COALESCE(p.standard_cost, 0)) as cogs
       FROM invoice_lines l
@@ -476,8 +479,8 @@ export class ReportingService implements IReportingService {
       LEFT JOIN products p ON l.product_id = p.id
       WHERE i.invoice_type = 'SALES' AND i.status IN ('POSTED', 'PAID')
         AND i.invoice_date >= $1 AND i.invoice_date <= $2
-        ${params.branch_id ? `AND i.branch_id = '${params.branch_id}'` : ''}
-    `, params.from_date, params.to_date);
+        ${branchId ? `AND i.branch_id = $3::uuid` : ''}
+    `, params.from_date, params.to_date, ...(branchId ? [branchId] : []));
 
     const total_revenue = Number(posSales[0]?.revenue || 0) + Number(invoiceSales[0]?.revenue || 0);
     const total_cogs = Number(posSales[0]?.cogs || 0) + Number(invoiceSales[0]?.cogs || 0);
@@ -493,22 +496,23 @@ export class ReportingService implements IReportingService {
   }
 
   async getSalesTrend(days: number, branchId?: string): Promise<any> {
+    const safeBranchId = assertOptionalUuid(branchId, 'branch_id');
     const trendResult = await this.prisma.$queryRawUnsafe<any[]>(`
       WITH RECURSIVE dates AS (
         SELECT current_date - interval '1 day' * ($1 - 1) AS d
         UNION ALL
         SELECT d + interval '1 day' FROM dates WHERE d < current_date
       )
-      SELECT 
+      SELECT
         to_char(d, 'Dy') as date_label,
         COALESCE(SUM(l.line_total), 0) as revenue
       FROM dates
       LEFT JOIN pos_transactions t ON date(t.transaction_date) = date(d) AND t.status = 'COMPLETED'
-        ${branchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = '${branchId}')` : ''}
+        ${safeBranchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = $2::uuid)` : ''}
       LEFT JOIN pos_transaction_lines l ON l.transaction_id = t.id
       GROUP BY d
       ORDER BY d ASC
-    `, days);
+    `, days, ...(safeBranchId ? [safeBranchId] : []));
     
     return trendResult.map(r => ({
       date: r.date_label,
@@ -517,6 +521,7 @@ export class ReportingService implements IReportingService {
   }
 
   async getMonthlySalesTrend(year: number, branchId?: string): Promise<any> {
+    const safeBranchId = assertOptionalUuid(branchId, 'branch_id');
     const trendResult = await this.prisma.$queryRawUnsafe<any[]>(`
       WITH months AS (
         SELECT generate_series(
@@ -525,16 +530,16 @@ export class ReportingService implements IReportingService {
           interval '1 month'
         ) AS m
       )
-      SELECT 
+      SELECT
         to_char(m, 'Mon') as date_label,
         COALESCE(SUM(l.line_total), 0) as revenue
       FROM months
       LEFT JOIN pos_transactions t ON date_trunc('month', t.transaction_date) = m AND t.status = 'COMPLETED'
-        ${branchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = '${branchId}')` : ''}
+        ${safeBranchId ? `AND t.shift_id IN (SELECT id FROM shifts WHERE branch_id = $2::uuid)` : ''}
       LEFT JOIN pos_transaction_lines l ON l.transaction_id = t.id
       GROUP BY m
       ORDER BY m ASC
-    `, year);
+    `, year, ...(safeBranchId ? [safeBranchId] : []));
     
     return trendResult.map(r => ({
       date: r.date_label,

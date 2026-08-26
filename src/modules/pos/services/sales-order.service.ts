@@ -268,7 +268,7 @@ export class SalesOrderService implements ISalesOrderService {
               customer_id: so.customer_id,
               warehouse_id: so.warehouse_id,
               return_date: data.return_date,
-              reason: data.reason,
+              reason: data.reason ?? '',
               status: 'APPROVED',
               created_by: so.created_by,
             }
@@ -417,7 +417,7 @@ export class SalesOrderService implements ISalesOrderService {
 
     return {
       data,
-      meta: { total, page, per_page: perPage },
+      meta: { total, page, per_page: perPage, total_pages: Math.ceil(total / perPage) },
     };
   }
 

@@ -4,6 +4,7 @@ dotenv.config();
 
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -247,7 +248,22 @@ async function main() {
 
   // 4. Seed a default admin user (Owner) for initial system access
   const defaultAdminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@example.com';
-  const defaultAdminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@123456';
+  const isProduction = process.env.NODE_ENV === 'production';
+  let defaultAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!defaultAdminPassword) {
+    if (isProduction) {
+      const bytes = crypto.randomBytes(16);
+      defaultAdminPassword =
+        'K!' + bytes.toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 14) + '9x';
+    } else {
+      defaultAdminPassword = 'Admin@123456';
+      console.log(
+        '  ⚠ SEED_ADMIN_PASSWORD not set — using DEVELOPMENT-ONLY default password.',
+      );
+      console.log('  ⚠ NEVER run this seed against production without setting SEED_ADMIN_PASSWORD!');
+    }
+  }
 
   const existingAdmin = await prisma.user.findFirst({
     where: { email: defaultAdminEmail },
@@ -273,7 +289,14 @@ async function main() {
     }
 
     console.log(`  ✓ Default admin user created: ${defaultAdminEmail}`);
-    console.log(`  ⚠ Change the default password immediately after first login!`);
+    if (!process.env.SEED_ADMIN_PASSWORD) {
+      console.log('');
+      console.log('  ============================================================');
+      console.log(`  INITIAL ADMIN PASSWORD (one-time print): ${defaultAdminPassword}`);
+      console.log('  Store it securely now — it will NOT be shown again.');
+      console.log('  =============================================================');
+      console.log('');
+    }
   } else {
     console.log(`  ℹ Admin user already exists: ${defaultAdminEmail}`);
   }

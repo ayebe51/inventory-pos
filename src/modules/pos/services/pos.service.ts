@@ -668,7 +668,7 @@ export class POSService implements IPOSService {
           reference_type: data.reference_type,
           reference_id: data.reference_id,
           return_date: data.return_date,
-          reason: data.reason,
+          reason: data.reason ?? '',
           status: 'COMPLETED',
           total_amount: totalAmount,
           created_by: userId,

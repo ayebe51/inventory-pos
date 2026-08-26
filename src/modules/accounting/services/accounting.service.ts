@@ -5,6 +5,7 @@ import { PeriodManagerService } from '../../../services/period-manager/period-ma
 import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
+import { assertOptionalUuid } from '../../../common/utils/uuid.util';
 import { UUID } from '../../../common/types/uuid.type';
 import {
   AccountingService as IAccountingService,
@@ -146,22 +147,23 @@ export class AccountingService implements IAccountingService {
   }
 
   async getTrialBalance(periodId: UUID, branchId?: UUID): Promise<TrialBalance> {
+    const safeBranchId = assertOptionalUuid(branchId, 'branch_id');
     const result = await this.prisma.$queryRawUnsafe<any[]>(`
-      SELECT 
+      SELECT
         c.id as account_id,
-        c.account_code, 
-        c.account_name, 
+        c.account_code,
+        c.account_name,
         c.account_type,
-        SUM(l.debit) as debit_balance, 
+        SUM(l.debit) as debit_balance,
         SUM(l.credit) as credit_balance
       FROM chart_of_accounts c
       JOIN journal_entry_lines l ON c.id = l.account_id
       JOIN journal_entries j ON l.je_id = j.id
       WHERE j.period_id = $1::uuid AND j.status = 'POSTED'
-      ${branchId ? `AND c.branch_id = '${branchId}'` : ''}
+      ${safeBranchId ? `AND c.branch_id = $2::uuid` : ''}
       GROUP BY c.id, c.account_code, c.account_name, c.account_type
       ORDER BY c.account_code ASC
-    `, periodId);
+    `, periodId, ...(safeBranchId ? [safeBranchId] : []));
 
     let total_debit = 0;
     let total_credit = 0;

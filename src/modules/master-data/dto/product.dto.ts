@@ -1,5 +1,21 @@
 import { z } from 'zod';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsUUID,
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsIn,
+  IsInt,
+  IsUrl,
+  Min,
+  Max,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { ToBooleanQuery } from '../../../common/utils/query-transform.util';
 
 // ── CreateProductDTO ──────────────────────────────────────────────────────────
 
@@ -32,54 +48,96 @@ export const CreateProductSchema = z.object({
 
 export class CreateProductDTO {
   @ApiProperty({ example: 'PRD-001' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
   code!: string;
 
   @ApiPropertyOptional({ example: '1234567890123' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   barcode?: string | null;
 
   @ApiProperty({ example: 'Kopi Arabica 1Kg' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   name!: string;
 
   @ApiPropertyOptional({ example: 'Biji kopi pilihan' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
   description?: string | null;
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  @IsUUID()
   category_id!: string;
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440001' })
+  @IsOptional()
+  @IsUUID()
   brand_id?: string | null;
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440002' })
+  @IsUUID()
   uom_id!: string;
 
   @ApiProperty({ example: 'WAC', enum: ['WAC', 'FIFO'] })
+  @IsOptional()
+  @IsIn(['WAC', 'FIFO'])
   cost_method?: string = 'WAC';
 
   @ApiProperty({ example: 100000 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   standard_cost?: number = 0;
 
   @ApiProperty({ example: 150000 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   selling_price?: number = 0;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   min_selling_price?: number = 0;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   reorder_point?: number = 0;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   reorder_qty?: number = 0;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   max_stock?: number | null;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_serialized?: boolean = false;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_batch_tracked?: boolean = false;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_active?: boolean = true;
 }
 
@@ -89,54 +147,100 @@ export const UpdateProductSchema = CreateProductSchema.partial();
 
 export class UpdateProductDTO {
   @ApiPropertyOptional({ example: 'PRD-001' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
   code?: string;
 
   @ApiPropertyOptional({ example: '1234567890123' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   barcode?: string | null;
 
   @ApiPropertyOptional({ example: 'Kopi Arabica 1Kg' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   name?: string;
 
   @ApiPropertyOptional({ example: 'Biji kopi pilihan' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
   description?: string | null;
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440000' })
+  @IsOptional()
+  @IsUUID()
   category_id?: string;
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440001' })
+  @IsOptional()
+  @IsUUID()
   brand_id?: string | null;
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440002' })
+  @IsOptional()
+  @IsUUID()
   uom_id?: string;
 
   @ApiPropertyOptional({ example: 'WAC', enum: ['WAC', 'FIFO'] })
+  @IsOptional()
+  @IsIn(['WAC', 'FIFO'])
   cost_method?: string;
 
   @ApiPropertyOptional({ example: 100000 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   standard_cost?: number;
 
   @ApiPropertyOptional({ example: 150000 })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   selling_price?: number;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   min_selling_price?: number;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   reorder_point?: number;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   reorder_qty?: number;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
   max_stock?: number | null;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_serialized?: boolean;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_batch_tracked?: boolean;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
   is_active?: boolean;
 }
 
@@ -154,23 +258,45 @@ export const ProductFilterSchema = z.object({
 
 export class ProductFilterDTO {
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
   code?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
   name?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   category_id?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   brand_id?: string;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @ToBooleanQuery()
+  @IsBoolean()
   is_active?: boolean;
 
   @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   per_page?: number;
 }

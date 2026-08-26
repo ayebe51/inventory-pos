@@ -384,7 +384,7 @@ export class InventoryService implements IInventoryService {
     to_warehouse_id?: UUID;
     page?: number;
     per_page?: number;
-  }): Promise<{ data: any[]; meta: { total: number; page: number; per_page: number } }> {
+  }): Promise<{ data: any[]; meta: { total: number; page: number; per_page: number; total_pages: number } }> {
     const page = params?.page || 1;
     const perPage = params?.per_page || 20;
     const skip = (page - 1) * perPage;
@@ -419,6 +419,7 @@ export class InventoryService implements IInventoryService {
         total,
         page,
         per_page: perPage,
+        total_pages: Math.ceil(total / perPage),
       },
     };
   }

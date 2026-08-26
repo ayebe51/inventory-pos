@@ -274,6 +274,7 @@ export class PurchaseReturnService {
         total,
         page,
         per_page: perPage,
+        total_pages: Math.ceil(total / perPage),
       },
     };
   }

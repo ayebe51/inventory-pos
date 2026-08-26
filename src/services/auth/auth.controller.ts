@@ -93,16 +93,11 @@ export class AuthController {
    */
   @Post('mfa/verify')
   @HttpCode(HttpStatus.OK)
+  @Post('mfa/verify')
+  @HttpCode(HttpStatus.OK)
   async mfaVerify(@Body() body: unknown) {
     const { mfaToken, totpCode } = MfaVerifySchema.parse(body);
     const result = await this.authService.verifyMfa(mfaToken, totpCode);
     return successResponse(result, 'MFA verified');
-  }
-
-  @Post('mfa/bypass')
-  @HttpCode(HttpStatus.OK)
-  async mfaBypass(@Body() body: { mfaToken?: string }) {
-    const result = await this.authService.bypassMfa(body?.mfaToken || '');
-    return successResponse(result, 'MFA bypassed for demo');
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Alert } from 'antd';
-import { Mail, Lock, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useLogin } from '../hooks/useAuth';
 
 export const LoginPage: React.FC = () => {
@@ -19,14 +19,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleFillDemo = () => {
-    login.reset();
-    form.setFieldsValue({
-      email: 'admin@example.com',
-      password: 'Admin@123456',
-    });
   };
 
   const getErrorMessage = () => {
@@ -210,40 +202,6 @@ export const LoginPage: React.FC = () => {
             <ArrowRight size={16} />
           </Button>
         </Form>
-
-        {/* Demo Credentials Box with 1-Click Auto Fill */}
-        <div style={{
-          marginTop: 24,
-          padding: '16px 18px',
-          background: 'var(--solid-bg-subtle)',
-          border: '1px solid var(--solid-border)',
-          borderRadius: 14,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-              Demo Account
-            </span>
-            <Button
-              type="link"
-              size="small"
-              onClick={handleFillDemo}
-              icon={<Sparkles size={13} />}
-              style={{ padding: 0, height: 'auto', fontSize: 12, fontWeight: 600, color: 'var(--brand-500)' }}
-            >
-              Fill Credentials
-            </Button>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Email:</span>
-              <code style={{ fontSize: 12, color: 'var(--brand-600)', background: 'var(--brand-50)', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>admin@example.com</code>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Password:</span>
-              <code style={{ fontSize: 12, color: 'var(--brand-600)', background: 'var(--brand-50)', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }}>Admin@123456</code>
-            </div>
-          </div>
-        </div>
 
         {/* Footer */}
         <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)', margin: '24px 0 0' }}>

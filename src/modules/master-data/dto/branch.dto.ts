@@ -1,5 +1,12 @@
 import { z } from 'zod';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsUUID,
+  IsOptional,
+  IsString,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 
 // ── CreateHeadOfficeDTO ───────────────────────────────────────────────────────
 
@@ -11,12 +18,21 @@ export const CreateHeadOfficeSchema = z.object({
 
 export class CreateHeadOfficeDTO {
   @ApiProperty({ example: 'HQ-001' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
   code!: string;
 
   @ApiProperty({ example: 'Kantor Pusat Jakarta' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   name!: string;
 
   @ApiPropertyOptional({ example: 'Jl. Jend. Sudirman No. 1' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   address?: string | null;
 }
 
@@ -31,14 +47,24 @@ export const CreateBranchSchema = z.object({
 
 export class CreateBranchDTO {
   @ApiProperty({ example: 'BR-001' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
   code!: string;
 
   @ApiProperty({ example: 'Cabang Bandung' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   name!: string;
 
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsUUID()
   parent_id!: string;
 
   @ApiPropertyOptional({ example: 'Jl. Asia Afrika No. 10' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   address?: string | null;
 }

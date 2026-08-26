@@ -1,9 +1,42 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../config/prisma.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+const BCRYPT_COST = 12;
+
+type PrismaTransactionClient = Prisma.TransactionClient;
+
+const TEMP_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+
+function generateTempPassword(length = 12): string {
+  const bytes = crypto.randomBytes(length);
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += TEMP_PASSWORD_ALPHABET[bytes[i] % TEMP_PASSWORD_ALPHABET.length];
+  }
+  return password;
+}
+
+const USER_PUBLIC_SELECT = {
+  id: true,
+  email: true,
+  full_name: true,
+  is_active: true,
+  mfa_enabled: true,
+  branch_id: true,
+  created_at: true,
+  updated_at: true,
+  user_roles: {
+    include: {
+      role: { select: { id: true, name: true } }
+    }
+  }
+} as const;
 
 @Injectable()
 export class AdminService {
@@ -37,7 +70,7 @@ export class AdminService {
       throw new BusinessRuleException('Email already exists', ErrorCode.VALIDATION_ERROR);
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await bcrypt.hash(data.password, BCRYPT_COST);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -47,7 +80,8 @@ export class AdminService {
           password_hash: hashedPassword,
           is_active: data.is_active ?? true,
           branch_id: data.branch_id
-        }
+        },
+        select: USER_PUBLIC_SELECT
       });
 
       if (data.role_ids && data.role_ids.length > 0) {
@@ -59,7 +93,14 @@ export class AdminService {
         });
       }
 
-      return user;
+      return this.getUserWithRoles(tx, user.id);
+    });
+  }
+
+  private async getUserWithRoles(tx: PrismaTransactionClient, userId: UUID) {
+    return tx.user.findUnique({
+      where: { id: userId },
+      select: USER_PUBLIC_SELECT
     });
   }
 
@@ -88,15 +129,15 @@ export class AdminService {
           branch_id: data.branch_id
         }
       });
-    });
+    }).then((user) => this.getUserWithRoles(this.prisma, userId));
   }
 
   async resetPassword(userId: UUID) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BusinessRuleException('User not found', ErrorCode.NOT_FOUND);
 
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const tempPassword = generateTempPassword();
+    const hashedPassword = await bcrypt.hash(tempPassword, BCRYPT_COST);
 
     await this.prisma.user.update({
       where: { id: userId },

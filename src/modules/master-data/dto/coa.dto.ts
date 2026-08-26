@@ -1,4 +1,20 @@
 import { z } from 'zod';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsUUID,
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsIn,
+  Min,
+  Max,
+  MaxLength,
+  MinLength,
+  Matches,
+} from 'class-validator';
+import { ToBooleanQuery } from '../../../common/utils/query-transform.util';
 
 // ── Account type enum ─────────────────────────────────────────────────────────
 
@@ -14,6 +30,17 @@ export const AccountTypeEnum = z.enum([
 ]);
 
 export type AccountType = z.infer<typeof AccountTypeEnum>;
+
+const ACCOUNT_TYPES = [
+  'ASSET',
+  'LIABILITY',
+  'EQUITY',
+  'REVENUE',
+  'EXPENSE',
+  'COGS',
+  'OTHER_INCOME',
+  'OTHER_EXPENSE',
+] as const;
 
 // ── Account code format validation ────────────────────────────────────────────
 // Level 1: "1"
@@ -54,34 +81,51 @@ export const CreateCOASchema = z.object({
   branch_id: z.string().uuid('branch_id harus berupa UUID').nullable().optional(),
 });
 
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
 export class CreateCOADTO {
   @ApiProperty({ example: '1.001' })
+  @Matches(ACCOUNT_CODE_REGEX)
+@IsString()
+  @MaxLength(20)
   account_code!: string;
 
   @ApiProperty({ example: 'Kas di Bank' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   account_name!: string;
 
   @ApiProperty({ enum: ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'COGS', 'OTHER_INCOME', 'OTHER_EXPENSE'], example: 'ASSET' })
+  @IsIn([...ACCOUNT_TYPES])
   account_type!: AccountType;
 
   @ApiPropertyOptional({ example: 'Current Asset' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   account_category?: string | null;
 
   @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsOptional()
+  @IsUUID()
   parent_id?: string | null;
 
   @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
   is_header?: boolean;
 
   @ApiProperty({ enum: ['DEBIT', 'CREDIT'], example: 'DEBIT' })
+  @IsIn(['DEBIT', 'CREDIT'])
   normal_balance!: 'DEBIT' | 'CREDIT';
 
   @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
   is_active?: boolean;
 
   @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsOptional()
+  @IsUUID()
   branch_id?: string | null;
 }
 
@@ -98,30 +142,53 @@ export const UpdateCOASchema = CreateCOASchema.partial().omit({ account_code: tr
 
 export class UpdateCOADTO {
   @ApiPropertyOptional({ example: '1.001' })
+  @IsOptional()
+  @Matches(ACCOUNT_CODE_REGEX)
+@IsString()
+  @MaxLength(20)
   account_code?: string;
 
   @ApiPropertyOptional({ example: 'Kas di Bank' })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   account_name?: string;
 
   @ApiPropertyOptional({ enum: ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'COGS', 'OTHER_INCOME', 'OTHER_EXPENSE'] })
+  @IsOptional()
+  @IsIn([...ACCOUNT_TYPES])
   account_type?: AccountType;
 
   @ApiPropertyOptional({ example: 'Current Asset' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   account_category?: string | null;
 
   @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsOptional()
+  @IsUUID()
   parent_id?: string | null;
 
   @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
   is_header?: boolean;
 
   @ApiPropertyOptional({ enum: ['DEBIT', 'CREDIT'] })
+  @IsOptional()
+  @IsIn(['DEBIT', 'CREDIT'])
   normal_balance?: 'DEBIT' | 'CREDIT';
 
   @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
   is_active?: boolean;
 
   @ApiPropertyOptional({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  @IsOptional()
+  @IsUUID()
   branch_id?: string | null;
 }
 
@@ -140,26 +207,50 @@ export const COAFilterSchema = z.object({
 
 export class COAFilterDTO {
   @ApiPropertyOptional({ enum: ['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE', 'COGS', 'OTHER_INCOME', 'OTHER_EXPENSE'] })
+  @IsOptional()
+  @IsIn([...ACCOUNT_TYPES])
   account_type?: AccountType;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @ToBooleanQuery()
+  @IsBoolean()
   is_header?: boolean;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @ToBooleanQuery()
+  @IsBoolean()
   is_active?: boolean;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   parent_id?: string | null;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
   branch_id?: string | null;
 
   @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
   search?: string;
 
   @ApiPropertyOptional({ default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number;
 
   @ApiPropertyOptional({ default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   per_page?: number;
 }

@@ -162,7 +162,7 @@ export interface SalesReturnDTO {
   reference_type: string;
   reference_id: UUID;
   return_date: Date;
-  reason: string;
+  reason?: string;
   lines: SalesReturnLineDTO[];
 }
 

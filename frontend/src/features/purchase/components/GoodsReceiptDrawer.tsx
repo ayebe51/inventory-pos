@@ -12,6 +12,7 @@ const { Text } = Typography;
 
 interface GoodsReceiptLine {
   key: string;
+  po_line_id: string;
   product_id: string;
   product_name: string;
   qty_ordered: number;
@@ -35,6 +36,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
 
   const initialLines: GoodsReceiptLine[] = ((purchaseOrder as any).lines || []).map((line: any, idx: number) => ({
     key: String(idx),
+    po_line_id: line.id,
     product_id: line.product_id,
     product_name: line.product?.name || line.product_id,
     qty_ordered: line.qty_ordered,
@@ -52,6 +54,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
         receipt_date: values.receipt_date || new Date().toISOString().split('T')[0],
         notes: values.notes,
         lines: initialLines.map((line) => ({
+          po_line_id: line.po_line_id,
           product_id: line.product_id,
           qty_received: values[`qty_${line.key}`] || 0,
           unit_cost: line.unit_cost,
