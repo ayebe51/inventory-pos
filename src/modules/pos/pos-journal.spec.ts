@@ -28,6 +28,11 @@ describe('P0-003 POS Auto-Journal Integration Unit Test', () => {
       inventoryLedger: {
         findMany: jest.fn(),
       },
+      chartOfAccount: {
+        findUnique: jest.fn(({ where }: any) =>
+          Promise.resolve({ id: `acc-${where.account_code}` }),
+        ),
+      },
       $transaction: jest.fn((callback) => callback(mockPrisma)),
     };
     mockNumbering = { generate: jest.fn() };
@@ -39,6 +44,9 @@ describe('P0-003 POS Auto-Journal Integration Unit Test', () => {
       mockNumbering as any,
       mockJournalEngine as any,
       mockPeriodManager as any,
+      { record: jest.fn().mockResolvedValue({}) } as any,
+      { get: jest.fn().mockReturnValue(11) } as any,
+      { hasAnyPermission: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 

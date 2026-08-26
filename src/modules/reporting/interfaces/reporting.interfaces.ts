@@ -199,7 +199,7 @@ export interface ReportingService {
   getStockPositionReport(params: StockParams): Promise<StockPositionReport>;
   getStockMovementReport(params: MovementParams): Promise<StockMovementReport>;
   getSalesReport(params: SalesParams): Promise<SalesReport>;
-  getShiftReport(shiftId: UUID): Promise<ShiftReport>;
+  getShiftReport(shiftId: UUID, caller?: { branch_id: string | null }): Promise<ShiftReport>;
   getRecentActivities(limit?: number): Promise<RecentActivityItem[]>;
 }
 

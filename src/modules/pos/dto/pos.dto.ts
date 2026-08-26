@@ -174,6 +174,12 @@ export class VoidTransactionDTO {
   @IsNotEmpty()
   @MaxLength(500)
   reason!: string;
+
+  @ApiPropertyOptional({ example: 3 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  version?: number;
 }
 
 export class CreateSOLineDTO {

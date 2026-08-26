@@ -4,6 +4,7 @@ import {
   Query,
   UseGuards,
   Param,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -12,6 +13,10 @@ import { RequirePermissions } from '../../../common/decorators/permissions.decor
 import { ReportingService } from '../services/reporting.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
+
+interface AuthRequest extends Request {
+  user: { sub: string; email: string; branch_id?: string | null };
+}
 
 @ApiTags('Reporting')
 @ApiBearerAuth()
@@ -184,8 +189,10 @@ export class ReportingController {
   @ApiParam({ name: 'id', description: 'Shift ID' })
   @Get('sales/shift/:id')
   @RequirePermissions('REPORT.FINANCIAL')
-  async getShiftReport(@Param('id') shiftId: string) {
-    const data = await this.reportingService.getShiftReport(shiftId as UUID);
+  async getShiftReport(@Param('id') shiftId: string, @Request() req: AuthRequest) {
+    const data = await this.reportingService.getShiftReport(shiftId as UUID, {
+      branch_id: req.user.branch_id ?? null,
+    });
     return successResponse(data);
   }
 

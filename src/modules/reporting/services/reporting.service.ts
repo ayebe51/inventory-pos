@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaReadService } from '../../../config/prisma-read.service';
 import { assertOptionalUuid } from '../../../common/utils/uuid.util';
 import {
@@ -547,7 +547,7 @@ export class ReportingService implements IReportingService {
     }));
   }
 
-  async getShiftReport(shiftId: UUID): Promise<ShiftReport> {
+  async getShiftReport(shiftId: UUID, caller?: { branch_id: string | null }): Promise<ShiftReport> {
     const shift = await this.prisma.shift.findUnique({
       where: { id: shiftId },
       include: {
@@ -564,6 +564,10 @@ export class ReportingService implements IReportingService {
 
     if (!shift) {
       throw new NotFoundException('Shift not found');
+    }
+
+    if (caller?.branch_id && shift.branch_id !== caller.branch_id) {
+      throw new ForbiddenException('Access denied: Shift belongs to another branch');
     }
 
     let totalSales = 0;

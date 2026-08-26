@@ -5,6 +5,7 @@ dotenv.config();
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { PERMISSION_DEFINITIONS, PERMISSION_KEYS } from '../src/common/constants/permissions';
 
 const prisma = new PrismaClient();
 
@@ -81,6 +82,17 @@ const SPECIAL_PERMISSIONS: Array<{ module: string; action: string; description: 
   { module: 'ADMIN', action: 'USER', description: 'Manage users and roles' },
   { module: 'INVOICE', action: 'WRITE_OFF', description: 'Write off uncollectible AR invoices' },
 ];
+
+// Permissions enforced by controllers but not present in the curated lists
+// above are appended automatically so the RBAC matrix can never drift into
+// "endpoint requires a permission nobody holds" territory again.
+const CURATED_KEYS = new Set(
+  [...STANDARD_PERMISSIONS, ...SPECIAL_PERMISSIONS].map((p) => `${p.module}.${p.action}`),
+);
+
+const EXTRA_PERMISSIONS = PERMISSION_DEFINITIONS.filter(
+  (p) => !CURATED_KEYS.has(`${p.module}.${p.action}`),
+);
 
 // ── Role → Permission mapping ─────────────────────────────────────────────────
 
@@ -188,13 +200,36 @@ const ROLE_PERMISSIONS: Record<string, PermKey[]> = {
   ],
 };
 
+// Operational grants so no controller-gated flow is dead for every role
+ROLE_PERMISSIONS.Supervisor.push('POS.UPDATE', 'POS.DELETE', 'SALES.RETURN');
+ROLE_PERMISSIONS['Warehouse_Manager'].push('STOCK.TRANSFER');
+ROLE_PERMISSIONS['Finance_Manager'].push(
+  'INVOICE.VIEW', 'PAYMENT.REVERSE', 'FINANCE.MANAGE',
+  'PERIOD.VIEW', 'PERIOD.CREATE', 'JOURNAL.VIEW', 'JOURNAL.CREATE',
+  'ACCOUNTING.DELETE',
+);
+ROLE_PERMISSIONS['Finance_Staff'].push(
+  'INVOICE.VIEW', 'PERIOD.VIEW', 'JOURNAL.VIEW', 'JOURNAL.CREATE',
+);
+ROLE_PERMISSIONS['Purchasing_Staff'].push('PRODUCT.CREATE', 'PRODUCT.UPDATE');
+ROLE_PERMISSIONS.Owner.push('PRICE.OVERRIDE', 'DISCOUNT.OVERRIDE');
+ROLE_PERMISSIONS.Owner = Array.from(new Set([...ROLE_PERMISSIONS.Owner, ...PERMISSION_KEYS]));
+
 // ── Seed function ─────────────────────────────────────────────────────────────
 
 async function main() {
   console.log('🌱 Seeding roles and permissions...');
 
-  // 1. Upsert all permissions
-  const allPermDefs = [...STANDARD_PERMISSIONS, ...SPECIAL_PERMISSIONS];
+  // 1. Upsert all permissions (curated lists + controller-required extras)
+  const seen = new Set<string>();
+  const allPermDefs = [...STANDARD_PERMISSIONS, ...SPECIAL_PERMISSIONS, ...EXTRA_PERMISSIONS].filter(
+    (p) => {
+      const key = `${p.module}.${p.action}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    },
+  );
 
   for (const perm of allPermDefs) {
     await prisma.permission.upsert({

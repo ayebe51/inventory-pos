@@ -13,6 +13,20 @@ export const useActiveShift = () =>
     staleTime: 30_000,
   });
 
+export const usePOSConfig = () =>
+  useQuery({
+    queryKey: ['pos', 'config'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/v1/pos/config');
+        return res.data?.data ?? { tax_pct: 11 };
+      } catch {
+        return { tax_pct: 11 };
+      }
+    },
+    staleTime: 5 * 60_000,
+  });
+
 export const useShiftTransactions = (shiftId?: string) =>
   useQuery({
     queryKey: ['pos', 'transactions', shiftId],

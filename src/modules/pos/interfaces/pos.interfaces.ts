@@ -121,6 +121,9 @@ export interface POSLineItemDTO {
   uom_id: UUID;
   unit_price: number;
   discount_pct?: number;
+  tax_pct?: number;
+  price_override?: boolean;
+  price_override_by?: UUID;
   version: number;
 }
 
@@ -180,7 +183,7 @@ export interface POSService {
   holdTransaction(transactionId: UUID, version: number): Promise<void>;
   resumeTransaction(transactionId: UUID, version: number): Promise<POSTransaction>;
   applyPayment(transactionId: UUID, payments: PaymentMethodDTO[]): Promise<Receipt>;
-  voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version: number): Promise<void>;
+  voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version?: number): Promise<void>;
   closeShift(shiftId: UUID, closingBalance: number): Promise<ShiftReport>;
   
   // Added missing methods

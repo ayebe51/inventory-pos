@@ -47,6 +47,15 @@ import { UseIdempotency } from '../../../common/decorators/idempotency.decorator
 export class POSController {
   constructor(private readonly posService: POSService) {}
 
+  @ApiOperation({ summary: 'POS runtime configuration (tax rate, limits)' })
+  @Get('config')
+  @RequirePermissions('POS.READ')
+  getConfig() {
+    return successResponse({
+      tax_pct: this.posService.getDefaultTaxPct(),
+    });
+  }
+
   // ─── SHIFTS ──────────────────────────────────────────────
 
   @ApiOperation({ summary: 'List shifts' })
@@ -97,8 +106,8 @@ export class POSController {
   @ApiBody({ type: CloseShiftDTO })
   @Post('shifts/:id/close')
   @RequirePermissions('POS.UPDATE')
-  async closeShift(@Param('id') id: string, @Body() body: CloseShiftDTO) {
-    const report = await this.posService.closeShift(id as UUID, body.closing_balance);
+  async closeShift(@Param('id') id: string, @Body() body: CloseShiftDTO, @Request() req: AuthRequest) {
+    const report = await this.posService.closeShift(id as UUID, body.closing_balance, req.user);
     return successResponse(report, 'Shift closed successfully');
   }
 
@@ -146,8 +155,7 @@ export class POSController {
   @Post('transactions/:id/void')
   @RequirePermissions('POS.DELETE')
   async voidTransaction(@Param('id') id: string, @Body() body: VoidTransactionDTO, @Request() req: AuthRequest) {
-    // Note: Assuming a fixed version for voiding as it's not provided in the request
-    await this.posService.voidTransaction(id as UUID, req.user.sub as UUID, body.reason, 1);
+    await this.posService.voidTransaction(id as UUID, req.user.sub as UUID, body.reason, body.version);
     return successResponse(null, 'Transaction voided successfully');
   }
 

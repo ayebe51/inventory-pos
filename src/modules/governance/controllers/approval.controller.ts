@@ -7,6 +7,8 @@ import {
   Query,
   UseGuards,
   Request,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -133,17 +135,27 @@ export class ApprovalController {
     @Body() body: RejectRequestDTO,
     @Request() req: AuthRequest,
   ) {
-    if (!body.reason) throw new Error('Rejection reason is required');
+    if (!body.reason || !body.reason.trim()) {
+      throw new BadRequestException('Rejection reason is required');
+    }
 
-    await this.prisma.approvalRequest.update({
-      where: { id },
-      data: { status: 'REJECTED' },
+    const pendingStep = await this.prisma.approvalRequestStep.findFirst({
+      where: { request_id: id, approver_id: req.user.sub, status: 'PENDING' },
     });
+    if (!pendingStep) {
+      throw new ForbiddenException('You are not an assigned approver for this request');
+    }
 
-    await this.prisma.approvalRequestStep.updateMany({
-      where: { request_id: id, approver_id: req.user.sub },
-      data: { status: 'REJECTED', notes: body.reason, decision_at: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.approvalRequest.update({
+        where: { id },
+        data: { status: 'REJECTED' },
+      }),
+      this.prisma.approvalRequestStep.update({
+        where: { id: pendingStep.id },
+        data: { status: 'REJECTED', notes: body.reason, decision_at: new Date() },
+      }),
+    ]);
 
     return successResponse({ id, status: 'REJECTED' }, 'Request rejected');
   }

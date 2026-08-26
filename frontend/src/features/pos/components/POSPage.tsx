@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { usePOSStore } from '../store/posStore';
 import { useProducts } from '../../inventory/hooks/useInventory';
-import { useActiveShift, useCheckout } from '../hooks/usePOS';
+import { useActiveShift, useCheckout, usePOSConfig } from '../hooks/usePOS';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { useAuthStore } from '../../../store/authStore';
 
@@ -30,6 +30,7 @@ export const POSPage: React.FC = () => {
   const { user } = useAuthStore();
   const { data: activeShift, isLoading: shiftLoading } = useActiveShift();
   const { data: products } = useProducts({});
+  const { data: posConfig } = usePOSConfig();
   const checkout = useCheckout();
   const { token } = antTheme.useToken();
   const navigate = useNavigate();
@@ -45,7 +46,8 @@ export const POSPage: React.FC = () => {
   const canOverridePrice = user?.role === 'admin' || user?.role === 'manager';
 
   const subtotal = cart.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
-  const tax = Math.round(subtotal * 0.11);
+  const taxPct = (posConfig?.tax_pct ?? 11) / 100;
+  const tax = Math.round(subtotal * taxPct);
   const total = subtotal + tax;
   const change = cashPaid - total;
 

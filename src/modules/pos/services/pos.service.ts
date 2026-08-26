@@ -1,11 +1,15 @@
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../config/prisma.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
 import { JournalEngineService } from '../../../services/journal-engine/journal-engine.service';
 import { PeriodManagerService } from '../../../services/period-manager/period-manager.service';
+import { AuditService } from '../../../services/audit/audit.service';
+import { RbacService } from '../../../services/rbac/rbac.service';
 import { BusinessRuleException } from '../../../common/exceptions/business-rule.exception';
 import { ErrorCode } from '../../../common/enums/error-codes.enum';
 import { UUID } from '../../../common/types/uuid.type';
+import type { JournalLine } from '../../accounting/interfaces/accounting.interfaces';
 import {
   POSService as IPOSService,
   OpenShiftDTO,
@@ -24,12 +28,58 @@ import {
 export class POSService implements IPOSService {
   private readonly logger = new Logger(POSService.name);
 
+  private static readonly CASH_ACCOUNT_CODE = '1.101.001';
+  private static readonly REVENUE_ACCOUNT_CODE = '4.101.000';
+  private static readonly TAX_ACCOUNT_CODE = '2.102.001';
+  private static readonly DEFAULT_MAX_DISCOUNT_PCT = 10;
+  private static readonly PRICE_OVERRIDE_PERMISSION = 'PRICE.OVERRIDE';
+  private static readonly DISCOUNT_OVERRIDE_PERMISSION = 'DISCOUNT.OVERRIDE';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly numberingService: NumberingService,
     private readonly journalEngine: JournalEngineService,
     private readonly periodManager: PeriodManagerService,
+    private readonly audit: AuditService,
+    private readonly configService: ConfigService,
+    private readonly rbacService: RbacService,
   ) {}
+
+  getDefaultTaxPct(): number {
+    const raw = Number(this.configService.get<string | number>('DEFAULT_TAX_PCT'));
+    return Number.isFinite(raw) && raw >= 0 && raw <= 100 ? raw : 11;
+  }
+
+  private round2(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  private async buildPosSaleJournalLines(
+    client: PrismaService | any,
+    total: number,
+    subtotal: number,
+    taxAmount: number,
+    reverse: boolean,
+  ): Promise<JournalLine[]> {
+    const [cashAcc, revenueAcc, taxAcc] = await Promise.all([
+      client.chartOfAccount.findUnique({ where: { account_code: POSService.CASH_ACCOUNT_CODE } }),
+      client.chartOfAccount.findUnique({ where: { account_code: POSService.REVENUE_ACCOUNT_CODE } }),
+      client.chartOfAccount.findUnique({ where: { account_code: POSService.TAX_ACCOUNT_CODE } }),
+    ]);
+
+    if (!cashAcc || !revenueAcc || !taxAcc) {
+      throw new BusinessRuleException(
+        `POS chart of accounts incomplete. Required codes: ${POSService.CASH_ACCOUNT_CODE}, ${POSService.REVENUE_ACCOUNT_CODE}, ${POSService.TAX_ACCOUNT_CODE}`,
+        ErrorCode.VALIDATION_ERROR,
+      );
+    }
+
+    const cashLine: JournalLine = { account_id: cashAcc.id, description: 'Penerimaan kas POS', debit: reverse ? 0 : this.round2(total), credit: reverse ? this.round2(total) : 0 };
+    const revenueLine: JournalLine = { account_id: revenueAcc.id, description: 'Pendapatan penjualan POS', debit: reverse ? this.round2(subtotal) : 0, credit: reverse ? 0 : this.round2(subtotal) };
+    const taxLine: JournalLine = { account_id: taxAcc.id, description: 'PPN Keluaran', debit: reverse ? this.round2(taxAmount) : 0, credit: reverse ? 0 : this.round2(taxAmount) };
+
+    return [cashLine, revenueLine, taxLine];
+  }
 
   async openShift(data: OpenShiftDTO): Promise<Shift> {
     this.logger.log(`Opening shift for cashier ${data.cashier_id}`);
@@ -140,8 +190,11 @@ export class POSService implements IPOSService {
           const newQty = srcQty - item.qty;
           const newCost = srcRunningCost - (item.qty * unitCost);
 
-          const discountAmt = (item.discount_pct || 0) / 100 * (item.qty * item.unit_price);
-          const lineTotal = (item.qty * item.unit_price) - discountAmt;
+          const discountAmt = this.round2((item.discount_pct || 0) / 100 * (item.qty * item.unit_price));
+          const netLineTotal = this.round2((item.qty * item.unit_price) - discountAmt);
+          const taxPct = item.tax_pct ?? 0;
+          const taxAmt = this.round2(netLineTotal * (taxPct / 100));
+          const lineTotal = netLineTotal;
 
           await tx.posTransactionLine.create({
             data: {
@@ -150,8 +203,12 @@ export class POSService implements IPOSService {
               qty: item.qty,
               uom_id: item.uom_id,
               unit_price: item.unit_price,
+              price_override: item.price_override ?? false,
+              price_override_by: item.price_override ? (item.price_override_by ?? null) : null,
               discount_pct: item.discount_pct || 0,
               discount_amount: discountAmt,
+              tax_pct: taxPct,
+              tax_amount: taxAmt,
               line_total: lineTotal,
             }
           });
@@ -160,7 +217,8 @@ export class POSService implements IPOSService {
             where: { id: transactionId },
             data: {
               subtotal: { increment: lineTotal },
-              total_amount: { increment: lineTotal },
+              tax_amount: { increment: taxAmt },
+              total_amount: { increment: lineTotal + taxAmt },
               version: { increment: 1 },
             },
             include: { lines: true }
@@ -277,7 +335,8 @@ export class POSService implements IPOSService {
       // Post Auto-Journal Entries for POS Sale and POS Sale COGS
       const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
       if (period) {
-        // 1. POS_SALE (Debit Cash/Bank, Credit Revenue & Tax)
+        // 1. POS_SALE — Dr Cash total / Cr Revenue subtotal / Cr Tax payable
+        const saleSubtotal = this.round2(Number(updatedTx.total_amount) - Number(updatedTx.tax_amount));
         await this.journalEngine.processEvent(
           {
             event_type: 'POS_SALE',
@@ -287,6 +346,13 @@ export class POSService implements IPOSService {
             entry_date: new Date(),
             period_id: period.id,
             amount: Number(updatedTx.total_amount),
+            lines: await this.buildPosSaleJournalLines(
+              tx,
+              Number(updatedTx.total_amount),
+              saleSubtotal,
+              Number(updatedTx.tax_amount),
+              false,
+            ),
             created_by: transaction.cashier_id,
           },
           tx,
@@ -326,19 +392,41 @@ export class POSService implements IPOSService {
     });
   }
 
-  async voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version: number): Promise<void> {
+  async voidTransaction(transactionId: UUID, supervisorId: UUID, reason: string, version?: number): Promise<void> {
     let lastError: any;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          const transaction = await tx.posTransaction.findUnique({ 
+          const transaction = await tx.posTransaction.findUnique({
             where: { id: transactionId },
             include: { lines: true, shift: true }
           });
           if (!transaction) throw new BusinessRuleException('Transaction not found', ErrorCode.NOT_FOUND);
-          
+
           if (transaction.status === 'VOIDED') throw new BusinessRuleException('Already voided', ErrorCode.BUSINESS_RULE_VIOLATION);
-          if (transaction.version !== version) throw new BusinessRuleException('Version mismatch', ErrorCode.CONCURRENCY_ERROR);
+
+          if (transaction.cashier_id === supervisorId) {
+            throw new BusinessRuleException(
+              'Segregation of Duties violation: a cashier cannot void their own transaction',
+              ErrorCode.BUSINESS_RULE_VIOLATION,
+            );
+          }
+
+          if (version !== undefined && transaction.version !== version) {
+            throw new BusinessRuleException('Version mismatch', ErrorCode.CONCURRENCY_ERROR);
+          }
+
+          await this.audit.record(
+            {
+              user_id: supervisorId,
+              action: 'VOID',
+              entity_type: 'PosTransaction',
+              entity_id: transaction.id,
+              before_snapshot: { status: transaction.status, total_amount: transaction.total_amount, version: transaction.version },
+              after_snapshot: { status: 'VOIDED', reason },
+            },
+            tx,
+          );
 
           const productIds = Array.from(new Set(transaction.lines.map(l => l.product_id)));
           productIds.sort();
@@ -392,6 +480,15 @@ export class POSService implements IPOSService {
           // Post Journal Reversal if transaction was COMPLETED and period is OPEN
           const period = await tx.fiscalPeriod.findFirst({ where: { status: 'OPEN' } });
           if (period && transaction.status === 'COMPLETED') {
+            const voidTax = this.round2(Number(transaction.tax_amount));
+            const voidSubtotal = this.round2(Number(transaction.total_amount) - voidTax);
+            const reversedLines = await this.buildPosSaleJournalLines(
+              tx,
+              Number(transaction.total_amount),
+              voidSubtotal,
+              voidTax,
+              true,
+            );
             await this.journalEngine.processEvent(
               {
                 event_type: 'POS_SALE_REVERSAL',
@@ -401,6 +498,7 @@ export class POSService implements IPOSService {
                 entry_date: new Date(),
                 period_id: period.id,
                 amount: Number(transaction.total_amount),
+                lines: reversedLines,
                 created_by: supervisorId,
               },
               tx,
@@ -441,10 +539,21 @@ export class POSService implements IPOSService {
     throw lastError;
   }
 
-  async closeShift(shiftId: UUID, closingBalance: number): Promise<ShiftReport> {
-    return await this.prisma.$transaction(async (tx) => {
-      const shift = await tx.shift.findUnique({ where: { id: shiftId }});
+  async closeShift(shiftId: UUID, closingBalance: number, user?: { sub: string; branch_id?: string | null }): Promise<ShiftReport> {
+    return await this.prisma.$transaction(async (tx) => {      const shift = await tx.shift.findUnique({ where: { id: shiftId }});
       if (!shift || shift.status !== 'OPEN') throw new BusinessRuleException('Valid open shift required', ErrorCode.VALIDATION_ERROR);
+
+      if (user) {
+        if (user.branch_id && shift.branch_id !== user.branch_id) {
+          throw new ForbiddenException('Access denied: Shift belongs to another branch');
+        }
+        if (shift.cashier_id !== user.sub) {
+          const canForce = await this.rbacService.hasAnyPermission(user.sub as UUID, ['POS.DELETE']);
+          if (!canForce) {
+            throw new ForbiddenException('Only the shift owner or a supervisor may close this shift');
+          }
+        }
+      }
 
       const txs = await tx.posTransaction.findMany({
         where: { shift_id: shiftId, status: 'COMPLETED' },
@@ -623,22 +732,67 @@ export class POSService implements IPOSService {
 
   async processFullTransaction(data: { shift_id: UUID; cashier_id: UUID; customer_id?: UUID; items: any[]; payments: any[] }): Promise<Receipt> {
     const transaction = await this.createTransaction(data.shift_id, { customer_id: data.customer_id });
-    
+
+    const [canOverridePrice, canOverrideDiscount] = await Promise.all([
+      this.rbacService.hasAnyPermission(data.cashier_id, [
+        POSService.PRICE_OVERRIDE_PERMISSION,
+        POSService.DISCOUNT_OVERRIDE_PERMISSION,
+      ]),
+      this.rbacService.hasAnyPermission(data.cashier_id, [POSService.DISCOUNT_OVERRIDE_PERMISSION]),
+    ]);
+    const taxPct = this.getDefaultTaxPct();
+
     // Using a for loop to process sequentially to avoid optimistic lock failures if processed concurrently
     for (const item of data.items) {
+      const prod = await this.prisma.product.findUnique({ where: { id: item.product_id } });
+      if (!prod) throw new BusinessRuleException(`Product ${item.product_id} not found`, ErrorCode.NOT_FOUND);
+
       let itemUomId = item.uom_id;
       if (!itemUomId || itemUomId === '00000000-0000-0000-0000-000000000000') {
-        const prod = await this.prisma.product.findUnique({ where: { id: item.product_id } });
-        if (!prod) throw new BusinessRuleException(`Product ${item.product_id} not found`, ErrorCode.NOT_FOUND);
         itemUomId = prod.uom_id;
+      }
+
+      const listPrice = Number(prod.selling_price);
+      let unitPrice = listPrice;
+      let priceOverridden = false;
+
+      const requestedRaw =
+        item.unit_price === undefined || item.unit_price === null ? NaN : Number(item.unit_price);
+
+      if (Number.isFinite(requestedRaw) && requestedRaw !== listPrice) {
+        if (!canOverridePrice) {
+          this.logger.warn(
+            `Price override denied for cashier ${data.cashier_id} on product ${item.product_id}: requested ${requestedRaw}, using list price ${listPrice}`,
+          );
+        } else {
+          const floorPrice = Number(prod.min_selling_price ?? 0);
+          unitPrice = this.round2(Math.max(requestedRaw, floorPrice));
+          priceOverridden = true;
+        }
+      }
+
+      let discountPct = Number(item.discount_pct ?? 0);
+      if (!Number.isFinite(discountPct) || discountPct < 0) discountPct = 0;
+      if (discountPct > 100) discountPct = 100;
+      if (
+        discountPct > POSService.DEFAULT_MAX_DISCOUNT_PCT &&
+        !canOverrideDiscount
+      ) {
+        this.logger.warn(
+          `Discount ${discountPct}% capped to ${POSService.DEFAULT_MAX_DISCOUNT_PCT}% for cashier ${data.cashier_id} on product ${item.product_id}`,
+        );
+        discountPct = POSService.DEFAULT_MAX_DISCOUNT_PCT;
       }
 
       const currentTx = await this.prisma.posTransaction.findUnique({ where: { id: transaction.id } });
       await this.addItem(transaction.id, {
         product_id: item.product_id,
         qty: item.quantity,
-        unit_price: item.unit_price,
-        discount_pct: item.discount_pct || 0,
+        unit_price: unitPrice,
+        discount_pct: discountPct,
+        tax_pct: taxPct,
+        price_override: priceOverridden,
+        price_override_by: priceOverridden ? data.cashier_id : undefined,
         uom_id: itemUomId,
         version: currentTx!.version
       });
@@ -649,14 +803,92 @@ export class POSService implements IPOSService {
     return await this.applyPayment(transaction.id, payments);
   }
 
+  private async loadReferenceSaleLines(
+    tx: any,
+    referenceType: string,
+    referenceId: UUID,
+  ): Promise<Map<string, { originalQty: number; netUnitPrice: number }>> {
+    const map = new Map<string, { originalQty: number; netUnitPrice: number }>();
+
+    if (referenceType === 'SO' || referenceType === 'SALES_ORDER') {
+      const so = await tx.salesOrder.findUnique({ where: { id: referenceId }, include: { lines: true } });
+      if (!so) throw new BusinessRuleException(`Reference sales order ${referenceId} not found`, ErrorCode.NOT_FOUND);
+      for (const l of so.lines) {
+        const qty = Number(l.qty);
+        const gross = Number(l.unit_price);
+        const net = qty > 0 ? Number(l.line_total) / qty || gross : gross;
+        map.set(l.product_id, { originalQty: qty, netUnitPrice: this.round2(net) });
+      }
+      return map;
+    }
+
+    const posTx = await tx.posTransaction.findUnique({
+      where: { id: referenceId },
+      include: { lines: true },
+    });
+    if (!posTx) throw new BusinessRuleException(`Reference transaction ${referenceId} not found`, ErrorCode.NOT_FOUND);
+
+    for (const l of posTx.lines) {
+      const qty = Number(l.qty);
+      const gross = Number(l.unit_price) * (1 - Number(l.discount_pct) / 100);
+      map.set(l.product_id, { originalQty: qty, netUnitPrice: this.round2(gross) });
+    }
+    return map;
+  }
+
+  private async validateReturnQuantities(
+    tx: any,
+    data: SalesReturnDTO,
+    refLines: Map<string, { originalQty: number; netUnitPrice: number }>,
+  ): Promise<void> {
+    const priorReturns = await tx.salesReturn.findMany({
+      where: { reference_type: data.reference_type, reference_id: data.reference_id },
+      select: { lines: { select: { product_id: true, qty: true } } },
+    });
+
+    const returnedByProduct = new Map<string, number>();
+    for (const ret of priorReturns) {
+      for (const l of ret.lines) {
+        returnedByProduct.set(l.product_id, (returnedByProduct.get(l.product_id) ?? 0) + Number(l.qty));
+      }
+    }
+
+    const EPSILON = 0.0001;
+    for (const line of data.lines) {
+      const ref = refLines.get(line.product_id);
+      if (!ref) {
+        throw new BusinessRuleException(
+          `Product ${line.product_id} is not part of the referenced sale`,
+          ErrorCode.VALIDATION_ERROR,
+        );
+      }
+      const alreadyReturned = returnedByProduct.get(line.product_id) ?? 0;
+      const requested = Number(line.qty);
+      if (requested + alreadyReturned > ref.originalQty + EPSILON) {
+        throw new BusinessRuleException(
+          `Return quantity exceeds sold quantity for product ${line.product_id}: sold ${ref.originalQty}, already returned ${alreadyReturned}, requested ${requested}`,
+          ErrorCode.VALIDATION_ERROR,
+        );
+      }
+    }
+  }
+
   async createSalesReturn(userId: UUID, data: SalesReturnDTO): Promise<SalesReturn> {
     this.logger.log(`Creating Sales Return for reference ${data.reference_id}`);
-    
+
     return await this.prisma.$transaction(async (tx) => {
       const returnNumber = await this.numberingService.generate(DocumentType.SR);
-      
+
+      const refLines = await this.loadReferenceSaleLines(tx, data.reference_type, data.reference_id);
+      await this.validateReturnQuantities(tx, data, refLines);
+
+      const pricedLines = data.lines.map((line) => {
+        const ref = refLines.get(line.product_id);
+        return { ...line, unit_price: ref ? ref.netUnitPrice : Number(line.unit_price) };
+      });
+
       let totalAmount = 0;
-      data.lines.forEach(line => {
+      pricedLines.forEach((line) => {
         totalAmount += line.qty * line.unit_price;
       });
 
@@ -673,7 +905,7 @@ export class POSService implements IPOSService {
           total_amount: totalAmount,
           created_by: userId,
           lines: {
-            create: data.lines.map(line => ({
+            create: pricedLines.map(line => ({
               product_id: line.product_id,
               qty: line.qty,
               uom_id: line.uom_id,

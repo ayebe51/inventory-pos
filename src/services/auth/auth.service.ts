@@ -70,7 +70,13 @@ export class AuthService {
       },
     });
 
-    if (!user) return null;
+    if (!user) {
+      // Constant-time-ish behavior: burn a bcrypt comparison even when the
+      // account does not exist so response timing cannot enumerate accounts.
+      this.dummyHash ??= await bcrypt.hash(uuidv4(), 12);
+      await bcrypt.compare(password, this.dummyHash);
+      return null;
+    }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) return null;
@@ -78,16 +84,44 @@ export class AuthService {
     return user;
   }
 
+  private static readonly LOGIN_MAX_ATTEMPTS = 5;
+  private static readonly LOGIN_LOCK_SECONDS = 900;
+  private dummyHash: string | null = null;
+
+  private loginFailKey(email: string): string {
+    return `auth:login:fails:${email.toLowerCase()}`;
+  }
+
+  private async assertNotLocked(email: string): Promise<void> {
+    const fails = await this.cacheService.get<number>(this.loginFailKey(email));
+    if (Number(fails) >= AuthService.LOGIN_MAX_ATTEMPTS) {
+      throw new UnauthorizedException(
+        'Account temporarily locked due to too many failed attempts. Try again later.',
+      );
+    }
+  }
+
+  private async recordLoginFailure(email: string): Promise<void> {
+    const key = this.loginFailKey(email);
+    const current = Number((await this.cacheService.get<number>(key)) ?? 0) + 1;
+    await this.cacheService.set(key, current, AuthService.LOGIN_LOCK_SECONDS);
+  }
+
   async login(email: string, password: string): Promise<LoginResponse> {
+    await this.assertNotLocked(email);
+
     const user = await this.validateUser(email, password);
 
     if (!user) {
+      await this.recordLoginFailure(email);
       throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.is_active) {
       throw new UnauthorizedException('Account is disabled');
     }
+
+    await this.cacheService.del(this.loginFailKey(email));
 
     const roles = user.user_roles.map((ur) => ur.role.name);
 
