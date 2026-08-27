@@ -11,14 +11,14 @@ async function bootstrap() {
   app.use(helmet());
   
   const allowedOrigins = process.env.CORS_ORIGINS 
-    ? process.env.CORS_ORIGINS.split(',') 
+    ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim()) 
     : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173', 'http://localhost:5174'];
     
   app.enableCors({
     origin: (origin, callback) => {
-      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || allowedOrigins.includes('*')) {
         callback(null, true);
-      } else if (allowedOrigins.includes(origin)) {
+      } else if (allowedOrigins.includes(origin) || allowedOrigins.some((ao) => origin.endsWith(ao.replace('*.', '')))) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'), false);
