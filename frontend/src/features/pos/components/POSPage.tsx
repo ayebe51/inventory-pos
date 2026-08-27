@@ -113,6 +113,7 @@ export const POSPage: React.FC = () => {
   const handleCheckout = async () => {
     if (!activeShift) return message.error('No active shift!');
     try {
+      const paymentAmount = selectedMethod === 'CASH' ? cashPaid : total;
       await checkout.mutateAsync({
         shift_id: activeShift.id,
         items: cart.map((i) => ({
@@ -120,7 +121,7 @@ export const POSPage: React.FC = () => {
           quantity: i.qty,
           unit_price: i.price,
         })),
-        payments: [{ method: selectedMethod, amount: cashPaid }],
+        payments: [{ method: selectedMethod, amount: paymentAmount }],
       });
       message.success('Transaction completed!');
       clearCart();

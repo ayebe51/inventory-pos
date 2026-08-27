@@ -30,21 +30,54 @@ export class AccountingService implements IAccountingService {
 
   async postJournalEntry(data: JournalEntryDTO): Promise<JournalEntry> {
     return await this.prisma.$transaction(async (tx) => {
-      // Validate period is open
-      await this.periodManager.validatePeriodOpen(data.period_id);
+      let periodId = data.period_id;
+      if (!periodId || periodId === '00000000-0000-0000-0000-000000000000') {
+        const activePeriod = await tx.fiscalPeriod.findFirst({
+          where: { status: 'OPEN' },
+          orderBy: { start_date: 'asc' },
+        });
+        if (!activePeriod) {
+          throw new BusinessRuleException('No open fiscal period found', ErrorCode.NOT_FOUND);
+        }
+        periodId = activePeriod.id as UUID;
+      } else {
+        await this.periodManager.validatePeriodOpen(periodId);
+      }
+
+      // Resolve account IDs if account code or UUID was passed
+      const resolvedLines = await Promise.all(
+        data.lines.map(async (l) => {
+          let accountId = l.account_id;
+          const account = await tx.chartOfAccount.findFirst({
+            where: {
+              OR: [
+                { id: accountId },
+                { account_code: accountId },
+              ],
+            },
+          });
+          if (account) {
+            accountId = account.id as UUID;
+          }
+          return {
+            ...l,
+            account_id: accountId,
+          };
+        }),
+      );
 
       // Validate balance
-      this.journalEngine.validateJournalBalance(data.lines);
+      this.journalEngine.validateJournalBalance(resolvedLines);
 
       const jeNumber = await this.numberingService.generate(DocumentType.JE);
-      const totalDebit = data.lines.reduce((s, l) => s + Number(l.debit), 0);
-      const totalCredit = data.lines.reduce((s, l) => s + Number(l.credit), 0);
+      const totalDebit = resolvedLines.reduce((s, l) => s + Number(l.debit), 0);
+      const totalCredit = resolvedLines.reduce((s, l) => s + Number(l.credit), 0);
 
       const je = await tx.journalEntry.create({
         data: {
           je_number: jeNumber,
-          entry_date: data.entry_date,
-          period_id: data.period_id,
+          entry_date: data.entry_date || new Date(),
+          period_id: periodId,
           reference_type: data.reference_type || '',
           reference_id: data.reference_id || '00000000-0000-0000-0000-000000000000',
           reference_number: data.reference_number || '',
@@ -57,7 +90,7 @@ export class AccountingService implements IAccountingService {
           posted_by: data.created_by,
           posted_at: new Date(),
           lines: {
-            create: data.lines.map((l, index) => ({
+            create: resolvedLines.map((l, index) => ({
               line_number: index + 1,
               account_id: l.account_id,
               cost_center_id: l.cost_center_id,

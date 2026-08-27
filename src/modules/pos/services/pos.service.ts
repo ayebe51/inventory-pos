@@ -93,14 +93,29 @@ export class POSService implements IPOSService {
         throw new BusinessRuleException('Cashier already has an open shift', ErrorCode.BUSINESS_RULE_VIOLATION);
       }
 
+      let branchId = data.branch_id;
+      if (!branchId || branchId === '00000000-0000-0000-0000-000000000000') {
+        const user = await tx.user.findUnique({ where: { id: data.cashier_id } });
+        const defaultBranch = await tx.branch.findFirst({ where: { is_active: true } });
+        branchId = (user?.branch_id || defaultBranch?.id || '00000000-0000-0000-0000-000000000000') as UUID;
+      }
+
+      let warehouseId = data.warehouse_id;
+      if (!warehouseId || warehouseId === '00000000-0000-0000-0000-000000000000') {
+        const defaultWh = await tx.warehouse.findFirst({
+          where: { branch_id: branchId, is_active: true },
+        }) || await tx.warehouse.findFirst({ where: { is_active: true } });
+        warehouseId = (defaultWh?.id || '00000000-0000-0000-0000-000000000000') as UUID;
+      }
+
       const shiftNumber = await this.numberingService.generate(DocumentType.SHF);
       
       const shift = await tx.shift.create({
         data: {
           shift_number: shiftNumber,
           cashier_id: data.cashier_id,
-          branch_id: data.branch_id,
-          warehouse_id: data.warehouse_id,
+          branch_id: branchId,
+          warehouse_id: warehouseId,
           opening_balance: data.opening_balance,
           status: 'OPEN',
           opened_at: new Date(),

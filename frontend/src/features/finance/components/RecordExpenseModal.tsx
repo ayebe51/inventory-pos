@@ -1,6 +1,8 @@
 import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, DatePicker, message, Row, Col, Typography } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../../lib/api';
 import { useCreateJournalEntry } from '../hooks/useFinance';
 import dayjs from 'dayjs';
 
@@ -11,7 +13,7 @@ interface RecordExpenseModalProps {
   onClose: () => void;
 }
 
-const EXPENSE_CATEGORIES = [
+const DEFAULT_EXPENSE_CATEGORIES = [
   { value: '6001-EXP', label: 'Beban Operasional & Umum (General Operational Expense)' },
   { value: '6002-RENT', label: 'Beban Sewa Gedung & Kantor (Office Rent Expense)' },
   { value: '6003-UTIL', label: 'Beban Listrik, Air & Internet (Utilities & Internet)' },
@@ -20,7 +22,7 @@ const EXPENSE_CATEGORIES = [
   { value: '6006-MAINT', label: 'Beban Pemeliharaan & Perbaikan (Maintenance Expense)' },
 ];
 
-const PAYMENT_SOURCES = [
+const DEFAULT_PAYMENT_SOURCES = [
   { value: '1001-CASH', label: '1001-CASH — Kas Tunai (Cash in Hand)' },
   { value: '1002-BANK', label: '1002-BANK — Rekening Bank Utama' },
 ];
@@ -28,6 +30,24 @@ const PAYMENT_SOURCES = [
 export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({ isOpen, onClose }) => {
   const [form] = Form.useForm();
   const { mutate, isPending } = useCreateJournalEntry();
+
+  const { data: coaData } = useQuery({
+    queryKey: ['coa-accounts'],
+    queryFn: () => api.get('/api/v1/master-data/coa').then((r: any) => r.data),
+    enabled: isOpen,
+  });
+
+  const coaList = coaData?.data || [];
+  const dynamicExpenses = coaList
+    .filter((a: any) => a.account_type === 'EXPENSE' || a.account_type === 'COGS')
+    .map((a: any) => ({ value: a.id, label: `${a.account_code} — ${a.account_name}` }));
+
+  const dynamicSources = coaList
+    .filter((a: any) => a.account_type === 'ASSET' && (a.account_code?.startsWith('1') || a.account_name?.toLowerCase().includes('kas') || a.account_name?.toLowerCase().includes('bank')))
+    .map((a: any) => ({ value: a.id, label: `${a.account_code} — ${a.account_name}` }));
+
+  const expenseOptions = dynamicExpenses.length > 0 ? dynamicExpenses : DEFAULT_EXPENSE_CATEGORIES;
+  const paymentSourceOptions = dynamicSources.length > 0 ? dynamicSources : DEFAULT_PAYMENT_SOURCES;
 
   const handleSubmit = async () => {
     try {
@@ -128,11 +148,11 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({ isOpen, 
         </Form.Item>
 
         <Form.Item name="expense_account" label="Expense Category (Debit)" rules={[{ required: true }]}>
-          <Select options={EXPENSE_CATEGORIES} style={{ borderRadius: 8 }} />
+          <Select options={expenseOptions} showSearch allowClear style={{ borderRadius: 8 }} />
         </Form.Item>
 
         <Form.Item name="payment_source" label="Payment Paid From (Credit)" rules={[{ required: true }]}>
-          <Select options={PAYMENT_SOURCES} style={{ borderRadius: 8 }} />
+          <Select options={paymentSourceOptions} showSearch allowClear style={{ borderRadius: 8 }} />
         </Form.Item>
       </Form>
     </Modal>

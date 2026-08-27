@@ -124,19 +124,34 @@ export class SalesOrderService implements ISalesOrderService {
 
           const doNumber = await this.numberingService.generate(DocumentType.DO);
           
+          let targetWarehouseId = data.warehouse_id;
+          if (!targetWarehouseId || targetWarehouseId === '00000000-0000-0000-0000-000000000000') {
+            const firstWh = await tx.warehouse.findFirst({ where: { is_active: true } });
+            targetWarehouseId = firstWh?.id || so.warehouse_id;
+          }
+
           const deliveryOrder = await tx.deliveryOrder.create({
             data: {
               do_number: doNumber,
               so_id: id,
-              warehouse_id: data.warehouse_id,
+              warehouse_id: targetWarehouseId,
               status: 'SHIPPED',
-              delivery_date: data.delivery_date,
-              created_by: so.created_by, // ideally from req
+              delivery_date: data.delivery_date || new Date(),
+              created_by: so.created_by,
             }
           });
 
+          const linesToFulfill = (!data.lines || data.lines.length === 0)
+            ? so.lines
+                .map((l) => ({
+                  so_line_id: l.id as UUID,
+                  qty_fulfilled: Number(l.qty_ordered) - Number(l.qty_delivered),
+                }))
+                .filter((l) => l.qty_fulfilled > 0)
+            : data.lines;
+
           // Sort product IDs for pessimistic locking
-          const productIds = Array.from(new Set(data.lines.map((l) => {
+          const productIds = Array.from(new Set(linesToFulfill.map((l) => {
             const soLine = so.lines.find(x => x.id === l.so_line_id);
             return soLine?.product_id;
           }))).filter(Boolean) as string[];
@@ -148,7 +163,7 @@ export class SalesOrderService implements ISalesOrderService {
 
           let allFulfilled = true;
 
-          for (const fLine of data.lines) {
+          for (const fLine of linesToFulfill) {
             const soLine = so.lines.find(x => x.id === fLine.so_line_id);
             if (!soLine) throw new BusinessRuleException('SO Line not found', ErrorCode.NOT_FOUND);
 
@@ -159,7 +174,7 @@ export class SalesOrderService implements ISalesOrderService {
 
             // Deduct stock
             const aggSource = await tx.inventoryLedger.aggregate({
-              where: { product_id: soLine.product_id, warehouse_id: data.warehouse_id },
+              where: { product_id: soLine.product_id, warehouse_id: targetWarehouseId },
               _sum: { qty_in: true, qty_out: true },
             });
             const srcQty = (Number(aggSource._sum.qty_in) || 0) - (Number(aggSource._sum.qty_out) || 0);

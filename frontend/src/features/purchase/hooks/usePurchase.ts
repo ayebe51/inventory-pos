@@ -57,19 +57,27 @@ export const useRejectPO = () => {
 export const useConfirmGoodsReceipt = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: {
+    mutationFn: async (data: {
       po_id: string;
       receipt_date: string;
       notes?: string;
       lines: { product_id: string; qty_received: number; unit_cost: number; uom_id: string }[];
-    }) => api.post('/api/v1/goods-receipts', data).then((r) => r.data.data),
+    }) => {
+      const createRes = await api.post('/api/v1/goods-receipts', data);
+      const gr = createRes.data?.data;
+      if (gr?.id) {
+        await api.put(`/api/v1/goods-receipts/${gr.id}/confirm`);
+      }
+      return gr;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
+      qc.invalidateQueries({ queryKey: ['goods-receipts'] });
       qc.invalidateQueries({ queryKey: ['inventory'] });
-      message.success('Goods Receipt confirmed. Stock updated.');
+      message.success('Goods Receipt confirmed. Stock and ledger updated.');
     },
     onError: (err: any) => {
-      message.error(err?.response?.data?.error?.message || 'Failed to confirm receipt');
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to confirm receipt');
     },
   });
 };

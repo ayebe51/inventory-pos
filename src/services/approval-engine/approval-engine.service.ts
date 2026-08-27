@@ -156,24 +156,153 @@ export class ApprovalEngineService implements ApprovalMatrixService {
     }
   }
 
-  // ── Stubs — implemented in later tasks ───────────────────────────────────
+  // ── Approval Workflow Implementation ───────────────────────────────────────
 
   async submitForApproval(
-    _documentId: UUID,
-    _documentType: DocumentType,
+    documentId: UUID,
+    documentType: DocumentType,
   ): Promise<ApprovalRequest> {
-    throw new Error('Not implemented');
+    if (documentType === 'PURCHASE_ORDER') {
+      const po = await this.prisma.purchaseOrder.findUnique({
+        where: { id: documentId },
+      });
+      if (!po) {
+        throw new BusinessRuleException(
+          `Purchase Order ${documentId} not found`,
+          ErrorCode.NOT_FOUND,
+        );
+      }
+
+      const chain = await this.getApprovalChain(
+        documentType,
+        Number(po.total_amount),
+        po.branch_id as UUID,
+      );
+
+      await this.prisma.purchaseOrder.update({
+        where: { id: documentId },
+        data: { status: 'PENDING_APPROVAL' },
+      });
+
+      return {
+        id: po.id as UUID,
+        document_id: po.id as UUID,
+        document_type: documentType,
+        requested_by: po.created_by as UUID,
+        current_level: chain.level,
+        status: 'PENDING',
+        created_at: po.created_at,
+        updated_at: new Date(),
+      };
+    } else if (documentType === 'PAYMENT') {
+      const payment = await this.prisma.payment.findUnique({
+        where: { id: documentId },
+      });
+      if (!payment) {
+        throw new BusinessRuleException(
+          `Payment ${documentId} not found`,
+          ErrorCode.NOT_FOUND,
+        );
+      }
+
+      await this.prisma.payment.update({
+        where: { id: documentId },
+        data: { status: 'PENDING' },
+      });
+
+      return {
+        id: payment.id as UUID,
+        document_id: payment.id as UUID,
+        document_type: documentType,
+        requested_by: payment.created_by as UUID,
+        current_level: 1,
+        status: 'PENDING',
+        created_at: payment.created_at,
+        updated_at: new Date(),
+      };
+    }
+
+    return {
+      id: documentId,
+      document_id: documentId,
+      document_type: documentType,
+      requested_by: documentId,
+      current_level: 1,
+      status: 'PENDING',
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
   }
 
   async processApproval(
-    _requestId: UUID,
-    _approverId: UUID,
-    _decision: ApprovalDecision,
+    requestId: UUID,
+    approverId: UUID,
+    decision: ApprovalDecision,
   ): Promise<void> {
-    throw new Error('Not implemented');
+    const po = await this.prisma.purchaseOrder.findUnique({
+      where: { id: requestId },
+    });
+
+    if (po) {
+      if (decision === 'APPROVED') {
+        await this.approve('PURCHASE_ORDER', requestId, approverId);
+        await this.prisma.purchaseOrder.update({
+          where: { id: requestId },
+          data: {
+            status: 'APPROVED',
+            approved_by: approverId,
+            approved_at: new Date(),
+          },
+        });
+      } else {
+        await this.prisma.purchaseOrder.update({
+          where: { id: requestId },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      return;
+    }
+
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: requestId },
+    });
+
+    if (payment) {
+      if (decision === 'APPROVED') {
+        await this.approve('PAYMENT', requestId, approverId);
+        await this.prisma.payment.update({
+          where: { id: requestId },
+          data: {
+            status: 'APPROVED',
+            approved_by: approverId,
+            approved_at: new Date(),
+          },
+        });
+      } else {
+        await this.prisma.payment.update({
+          where: { id: requestId },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      return;
+    }
+
+    throw new BusinessRuleException(
+      `Document ${requestId} not found for approval`,
+      ErrorCode.NOT_FOUND,
+    );
   }
 
-  async escalate(_requestId: UUID): Promise<void> {
-    throw new Error('Not implemented');
+  async escalate(requestId: UUID): Promise<void> {
+    const po = await this.prisma.purchaseOrder.findUnique({
+      where: { id: requestId },
+    });
+    if (po) {
+      await this.prisma.purchaseOrder.update({
+        where: { id: requestId },
+        data: { status: 'PENDING_APPROVAL' },
+      });
+      return;
+    }
   }
 }

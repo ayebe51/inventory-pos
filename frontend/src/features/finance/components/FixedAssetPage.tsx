@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Table, Button, Space, Modal, Form, Input, InputNumber, DatePicker, message, Tag, Typography } from 'antd';
+import { Card, Table, Button, Space, Modal, Form, Input, InputNumber, DatePicker, Select, message, Tag, Typography } from 'antd';
 import { PlusOutlined, CalculatorOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../lib/api';
@@ -16,6 +16,18 @@ const FixedAssetPage: React.FC = () => {
       return res.data;
     }
   });
+
+  const { data: coaData } = useQuery({
+    queryKey: ['coa-accounts'],
+    queryFn: () => api.get('/api/v1/master-data/coa').then((r: any) => r.data),
+    enabled: isModalOpen,
+  });
+
+  const coaList = coaData?.data || [];
+  const coaOptions = coaList.map((a: any) => ({
+    value: a.id,
+    label: `${a.account_code} — ${a.account_name} (${a.account_type})`,
+  }));
 
   const createAssetMutation = useMutation({
     mutationFn: async (values: any) => {
@@ -56,8 +68,8 @@ const FixedAssetPage: React.FC = () => {
       key: 'accumulated_depreciation',
       render: (val: string) => `Rp ${Number(val).toLocaleString()}`
     },
-    {
-      title: 'Net Book Value',
+    { 
+      title: 'Net Book Value', 
       key: 'nbv',
       render: (_: any, record: any) => {
         const pPrice = Number(record.purchase_price);
@@ -65,9 +77,9 @@ const FixedAssetPage: React.FC = () => {
         return `Rp ${(pPrice - aDep).toLocaleString()}`;
       }
     },
-    {
-      title: 'Status',
-      dataIndex: 'status',
+    { 
+      title: 'Status', 
+      dataIndex: 'status', 
       key: 'status',
       render: (status: string) => <Tag color={status === 'ACTIVE' ? 'green' : 'red'}>{status}</Tag>
     }
@@ -137,14 +149,14 @@ const FixedAssetPage: React.FC = () => {
             <InputNumber style={{ width: '100%' }} />
           </Form.Item>
           
-          <Form.Item name="asset_account_id" label="Asset Account ID (UUID)" rules={[{ required: true }]}>
-            <Input placeholder="Chart of Account UUID for this Asset" />
+          <Form.Item name="asset_account_id" label="Asset Account" rules={[{ required: true }]}>
+            <Select showSearch allowClear options={coaOptions} placeholder="Select Asset Account" />
           </Form.Item>
-          <Form.Item name="depreciation_expense_account_id" label="Depreciation Exp Account ID" rules={[{ required: true }]}>
-            <Input placeholder="Chart of Account UUID for Depreciation Expense" />
+          <Form.Item name="depreciation_expense_account_id" label="Depreciation Expense Account" rules={[{ required: true }]}>
+            <Select showSearch allowClear options={coaOptions} placeholder="Select Depreciation Expense Account" />
           </Form.Item>
-          <Form.Item name="accum_depreciation_account_id" label="Accum. Depreciation Account ID" rules={[{ required: true }]}>
-            <Input placeholder="Chart of Account UUID for Accumulated Depreciation" />
+          <Form.Item name="accum_depreciation_account_id" label="Accumulated Depreciation Account" rules={[{ required: true }]}>
+            <Select showSearch allowClear options={coaOptions} placeholder="Select Accumulated Depreciation Account" />
           </Form.Item>
         </Form>
       </Modal>

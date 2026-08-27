@@ -236,9 +236,29 @@ export class OrganizationService {
    */
   async listBranches(): Promise<Branch[]> {
     const rows = await (this.prisma.branch as any).findMany({
-      where: { deleted_at: null, is_active: true },
+      where: { deleted_at: null },
       orderBy: { name: 'asc' },
     });
     return rows.map(mapBranch);
+  }
+
+  /**
+   * Update branch or head office properties
+   */
+  async updateBranch(id: UUID, data: { name?: string; address?: string | null; is_active?: boolean; code?: string }, userId?: UUID): Promise<Branch> {
+    const existing = await (this.prisma.branch as any).findUnique({ where: { id } });
+    if (!existing) {
+      throw new BusinessRuleException(`Branch not found`, ErrorCode.NOT_FOUND);
+    }
+    const updated = await (this.prisma.branch as any).update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.address !== undefined && { address: data.address }),
+        ...(data.is_active !== undefined && { is_active: data.is_active }),
+        ...(data.code !== undefined && { code: data.code }),
+      },
+    });
+    return mapBranch(updated);
   }
 }

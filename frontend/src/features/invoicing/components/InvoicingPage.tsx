@@ -55,7 +55,7 @@ export const InvoicingPage: React.FC = () => {
   });
   const { data: warehouseData } = useQuery({
     queryKey: ['warehouses', 'invoice-options'],
-    queryFn: () => api.get('/api/v1/master-data/warehouses?per_page=50').then((r) => r.data),
+    queryFn: () => api.get('/api/v1/warehouses').then((r) => r.data),
   });
   const { data: productData } = useQuery({
     queryKey: ['products', 'invoice-options'],

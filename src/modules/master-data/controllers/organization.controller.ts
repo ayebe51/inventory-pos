@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Request,
   UseGuards,
@@ -29,12 +30,12 @@ export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
   /**
-   * POST /api/v1/organization/head-offices
+   * POST /api/v1/organization/head-offices and /api/v1/organization/head-office
    * Create a Head Office node.
    */
   @ApiOperation({ summary: 'Create a Head Office node' })
   @ApiBody({ type: CreateHeadOfficeDTO })
-  @Post('head-offices')
+  @Post(['head-offices', 'head-office'])
   @RequirePermissions('ADMIN.SETTINGS')
   async createHeadOffice(@Body() body: CreateHeadOfficeDTO, @Request() req: AuthRequest) {
     const branch = await this.organizationService.createHeadOffice(
@@ -58,6 +59,27 @@ export class OrganizationController {
       req.user.sub as UUID,
     );
     return successResponse(branch, 'Cabang berhasil dibuat');
+  }
+
+  /**
+   * PUT /api/v1/organization/branches/:id
+   * Update Branch or Head Office
+   */
+  @ApiOperation({ summary: 'Update branch or head office' })
+  @ApiParam({ name: 'id', description: 'Branch ID' })
+  @Put('branches/:id')
+  @RequirePermissions('ADMIN.SETTINGS')
+  async updateBranch(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Request() req: AuthRequest,
+  ) {
+    const branch = await this.organizationService.updateBranch(
+      id as UUID,
+      body,
+      req.user.sub as UUID,
+    );
+    return successResponse(branch, 'Data cabang berhasil diperbarui');
   }
 
   /**

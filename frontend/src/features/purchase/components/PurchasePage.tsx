@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Table, Button, Input, Space, Tag, Typography,
-  Card, Tooltip,
+  Card, Tooltip, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -50,6 +50,74 @@ export const PurchasePage: React.FC = () => {
     queryFn: () => api.get('/api/v1/purchase-returns').then((r: any) => r.data),
     enabled: activeKey === 'returns',
   });
+
+  const { data: grData, isLoading: isGrLoading, refetch: refetchGR } = useQuery({
+    queryKey: ['goods-receipts'],
+    queryFn: () => api.get('/api/v1/goods-receipts').then((r: any) => r.data),
+    enabled: activeKey === 'receipts',
+  });
+
+  const grColumns: ColumnsType<any> = [
+    {
+      title: 'GR Number',
+      dataIndex: 'gr_number',
+      width: 180,
+      render: (num) => <Text code style={{ color: 'var(--brand-600)' }}>{num}</Text>,
+    },
+    {
+      title: 'PO Number',
+      dataIndex: ['purchase_order', 'po_number'],
+      render: (num) => <Text code>{num || '—'}</Text>,
+    },
+    {
+      title: 'Supplier',
+      dataIndex: ['purchase_order', 'supplier', 'name'],
+      ellipsis: true,
+      render: (s, r) => s || r.supplier?.name || '—',
+    },
+    {
+      title: 'Receipt Date',
+      dataIndex: 'receipt_date',
+      width: 130,
+      render: (d) => d ? new Date(d).toLocaleDateString('id-ID') : '—',
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      width: 140,
+      render: (status) => (
+        <Tag color={status === 'CONFIRMED' ? 'green' : status === 'DRAFT' ? 'orange' : 'default'}>
+          {status}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          {record.status === 'DRAFT' && (
+            <Button
+              size="small"
+              type="primary"
+              onClick={async () => {
+                try {
+                  await api.put(`/api/v1/goods-receipts/${record.id}/confirm`);
+                  message.success('Goods receipt confirmed and stock updated');
+                  refetchGR();
+                } catch (err: any) {
+                  message.error(err?.response?.data?.message || 'Failed to confirm');
+                }
+              }}
+            >
+              Confirm
+            </Button>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
   const approvePO = useApprovePO();
   const rejectPO = useRejectPO();
@@ -372,15 +440,23 @@ export const PurchasePage: React.FC = () => {
             />
           </>
         ) : (
-          <div style={{ padding: '40px 0', textAlign: 'center' }}>
-            <Text style={{ color: 'var(--text-secondary)', fontSize: 14, fontWeight: 500 }}>
-              Goods receipts generated from approved Purchase Orders will appear here.
-            </Text>
-            <br />
-            <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
-              To record a new delivery, click the receipt icon on an Approved PO in the Purchase Orders tab.
-            </Text>
-          </div>
+          <>
+            <div style={{ marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Button icon={<ReloadOutlined />} onClick={() => refetchGR()} style={{ borderRadius: 8 }}>
+                Refresh
+              </Button>
+            </div>
+            <Table
+              columns={grColumns}
+              dataSource={grData?.data || []}
+              loading={isGrLoading}
+              rowKey="id"
+              scroll={{ x: 800 }}
+              pagination={{ pageSize: 10, showTotal: (t) => `${t} total goods receipts` }}
+              size="middle"
+              style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
+            />
+          </>
         )}
       </Card>
 

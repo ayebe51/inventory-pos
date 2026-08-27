@@ -87,8 +87,19 @@ export const StockOpnamePage: React.FC = () => {
 
   const columns: ColumnsType<any> = [
     { title: 'Opname Number', dataIndex: 'opname_number', render: (t) => <Text code>{t}</Text> },
-    { title: 'Warehouse', dataIndex: 'warehouse_id' },
-    { title: 'Start Date', dataIndex: 'start_date', render: (d) => new Date(d).toLocaleDateString() },
+    {
+      title: 'Warehouse',
+      dataIndex: 'warehouse_id',
+      render: (wId, record) => record.warehouse?.name || warehouses?.data?.find((w: any) => w.id === wId)?.name || wId,
+    },
+    {
+      title: 'Date',
+      dataIndex: 'initiated_at',
+      render: (d, record) => {
+        const dateVal = d || record.created_at || record.start_date;
+        return dateVal ? new Date(dateVal).toLocaleDateString('id-ID') : '—';
+      },
+    },
     { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'COMPLETED' ? 'green' : 'orange'}>{s}</Tag> },
     {
       title: 'Action',
@@ -97,8 +108,26 @@ export const StockOpnamePage: React.FC = () => {
         <Space>
           {record.status === 'IN_PROGRESS' && (
             <>
-              <Button size="small" onClick={() => setRecordDrawerOpen(true)} icon={<SaveOutlined />}>Record</Button>
-              <Button size="small" type="primary" loading={finalize.isPending} disabled={finalize.isPending} onClick={() => finalize.mutate(record.id)} icon={<CheckCircleOutlined />}>Finalize</Button>
+              <Button
+                size="small"
+                onClick={() => {
+                  setSelectedOpname(record);
+                  setRecordDrawerOpen(true);
+                }}
+                icon={<SaveOutlined />}
+              >
+                Record
+              </Button>
+              <Button
+                size="small"
+                type="primary"
+                loading={finalize.isPending}
+                disabled={finalize.isPending}
+                onClick={() => finalize.mutate(record.id)}
+                icon={<CheckCircleOutlined />}
+              >
+                Finalize
+              </Button>
             </>
           )}
         </Space>

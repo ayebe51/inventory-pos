@@ -136,7 +136,7 @@ export class ReportingController {
   @ApiOperation({ summary: 'Get Sales Report' })
   @ApiQuery({ name: 'from_date', required: true, description: 'From date' })
   @ApiQuery({ name: 'to_date', required: true, description: 'To date' })
-  @Get('sales')
+  @Get(['sales', 'sales/summary'])
   @RequirePermissions('REPORT.FINANCIAL')
   async getSalesReport(
     @Query('from_date') fromDate: string,

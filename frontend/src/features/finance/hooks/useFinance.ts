@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
-import type { FinanceData, CreateJournalEntryPayload } from '../types/finance.types';
+import type { FinanceData } from '../types/finance.types';
 
 export const useFinanceData = () => {
   return useQuery<FinanceData>({
@@ -29,8 +29,20 @@ export const useFinanceData = () => {
 
 export const useCreateJournalEntry = () => {
   return useMutation({
-    mutationFn: async (payload: CreateJournalEntryPayload) => {
-      const { data } = await api.post('/api/v1/accounting/journal-entries', payload);
+    mutationFn: async (payload: any) => {
+      const formatted = {
+        entry_date: payload.entry_date || payload.date || new Date().toISOString(),
+        period_id: payload.period_id,
+        description: payload.description,
+        reference_type: payload.reference_type || 'MANUAL',
+        lines: (payload.lines || []).map((l: any) => ({
+          account_id: l.account_id || l.accountId,
+          debit: Number(l.debit || 0),
+          credit: Number(l.credit || 0),
+          description: l.description || payload.description,
+        })),
+      };
+      const { data } = await api.post('/api/v1/accounting/journal-entries', formatted);
       return data;
     }
   });

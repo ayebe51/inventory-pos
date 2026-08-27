@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Button, Table, InputNumber, DatePicker, message, Row, Col, Typography, Select, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, BookOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../../lib/api';
 import { useCreateJournalEntry } from '../hooks/useFinance';
 import type { JournalEntryLine } from '../types/finance.types';
 import dayjs from 'dayjs';
@@ -30,6 +32,19 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
     { accountId: '1001-CASH', debit: 0, credit: 0 },
     { accountId: '4001-REV', debit: 0, credit: 0 },
   ]);
+
+  const { data: coaData } = useQuery({
+    queryKey: ['coa-accounts'],
+    queryFn: () => api.get('/api/v1/master-data/coa').then((r: any) => r.data),
+    enabled: isOpen,
+  });
+
+  const coaOptions = (coaData?.data || []).map((acc: any) => ({
+    value: acc.id,
+    label: `${acc.account_code} — ${acc.account_name} (${acc.account_type})`,
+  }));
+
+  const accountOptions = coaOptions.length > 0 ? coaOptions : DEFAULT_COA_ACCOUNTS;
 
   const { mutate, isPending } = useCreateJournalEntry();
 
@@ -107,7 +122,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
           placeholder="Select or enter account..."
           onChange={(val) => handleLineChange(index, 'accountId', val || '')}
           style={{ width: '100%', borderRadius: 8 }}
-          options={DEFAULT_COA_ACCOUNTS}
+          options={accountOptions}
         />
       ),
     },
