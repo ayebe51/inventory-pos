@@ -32,10 +32,13 @@ const CustomerManager: React.FC = () => {
 
   const mutation = useMutation({
     mutationFn: (values: any) => {
+      const cleaned = Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, v === '' ? undefined : v])
+      );
       if (editingCustomer) {
-        return api.patch(`/api/v1/master-data/customers/${editingCustomer.id}`, values);
+        return api.patch(`/api/v1/master-data/customers/${editingCustomer.id}`, cleaned);
       }
-      return api.post('/api/v1/master-data/customers', values);
+      return api.post('/api/v1/master-data/customers', cleaned);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customers'] });
@@ -399,10 +402,13 @@ const SupplierManager: React.FC = () => {
 
   const mutation = useMutation({
     mutationFn: (values: any) => {
+      const cleaned = Object.fromEntries(
+        Object.entries(values).map(([k, v]) => [k, v === '' ? undefined : v])
+      );
       if (editingSupplier) {
-        return api.patch(`/api/v1/master-data/suppliers/${editingSupplier.id}`, values);
+        return api.patch(`/api/v1/master-data/suppliers/${editingSupplier.id}`, cleaned);
       }
-      return api.post('/api/v1/master-data/suppliers', values);
+      return api.post('/api/v1/master-data/suppliers', cleaned);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['suppliers'] });
