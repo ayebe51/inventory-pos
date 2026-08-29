@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "buildCommand": "npx prisma generate && cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "/api"
+    },
+    {
+      "source": "/health",
+      "destination": "/api"
+    },
+    {
+      "source": "/api/docs",
+      "destination": "/api"
+    },
+    {
+      "source": "/((?!api|health|assets|favicon|manifest|sw).*)$",
+      "destination": "/index.html"
+    }
+  ]
+}
