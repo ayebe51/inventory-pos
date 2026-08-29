@@ -125,16 +125,10 @@ export class AuthService {
 
     const roles = user.user_roles.map((ur) => ur.role.name);
 
-    // Check if any of the user's roles require MFA
-    const requiresMfa = roles.some((r) => MFA_REQUIRED_ROLES.has(r));
+    // Check if MFA is enabled for this user
+    const requiresMfa = user.mfa_enabled && !!user.mfa_secret;
 
     if (requiresMfa) {
-      if (!user.mfa_enabled || !user.mfa_secret) {
-        // MFA not yet set up — issue a short-lived setup token so the user can enroll
-        const mfaToken = await this.issueMfaToken(user.id, 'setup');
-        return { mfaRequired: true, mfaToken, mfaPurpose: 'setup' } as any;
-      }
-
       // MFA enrolled — require TOTP verification before issuing full tokens
       const mfaToken = await this.issueMfaToken(user.id, 'verify');
       return { mfaRequired: true, mfaToken, mfaPurpose: 'verify' } as any;
