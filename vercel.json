@@ -5,7 +5,11 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
-      "source": "/api/v1/:path*",
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/api/v1/(.*)",
       "destination": "/api"
     },
     {
@@ -13,11 +17,7 @@
       "destination": "/api"
     },
     {
-      "source": "/api/docs",
-      "destination": "/api"
-    },
-    {
-      "source": "/((?!api|health|assets|favicon|manifest|sw).*)$",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
