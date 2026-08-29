@@ -4,11 +4,11 @@ import { useAuthStore } from '../store/authStore';
 
 // Create a custom axios instance
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Important for cookies if we use them
+  withCredentials: true,
   timeout: 30_000,
 });
 

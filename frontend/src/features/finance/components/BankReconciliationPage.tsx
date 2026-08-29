@@ -73,7 +73,7 @@ export const BankReconciliationPage: React.FC = () => {
         <Space>
           <Upload
             name="file"
-            action={`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/v1/bank-reconciliation/upload`}
+            action={`${import.meta.env.VITE_API_URL || ''}/api/v1/bank-reconciliation/upload`}
             headers={{ Authorization: `Bearer ${localStorage.getItem('access_token')}` }}
             onChange={handleUpload}
             showUploadList={false}
