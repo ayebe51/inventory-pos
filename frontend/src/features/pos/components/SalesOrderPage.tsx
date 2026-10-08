@@ -136,7 +136,7 @@ export const SalesOrderPage: React.FC = () => {
         </Button>
       </div>
 
-      <Table columns={columns} dataSource={salesOrders} rowKey="id" size="small" loading={isLoading} />
+      <Table columns={columns} dataSource={salesOrders} rowKey="id" size="small" loading={isLoading} scroll={{ x: 'max-content' }} />
 
       <Drawer
         title="Create Sales Order"

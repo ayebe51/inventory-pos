@@ -18,6 +18,9 @@ import { DebitNoteService } from '../services/debit-note.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
 import { CreateSalesInvoiceDTO, CreatePurchaseInvoiceDTO } from '../dto/invoicing.dto';
+import { UseInterceptors } from '@nestjs/common';
+import { IdempotencyInterceptor } from '../../../common/interceptors/idempotency.interceptor';
+import { UseIdempotency } from '../../../common/decorators/idempotency.decorator';
 
 interface AuthRequest extends Request {
   user: { sub: string; branch_id?: string | null };
@@ -26,6 +29,8 @@ interface AuthRequest extends Request {
 @ApiTags('Invoicing - Invoices')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RbacGuard)
+@UseInterceptors(IdempotencyInterceptor)
+@UseIdempotency()
 @Controller('api/v1/invoices')
 export class InvoiceController {
   constructor(
@@ -93,6 +98,15 @@ export class InvoiceController {
   async dispute(@Param('id') id: string, @Body('reason') reason: string, @Request() req: AuthRequest) {
     const invoice = await this.invoiceService.dispute(id as UUID, reason, req.user.sub as UUID);
     return successResponse(invoice, 'Invoice status set to disputed');
+  }
+
+  @ApiOperation({ summary: 'Cancel a draft or open invoice' })
+  @ApiParam({ name: 'id', description: 'Invoice ID' })
+  @Post(':id/cancel')
+  @RequirePermissions('INVOICE.UPDATE')
+  async cancel(@Param('id') id: string, @Request() req: AuthRequest) {
+    const invoice = await this.invoiceService.cancel(id as UUID, req.user.sub as UUID);
+    return successResponse(invoice, 'Invoice cancelled successfully');
   }
 
   @ApiOperation({ summary: 'Create a Credit Note for a Sales Invoice' })

@@ -1,25 +1,30 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Input, Space, Tag, Typography
+  Table, Button, Input, Space, Tag, Typography, Modal, Descriptions
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
-  PlusOutlined, SearchOutlined
+  PlusOutlined, SearchOutlined, EyeOutlined
 } from '@ant-design/icons';
 import { usePurchaseRequests } from '../hooks/usePurchase';
+import { PurchaseRequestDrawer } from './PurchaseRequestDrawer';
 
 const { Title, Text } = Typography;
 
 const PR_STATUS_COLORS: Record<string, string> = {
   DRAFT: '#94A3B8',
+  SUBMITTED: '#38BDF8',
   PENDING_APPROVAL: '#FBBF24',
   APPROVED: '#34D399',
   REJECTED: '#F43F5E',
+  CANCELLED: '#64748B',
   CLOSED: '#64748B',
 };
 
 export const PurchaseRequestPage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [viewRecord, setViewRecord] = useState<any | null>(null);
   const { data, isLoading } = usePurchaseRequests({ search: search || '' });
 
   const columns: ColumnsType<any> = [
@@ -52,7 +57,7 @@ export const PurchaseRequestPage: React.FC = () => {
       width: 180,
       render: (val) => (
         <Text style={{ fontWeight: 600 }}>
-          Rp {val?.toLocaleString('id-ID') ?? '—'}
+          Rp {Number(val || 0).toLocaleString('id-ID')}
         </Text>
       ),
     },
@@ -62,9 +67,9 @@ export const PurchaseRequestPage: React.FC = () => {
       width: 150,
       render: (status) => (
         <Tag style={{
-          color: PR_STATUS_COLORS[status],
-          background: `${PR_STATUS_COLORS[status]}18`,
-          borderColor: `${PR_STATUS_COLORS[status]}30`,
+          color: PR_STATUS_COLORS[status] || '#94A3B8',
+          background: `${PR_STATUS_COLORS[status] || '#94A3B8'}18`,
+          borderColor: `${PR_STATUS_COLORS[status] || '#94A3B8'}30`,
         }}>
           {status?.replace(/_/g, ' ')}
         </Tag>
@@ -75,9 +80,16 @@ export const PurchaseRequestPage: React.FC = () => {
       key: 'actions',
       width: 100,
       fixed: 'right',
-      render: () => (
+      render: (_, record) => (
         <Space size={4}>
-          <Button type="link" size="small">View</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setViewRecord(record)}
+          >
+            View
+          </Button>
         </Space>
       ),
     },
@@ -98,7 +110,7 @@ export const PurchaseRequestPage: React.FC = () => {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => {}}
+            onClick={() => setIsCreateOpen(true)}
           >
             New Request
           </Button>
@@ -128,6 +140,67 @@ export const PurchaseRequestPage: React.FC = () => {
         }}
         scroll={{ x: 1000 }}
       />
+
+      <PurchaseRequestDrawer
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
+
+      <Modal
+        title={`Purchase Request: ${viewRecord?.pr_number || ''}`}
+        open={!!viewRecord}
+        onCancel={() => setViewRecord(null)}
+        footer={<Button onClick={() => setViewRecord(null)}>Close</Button>}
+        width={650}
+      >
+        {viewRecord && (
+          <div>
+            <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="PR Number">{viewRecord.pr_number}</Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={PR_STATUS_COLORS[viewRecord.status]}>{viewRecord.status}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Branch">{viewRecord.branch?.name || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Warehouse">{viewRecord.warehouse?.name || '—'}</Descriptions.Item>
+              <Descriptions.Item label="Request Date">
+                {new Date(viewRecord.request_date).toLocaleDateString('id-ID')}
+              </Descriptions.Item>
+              <Descriptions.Item label="Total Est. Value">
+                Rp {Number(viewRecord.total_estimated_value || 0).toLocaleString('id-ID')}
+              </Descriptions.Item>
+              {viewRecord.notes && (
+                <Descriptions.Item label="Notes" span={2}>{viewRecord.notes}</Descriptions.Item>
+              )}
+            </Descriptions>
+
+            <Title level={5} style={{ marginTop: 16 }}>Line Items</Title>
+            <Table
+              dataSource={viewRecord.lines || []}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              columns={[
+                { title: 'Product', dataIndex: ['product', 'name'], render: (name, r: any) => name || r.product_id },
+                { title: 'Qty', dataIndex: 'qty_requested', width: 90, align: 'right' },
+                {
+                  title: 'Est. Price',
+                  dataIndex: 'estimated_price',
+                  width: 140,
+                  align: 'right',
+                  render: (v) => `Rp ${Number(v || 0).toLocaleString('id-ID')}`
+                },
+                {
+                  title: 'Subtotal',
+                  key: 'subtotal',
+                  width: 140,
+                  align: 'right',
+                  render: (_, r: any) => `Rp ${(Number(r.qty_requested || 0) * Number(r.estimated_price || 0)).toLocaleString('id-ID')}`
+                },
+              ]}
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

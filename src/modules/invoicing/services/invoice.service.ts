@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../../config/prisma.service';
 import { AuditService } from '../../../services/audit/audit.service';
 import { NumberingService, DocumentType } from '../../../services/numbering/numbering.service';
@@ -134,7 +135,7 @@ export class InvoiceService implements IInvoiceService {
           invoice_number: invoiceNumber,
           invoice_type: 'SALES',
           reference_type: data.reference_type || 'MANUAL',
-          reference_id: data.reference_id || invoiceNumber,
+          reference_id: data.reference_id || crypto.randomUUID(),
           customer_id: data.customer_id,
           supplier_id: null,
           branch_id: data.branch_id,
@@ -273,7 +274,7 @@ export class InvoiceService implements IInvoiceService {
           invoice_number: invoiceNumber,
           invoice_type: 'PURCHASE',
           reference_type: data.po_id ? 'PO' : 'MANUAL',
-          reference_id: data.po_id || invoiceNumber,
+          reference_id: data.po_id || crypto.randomUUID(),
           customer_id: null,
           supplier_id: data.supplier_id,
           branch_id: data.branch_id,
@@ -670,6 +671,59 @@ export class InvoiceService implements IInvoiceService {
 
     this.logger.log(`Wrote off Invoice ${result.invoice_number} by user ${userId}`);
 
+    return mapInvoice(result);
+  }
+
+  /**
+   * Cancel an invoice (only allowed for DRAFT or OPEN invoices without payments).
+   */
+  async cancel(id: UUID, userId: UUID): Promise<Invoice> {
+    const existing = await this.prisma.invoice.findUnique({
+      where: { id },
+      include: { lines: true, payment_allocations: true },
+    });
+
+    if (!existing || existing.deleted_at !== null) {
+      throw new BusinessRuleException(`Invoice ${id} not found`, ErrorCode.NOT_FOUND);
+    }
+
+    if (existing.status !== 'DRAFT' && existing.status !== 'OPEN') {
+      throw new BusinessRuleException(
+        `Cannot cancel invoice ${existing.invoice_number} with status ${existing.status}. Only DRAFT or OPEN invoices can be cancelled.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    if ((existing.payment_allocations && existing.payment_allocations.length > 0) || Number(existing.paid_amount) > 0) {
+      throw new BusinessRuleException(
+        `Cannot cancel invoice ${existing.invoice_number} because payments have already been recorded.`,
+        ErrorCode.BUSINESS_RULE_VIOLATION,
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const invoice = await tx.invoice.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+        include: { lines: true },
+      });
+
+      await this.audit.record(
+        {
+          user_id: userId,
+          action: 'CANCEL',
+          entity_type: 'Invoice',
+          entity_id: id,
+          before_snapshot: existing as any,
+          after_snapshot: invoice as any,
+        },
+        tx,
+      );
+
+      return invoice;
+    });
+
+    this.logger.log(`Cancelled Invoice ${result.invoice_number} by user ${userId}`);
     return mapInvoice(result);
   }
 

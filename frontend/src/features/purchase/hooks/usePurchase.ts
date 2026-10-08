@@ -28,7 +28,7 @@ export const useCreatePurchaseOrder = () => {
 export const useApprovePO = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.post(`/api/v1/purchase-orders/${id}/approve`).then((r) => r.data.data),
+    mutationFn: (id: string) => api.put(`/api/v1/purchase-orders/${id}/approve`).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       message.success('Purchase Order approved');
@@ -43,7 +43,7 @@ export const useRejectPO = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      api.post(`/api/v1/purchase-orders/${id}/reject`, { reason }).then((r) => r.data.data),
+      api.put(`/api/v1/purchase-orders/${id}/reject`, { reason }).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       message.success('Purchase Order rejected');

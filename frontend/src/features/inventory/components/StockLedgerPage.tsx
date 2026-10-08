@@ -97,6 +97,7 @@ export const StockLedgerPage: React.FC = () => {
         loading={isLoading}
         size="small"
         pagination={{ pageSize: 50 }}
+        scroll={{ x: 'max-content' }}
       />
     </div>
   );

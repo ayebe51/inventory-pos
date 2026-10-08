@@ -19,19 +19,30 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     if (isCluster) {
       const nodes = this.configService.get<{ host: string; port: number }[]>('redis.clusterNodes') ?? [];
       this.client = new Cluster(nodes, {
-        redisOptions: { password },
+        redisOptions: {
+          password,
+        },
+        clusterRetryStrategy: (times) => (times > 3 ? null : Math.min(times * 1000, 3000)),
         enableOfflineQueue: false,
       });
       this.logger.log(`Redis Cluster initialized with ${nodes.length} nodes`);
     } else {
       const host = this.configService.get<string>('redis.host') ?? 'localhost';
       const port = this.configService.get<number>('redis.port') ?? 6379;
-      this.client = new Redis({ host, port, password, enableOfflineQueue: false, lazyConnect: true });
+      this.client = new Redis({
+        host,
+        port,
+        password,
+        enableOfflineQueue: false,
+        lazyConnect: true,
+        maxRetriesPerRequest: 1,
+        retryStrategy: (times) => (times > 3 ? null : Math.min(times * 1000, 3000)),
+      });
       this.logger.log(`Redis single-node initialized at ${host}:${port}`);
     }
 
     this.client.on('error', (err) => {
-      this.logger.error(`Redis error: ${err.message}`);
+      this.logger.warn(`Redis notice: ${err.message}`);
     });
   }
 
@@ -39,27 +50,46 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
     await this.client.quit();
   }
 
+  private readonly memoryFallback = new Map<string, { value: string; expiresAt: number }>();
+
   async get<T>(key: string): Promise<T | null> {
     try {
       const value = await this.client.get(key);
-      if (value === null) return null;
-      return JSON.parse(value) as T;
+      if (value !== null) {
+        return JSON.parse(value) as T;
+      }
     } catch (err) {
       this.logger.warn(`Cache GET failed for key "${key}": ${(err as Error).message}`);
-      return null;
     }
+
+    const mem = this.memoryFallback.get(key);
+    if (mem) {
+      if (mem.expiresAt > Date.now()) {
+        try {
+          return JSON.parse(mem.value) as T;
+        } catch {
+          return null;
+        }
+      } else {
+        this.memoryFallback.delete(key);
+      }
+    }
+    return null;
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const ttl = ttlSeconds ?? this.configService.get<number>('redis.ttlSeconds') ?? DEFAULT_TTL_SECONDS;
+    const jsonStr = JSON.stringify(value);
+    this.memoryFallback.set(key, { value: jsonStr, expiresAt: Date.now() + ttl * 1000 });
     try {
-      await this.client.set(key, JSON.stringify(value), 'EX', ttl);
+      await this.client.set(key, jsonStr, 'EX', ttl);
     } catch (err) {
-      this.logger.warn(`Cache SET failed for key "${key}": ${(err as Error).message}`);
+      this.logger.warn(`Cache SET failed for key "${key}", kept in memory fallback: ${(err as Error).message}`);
     }
   }
 
   async del(key: string): Promise<void> {
+    this.memoryFallback.delete(key);
     try {
       await this.client.del(key);
     } catch (err) {
@@ -68,6 +98,12 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   async delByPattern(pattern: string): Promise<void> {
+    const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+    for (const k of this.memoryFallback.keys()) {
+      if (regexPattern.test(k)) {
+        this.memoryFallback.delete(k);
+      }
+    }
     try {
       if (this.client instanceof Cluster) {
         // For cluster mode, scan each master node

@@ -119,6 +119,7 @@ const FixedAssetPage: React.FC = () => {
           dataSource={assets}
           loading={isLoading}
           pagination={{ pageSize: 15 }}
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 

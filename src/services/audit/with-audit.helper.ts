@@ -25,7 +25,7 @@ export interface WithAuditOptions {
   userId: string;
   action: string;
   entityType: string;
-  entityId: string;
+  entityId?: string;
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   ipAddress?: string;
@@ -52,13 +52,24 @@ export async function withAudit<T>(
   return prisma.$transaction(async (tx) => {
     const result = await operation(tx);
 
+    let resolvedEntityId = opts.entityId;
+    if (!resolvedEntityId || resolvedEntityId.trim() === '') {
+      if (result && typeof result === 'object' && 'id' in result && typeof (result as any).id === 'string') {
+        resolvedEntityId = (result as any).id;
+      }
+    }
+
+    if (!resolvedEntityId || resolvedEntityId.trim() === '') {
+      throw new Error(`withAudit: entityId could not be determined for entityType ${opts.entityType}`);
+    }
+
     const event: AuditEvent = {
       user_id: opts.userId,
       action: opts.action,
       entity_type: opts.entityType,
-      entity_id: opts.entityId,
+      entity_id: resolvedEntityId,
       before_snapshot: opts.before,
-      after_snapshot: opts.after,
+      after_snapshot: opts.after ?? (result && typeof result === 'object' ? (result as Record<string, unknown>) : undefined),
       ip_address: opts.ipAddress,
       user_agent: opts.userAgent,
     };
@@ -68,3 +79,4 @@ export async function withAudit<T>(
     return result;
   });
 }
+

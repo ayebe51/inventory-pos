@@ -93,7 +93,7 @@ export const PaymentPage: React.FC = () => {
         </Space>
       </div>
 
-      <Table columns={columns} dataSource={displayedData} rowKey="id" size="small" loading={isLoading} />
+      <Table columns={columns} dataSource={displayedData} rowKey="id" size="small" loading={isLoading} scroll={{ x: 'max-content' }} />
 
       <Drawer
         title={`Record ${activeTab === 'RECEIPT' ? 'Payment Receipt (AR)' : 'Payment Voucher (AP)'}`}

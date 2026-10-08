@@ -98,7 +98,7 @@ export const SalesReturnPage: React.FC = () => {
       </div>
 
       <Card className="stat-card" bodyStyle={{ padding: 0 }}>
-        <Table columns={columns} dataSource={salesReturns?.data || []} loading={isLoading} rowKey="id" pagination={{ pageSize: 15 }} />
+        <Table columns={columns} dataSource={salesReturns?.data || []} loading={isLoading} rowKey="id" pagination={{ pageSize: 15 }} scroll={{ x: 'max-content' }} />
       </Card>
 
       <Drawer

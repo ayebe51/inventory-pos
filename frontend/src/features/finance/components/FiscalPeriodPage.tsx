@@ -99,7 +99,7 @@ export const FiscalPeriodPage: React.FC = () => {
       title: 'Action',
       key: 'action',
       render: (_: any, record: any) => {
-        const canClosePeriod = user?.role === 'admin' || user?.role === 'manager';
+        const canClosePeriod = ['Owner', 'Finance_Manager', 'admin', 'manager', 'Sys_Admin'].includes(user?.role || '');
         return (
           <Space>
             {record.status === 'OPEN' && canClosePeriod && (

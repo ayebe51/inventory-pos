@@ -95,7 +95,7 @@ export const BankReconciliationPage: React.FC = () => {
             <p>Upload a CSV bank statement to start reconciliation</p>
           </div>
         ) : (
-          <Table columns={columns} dataSource={matches} rowKey={(r, i) => r.payment_id || i} size="small" pagination={false} />
+          <Table columns={columns} dataSource={matches} rowKey={(r, i) => r.payment_id || i} size="small" pagination={false} scroll={{ x: 'max-content' }} />
         )}
       </Card>
     </div>

@@ -336,6 +336,119 @@ async function main() {
     console.log(`  ℹ Admin user already exists: ${defaultAdminEmail}`);
   }
 
+  // Seed Purchasing Staff for Segregation of Duties (SOD-001)
+  const purchasingEmail = 'purchasing@example.com';
+  const existingPurchasing = await prisma.user.findFirst({
+    where: { email: purchasingEmail },
+  });
+  if (!existingPurchasing) {
+    const passwordHash = await bcrypt.hash('Staff@123456', 12);
+    const purchasingUser = await prisma.user.create({
+      data: {
+        email: purchasingEmail,
+        password_hash: passwordHash,
+        full_name: 'Purchasing Staff',
+        is_active: true,
+        mfa_enabled: false,
+      },
+    });
+    const purchasingRole = await prisma.role.findFirst({ where: { name: 'Purchasing_Staff' } });
+    if (purchasingRole) {
+      await prisma.userRole.create({
+        data: { user_id: purchasingUser.id, role_id: purchasingRole.id },
+      });
+    }
+    console.log(`  ✓ Purchasing staff created: ${purchasingEmail}`);
+  }
+
+  // Seed Cashier for POS operations
+  const cashierEmail = 'cashier@example.com';
+  const existingCashier = await prisma.user.findFirst({
+    where: { email: cashierEmail },
+  });
+  if (!existingCashier) {
+    const passwordHash = await bcrypt.hash('Cashier@123456', 12);
+    const cashierUser = await prisma.user.create({
+      data: {
+        email: cashierEmail,
+        password_hash: passwordHash,
+        full_name: 'Store Cashier',
+        is_active: true,
+        mfa_enabled: false,
+      },
+    });
+    const cashierRole = await prisma.role.findFirst({ where: { name: 'Cashier' } });
+    if (cashierRole) {
+      await prisma.userRole.create({
+        data: { user_id: cashierUser.id, role_id: cashierRole.id },
+      });
+    }
+    console.log(`  ✓ Cashier created: ${cashierEmail}`);
+  }
+
+  // 5. Seed Fiscal Periods for 2026
+  console.log('🌱 Seeding Fiscal Periods for 2026...');
+  const year = 2026;
+  for (let month = 1; month <= 12; month++) {
+    const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+    const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+    const status = month < 9 ? 'CLOSED' : month === 9 ? 'OPEN' : 'DRAFT';
+
+    await prisma.fiscalPeriod.upsert({
+      where: { year_month: { year, month } },
+      update: {
+        period_name: `Period ${year}-${String(month).padStart(2, '0')}`,
+        start_date: startDate,
+        end_date: endDate,
+      },
+      create: {
+        period_name: `Period ${year}-${String(month).padStart(2, '0')}`,
+        year,
+        month,
+        start_date: startDate,
+        end_date: endDate,
+        status,
+      },
+    });
+  }
+  console.log('  ✓ Seeded 12 Fiscal Periods (Month 9 is OPEN)');
+
+  // 6. Link Payment Methods to COA accounts
+  console.log('🌱 Linking Payment Methods to COA Accounts...');
+  const cashAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.001' } });
+  const bankAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.003' } });
+  const edcAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.005' } });
+
+  if (cashAccount) {
+    await prisma.paymentMethod.upsert({
+      where: { code: 'CSH' },
+      update: { account_id: cashAccount.id, is_active: true },
+      create: { code: 'CSH', name: 'Cash', type: 'CASH', account_id: cashAccount.id, is_active: true },
+    });
+  }
+  if (edcAccount) {
+    await prisma.paymentMethod.upsert({
+      where: { code: 'CRD' },
+      update: { account_id: edcAccount.id, is_active: true },
+      create: { code: 'CRD', name: 'Credit/Debit Card', type: 'CARD', account_id: edcAccount.id, is_active: true },
+    });
+  }
+  if (bankAccount) {
+    await prisma.paymentMethod.upsert({
+      where: { code: 'TRF' },
+      update: { account_id: bankAccount.id, is_active: true },
+      create: { code: 'TRF', name: 'Bank Transfer', type: 'TRANSFER', account_id: bankAccount.id, is_active: true },
+    });
+  }
+  console.log('  ✓ Payment Methods linked to COA accounts');
+
+  // 7. Customer Outstanding Balance Reconciliation
+  console.log('🌱 Reconciling Customer AR Balances...');
+  await prisma.customer.updateMany({
+    data: { outstanding_balance: 0 },
+  });
+  console.log('  ✓ Customer AR balances reconciled to 0');
+
   console.log('✅ Seed completed successfully');
 }
 

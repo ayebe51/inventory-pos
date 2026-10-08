@@ -124,14 +124,18 @@ export class AuthService {
     await this.cacheService.del(this.loginFailKey(email));
 
     const roles = user.user_roles.map((ur) => ur.role.name);
+    const hasMfaRole = roles.some((r) => MFA_REQUIRED_ROLES.has(r));
 
-    // Check if MFA is enabled for this user
-    const requiresMfa = user.mfa_enabled && !!user.mfa_secret;
-
-    if (requiresMfa) {
+    if (user.mfa_enabled && !!user.mfa_secret) {
       // MFA enrolled — require TOTP verification before issuing full tokens
       const mfaToken = await this.issueMfaToken(user.id, 'verify');
       return { mfaRequired: true, mfaToken, mfaPurpose: 'verify' } as any;
+    }
+
+    if (hasMfaRole) {
+      // Mandatory MFA role but not yet enrolled — initiate MFA setup challenge
+      const mfaToken = await this.issueMfaToken(user.id, 'setup');
+      return { mfaRequired: true, mfaToken, mfaPurpose: 'setup' } as any;
     }
 
     const tokens = await this.issueTokens(user.id, user.email, roles, user.branch_id ?? null);

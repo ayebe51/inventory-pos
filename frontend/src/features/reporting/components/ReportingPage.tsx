@@ -2,9 +2,6 @@ import React, { useState } from 'react';
 import { Row, Col, Card, Typography, Select, Button, Space, DatePicker, message, Table, Statistic } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { 
   useExecutiveDashboard, 
   useInventoryPosition, 
@@ -45,8 +42,9 @@ export const ReportingPage: React.FC = () => {
 
   const isLoading = isExecLoading || isInvLoading || isIncomeLoading || isBalanceLoading || isCashFlowLoading || isArLoading || isApLoading;
 
-  const handleExportXLSX = () => {
+  const handleExportXLSX = async () => {
     try {
+      const XLSX = await import('xlsx');
       let exportData: any[] = [];
       let sheetName = 'Report';
 
@@ -94,8 +92,10 @@ export const ReportingPage: React.FC = () => {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
       doc.text(`Kiro ERP - ${reportType.toUpperCase()} Report`, 14, 15);
       doc.text(`As of: ${asOfDate}`, 14, 22);
@@ -208,7 +208,7 @@ export const ReportingPage: React.FC = () => {
             onChange={(_, dateStr) => setAsOfDate(dateStr as string)} 
             allowClear={false}
           />
-          <Button icon={<ReloadOutlined />} onClick={refetchAll} />
+          <Button icon={<ReloadOutlined />} onClick={refetchAll} aria-label="Refresh reports" />
           <Button icon={<DownloadOutlined />} onClick={handleExportXLSX}>XLSX</Button>
           <Button icon={<DownloadOutlined />} onClick={handleExportPDF} type="primary">PDF</Button>
         </Space>

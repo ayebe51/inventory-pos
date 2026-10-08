@@ -20,7 +20,7 @@ const { Title, Text } = Typography;
 const PAYMENT_METHODS = [
   { key: 'CASH', label: 'Cash', icon: <DollarOutlined /> },
   { key: 'TRANSFER', label: 'Transfer', icon: <QrcodeOutlined /> },
-  { key: 'EDC', label: 'Card/EDC', icon: <BarcodeOutlined /> },
+  { key: 'CARD', label: 'Card / EDC', icon: <BarcodeOutlined /> },
 ];
 
 import { useNavigate } from 'react-router-dom';
@@ -42,8 +42,8 @@ export const POSPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef<InputRef>(null);
 
-  const canVoid = user?.role === 'admin' || user?.role === 'manager';
-  const canOverridePrice = user?.role === 'admin' || user?.role === 'manager';
+  const canVoid = ['Owner', 'Supervisor', 'admin', 'manager', 'Sys_Admin'].includes(user?.role || '');
+  const canOverridePrice = ['Owner', 'Supervisor', 'admin', 'manager', 'Sys_Admin'].includes(user?.role || '');
 
   const subtotal = cart.reduce((sum: number, item: any) => sum + item.qty * item.price, 0);
   const taxPct = (posConfig?.tax_pct ?? 11) / 100;
@@ -170,7 +170,7 @@ export const POSPage: React.FC = () => {
             allowClear
             style={{ flex: 1 }}
           />
-          <Button icon={<BarcodeOutlined />} onClick={() => setScannerOpen(true)}>
+          <Button icon={<BarcodeOutlined />} onClick={() => setScannerOpen(true)} aria-label="Scan barcode (F4)">
             Scan (F4)
           </Button>
         </div>

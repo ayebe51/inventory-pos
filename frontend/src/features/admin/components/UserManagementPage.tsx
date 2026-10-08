@@ -158,9 +158,10 @@ export const UserManagementPage: React.FC = () => {
       align: 'center' as const,
       render: (_: any, record: any) => (
         <Space>
-          <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" style={{ borderRadius: 6 }} />
+          <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" style={{ borderRadius: 6 }} aria-label="Edit user" />
           <Button
             icon={<KeyOutlined />}
+            aria-label="Reset password"
             onClick={() => {
               Modal.confirm({
                 title: 'Reset Password',

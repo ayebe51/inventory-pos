@@ -37,8 +37,12 @@ ENV PORT=3000
 
 EXPOSE 3000
 
+# Container healthcheck
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+
 # Set non-root security user
 USER node
 
 # Start the application
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]

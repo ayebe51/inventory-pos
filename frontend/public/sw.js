@@ -2,7 +2,9 @@ const CACHE_NAME = 'kiro-erp-v1';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/favicon.svg',
+  '/icons.svg'
 ];
 
 self.addEventListener('install', (event) => {

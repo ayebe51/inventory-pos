@@ -128,6 +128,7 @@ export const StockTransferPage: React.FC = () => {
           loading={isLoading}
           rowKey="id"
           size="small"
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 

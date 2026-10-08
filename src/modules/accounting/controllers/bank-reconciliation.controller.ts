@@ -6,6 +6,9 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  ParseFilePipeBuilder,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -17,6 +20,13 @@ import { PrismaService } from '../../../config/prisma.service';
 import { successResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
 import { UploadBankStatementDTO, ConfirmReconciliationDTO } from '../dto/accounting.dto';
+
+export interface UploadedStatementFile {
+  originalname: string;
+  mimetype: string;
+  size?: number;
+  buffer: Buffer;
+}
 
 interface AuthRequest extends Request {
   user: { sub: string };
@@ -39,12 +49,61 @@ export class BankReconciliationController {
   @RequirePermissions('ACCOUNTING.UPDATE')
   @UseInterceptors(FileInterceptor('file'))
   async uploadStatement(
-    @UploadedFile() file: any,
-    @Body('bank_account_id') bankAccountId: string,
-    @Body('from_date') fromDate: string,
-    @Body('to_date') toDate: string
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: 5 * 1024 * 1024 }) // 5 MB limit
+        .build({
+          errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+          fileIsRequired: true,
+        }),
+    )
+    file: UploadedStatementFile,
+    @Body('bank_account_id') bankAccountId?: string,
+    @Body('from_date') fromDate?: string,
+    @Body('to_date') toDate?: string,
   ) {
-    if (!file) throw new Error('File is required');
+    if (!file) {
+      throw new BadRequestException('File is required');
+    }
+
+    // 1. Extension validation (reject non-.csv)
+    const originalName = (file.originalname || '').toLowerCase();
+    if (!originalName.endsWith('.csv')) {
+      throw new BadRequestException('Invalid file extension: only .csv files are supported');
+    }
+
+    // 2. MIME type validation
+    const allowedMimes = [
+      'text/csv',
+      'text/plain',
+      'application/vnd.ms-excel',
+      'application/csv',
+      'text/x-csv',
+      'application/x-csv',
+      'text/comma-separated-values',
+    ];
+    if (file.mimetype && !allowedMimes.includes(file.mimetype.toLowerCase())) {
+      throw new BadRequestException(`Invalid file MIME type (${file.mimetype}): only CSV files are accepted`);
+    }
+
+    // 3. Empty buffer validation
+    if (!file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException('Uploaded file is empty');
+    }
+
+    // 4. Binary payload / null-byte detection (reject binary payloads disguised as CSV)
+    const previewLength = Math.min(file.buffer.length, 2048);
+    for (let i = 0; i < previewLength; i++) {
+      if (file.buffer[i] === 0x00) {
+        throw new BadRequestException('Invalid file content: binary payload detected');
+      }
+    }
+
+    const csvContent = file.buffer.toString('utf-8');
+    if (!csvContent.trim()) {
+      throw new BadRequestException('Uploaded file is empty');
+    }
+
     let targetAccountId = bankAccountId;
     if (!targetAccountId) {
       const defaultBank = await this.prisma.chartOfAccount.findFirst({
@@ -59,17 +118,16 @@ export class BankReconciliationController {
         },
       });
       if (!defaultBank) {
-        throw new Error('bank_account_id is required and no default bank account was found');
+        throw new BadRequestException('bank_account_id is required and no default bank account was found');
       }
       targetAccountId = defaultBank.id;
     }
 
-    const csvContent = file.buffer.toString('utf-8');
     await this.reconService.uploadStatement(targetAccountId as UUID, csvContent);
     const matches = await this.reconService.autoMatch(
-       targetAccountId as UUID, 
-       fromDate ? new Date(fromDate) : new Date(0), 
-       toDate ? new Date(toDate) : new Date()
+      targetAccountId as UUID,
+      fromDate ? new Date(fromDate) : new Date(0),
+      toDate ? new Date(toDate) : new Date(),
     );
 
     return successResponse(matches, 'Statement parsed and matched successfully');
@@ -82,11 +140,11 @@ export class BankReconciliationController {
   async confirmReconciliation(@Body() body: any, @Request() req: AuthRequest) {
     const rawMatches = body.matches || (body.payment_ids ? body.payment_ids.map((id: string) => ({ payment_id: id })) : []);
     if (!rawMatches || rawMatches.length === 0) {
-      throw new Error('No matches selected for confirmation');
+      throw new BadRequestException('No matches selected for confirmation');
     }
 
     await this.reconService.confirmReconciliation(rawMatches as any, req.user.sub as UUID);
-    
+
     return successResponse(null, 'Reconciliation confirmed successfully');
   }
 }

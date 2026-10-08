@@ -163,6 +163,7 @@ export const AuditTrailPage: React.FC = () => {
             size="middle"
             loading={isLoading}
             pagination={{ pageSize: 12 }}
+            scroll={{ x: 'max-content' }}
             style={{ background: 'var(--solid-bg)', borderRadius: 14, overflow: 'hidden' }}
           />
         )}

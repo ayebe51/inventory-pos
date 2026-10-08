@@ -30,6 +30,22 @@ Thumbs.db
 
 # Testing
 coverage/
+frontend/playwright-report/
+frontend/test-results/
+
+# Backups
+backups/*.dump
+backups/*.sql
+backups/*.log
 
 # Prisma
 prisma/migrations/dev/
+
+# Scratch & local tools
+scratch/
+
+# TLS / SSL Certificates
+certs/*.key
+certs/*.crt
+certs/*.pem
+!certs/README.md

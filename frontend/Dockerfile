@@ -23,5 +23,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+EXPOSE 443
+
+HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider --no-check-certificate https://localhost/ || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

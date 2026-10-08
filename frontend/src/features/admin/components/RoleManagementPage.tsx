@@ -132,7 +132,7 @@ export const RoleManagementPage: React.FC = () => {
       width: 80,
       align: 'center' as const,
       render: (_: any, record: any) => (
-        <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" style={{ borderRadius: 6 }} />
+        <Button icon={<EditOutlined />} onClick={() => handleOpenModal(record)} size="small" style={{ borderRadius: 6 }} aria-label="Edit role" />
       )
     }
   ];

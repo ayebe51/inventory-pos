@@ -14,6 +14,7 @@ const { Title, Text } = Typography;
 export const ShiftPage: React.FC = () => {
   const [openModal, setOpenModal] = useState(false);
   const [closeModal, setCloseModal] = useState(false);
+  const [reportModal, setReportModal] = useState(false);
   const [form] = Form.useForm();
 
   const { data: activeShift } = useActiveShift();
@@ -66,7 +67,13 @@ export const ShiftPage: React.FC = () => {
           </Button>
         ) : (
           <Space>
-            <Button icon={<BarChartOutlined />} style={{ color: '#8B5CF6' }}>View Report</Button>
+            <Button
+              icon={<BarChartOutlined />}
+              style={{ color: '#8B5CF6' }}
+              onClick={() => setReportModal(true)}
+            >
+              View Report
+            </Button>
             <Button danger icon={<CloseCircleOutlined />} onClick={() => setCloseModal(true)}>
               Close Shift
             </Button>
@@ -224,6 +231,37 @@ export const ShiftPage: React.FC = () => {
             Close Shift
           </Button>
         </Form>
+      </Modal>
+
+      {/* Shift Report Modal */}
+      <Modal
+        title="Active Shift Report Summary"
+        open={reportModal}
+        onCancel={() => setReportModal(false)}
+        footer={<Button type="primary" onClick={() => setReportModal(false)}>Done</Button>}
+      >
+        <Descriptions bordered size="small" column={1} style={{ marginTop: 12 }}>
+          <Descriptions.Item label="Cashier Shift ID">
+            <Text code>{activeShift?.id || '—'}</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="Opened At">
+            {activeShift?.opened_at ? new Date(activeShift.opened_at).toLocaleString('id-ID') : '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Opening Cash Balance">
+            <Text strong>Rp {Number(activeShift?.opening_balance || 0).toLocaleString('id-ID')}</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="Total Sales Processed">
+            <Text strong style={{ color: '#34D399' }}>Rp {totalSales.toLocaleString('id-ID')}</Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="Completed Transactions">
+            {transactions?.data?.filter((t: any) => t.status === 'COMPLETED').length ?? 0} orders
+          </Descriptions.Item>
+          <Descriptions.Item label="Expected Cash in Drawer">
+            <Text strong style={{ color: '#8B5CF6', fontSize: 15 }}>
+              Rp {((activeShift?.opening_balance || 0) + totalSales).toLocaleString('id-ID')}
+            </Text>
+          </Descriptions.Item>
+        </Descriptions>
       </Modal>
     </div>
   );

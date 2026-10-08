@@ -10,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
@@ -20,6 +21,8 @@ import { APIResponse } from '../../../common/types/api-response.type';
 import { UUID } from '../../../common/types/uuid.type';
 import { PurchaseOrder, GoodsReceipt } from '../interfaces/purchase.interfaces';
 import { CreatePODTO, GoodsReceiptDTO, PurchaseOrderFilter } from '../dto/purchase-order.dto';
+import { IdempotencyInterceptor } from '../../../common/interceptors/idempotency.interceptor';
+import { UseIdempotency } from '../../../common/decorators/idempotency.decorator';
 
 /**
  * Purchase Order Controller
@@ -29,6 +32,8 @@ import { CreatePODTO, GoodsReceiptDTO, PurchaseOrderFilter } from '../dto/purcha
 @ApiBearerAuth()
 @Controller('api/v1/purchase-orders')
 @UseGuards(JwtAuthGuard, RbacGuard)
+@UseInterceptors(IdempotencyInterceptor)
+@UseIdempotency()
 export class PurchaseOrderController {
   constructor(private readonly poService: PurchaseOrderService) {}
 

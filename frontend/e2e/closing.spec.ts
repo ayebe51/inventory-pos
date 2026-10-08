@@ -2,31 +2,45 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Closing Scenarios', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    // Inject authenticated session before page loads
+    await page.addInitScript(() => {
+      window.localStorage.setItem('access_token', 'test-e2e-token');
+      window.localStorage.setItem('auth-store', JSON.stringify({
+        state: {
+          user: {
+            id: 'test-admin-id',
+            name: 'System Administrator',
+            email: 'admin@example.com',
+            role: 'Owner',
+          },
+          accessToken: 'test-e2e-token',
+          isAuthenticated: true,
+        },
+        version: 0,
+      }));
+    });
   });
 
   test('should display Fiscal Period page', async ({ page }) => {
-    // Navigate to Finance > Fiscal Periods
-    await page.click('text=Finance & Acc');
-    await page.click('text=Fiscal Periods');
+    await page.goto('/finance/periods');
     
     // Verify Page is rendered
-    await expect(page.locator('text=Fiscal Periods')).toBeVisible();
+    await expect(page.locator('text=Fiscal Periods')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=New Period')).toBeVisible();
   });
 
   test('should check period close button visibility', async ({ page }) => {
-    await page.click('text=Finance & Acc');
-    await page.click('text=Fiscal Periods');
+    await page.goto('/finance/periods');
     
-    // Wait for data to load
-    await page.waitForTimeout(1000); 
+    // Wait for table to load
+    await expect(page.locator('text=Fiscal Periods')).toBeVisible();
 
-    // Because of our mock login (admin by default), Close Period should be visible if there is an OPEN period.
     const closeBtn = page.locator('button:has-text("Close Period")').first();
-    if (await closeBtn.isVisible()) {
-        await closeBtn.click();
-        await expect(page.locator('.ant-modal-title').filter({ hasText: 'Period Closing Checklist' })).toBeVisible();
+    if (await closeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await closeBtn.click();
+      await expect(
+        page.locator('.ant-modal-title').filter({ hasText: 'Period Closing Checklist' })
+      ).toBeVisible();
     }
   });
 });

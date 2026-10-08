@@ -135,6 +135,7 @@ export const CashBankSubPage: React.FC = () => {
           rowKey="account_id"
           loading={isLoading}
           pagination={false}
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 
