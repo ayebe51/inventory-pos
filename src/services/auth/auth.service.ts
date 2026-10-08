@@ -130,6 +130,7 @@ export class AuthService {
 
     const roles = user.user_roles.map((ur) => ur.role.name);
     const hasMfaRole = roles.some((r) => MFA_REQUIRED_ROLES.has(r));
+    const enforceMfaRoles = process.env.ENFORCE_MFA_ROLES === 'true';
 
     if (user.mfa_enabled && !!user.mfa_secret) {
       // MFA enrolled — require TOTP verification before issuing full tokens
@@ -137,7 +138,7 @@ export class AuthService {
       return { mfaRequired: true, mfaToken, mfaPurpose: 'verify' } as any;
     }
 
-    if (hasMfaRole) {
+    if (hasMfaRole && enforceMfaRoles) {
       // Mandatory MFA role but not yet enrolled — initiate MFA setup challenge
       const mfaToken = await this.issueMfaToken(user.id, 'setup');
       return { mfaRequired: true, mfaToken, mfaPurpose: 'setup' } as any;

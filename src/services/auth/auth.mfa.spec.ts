@@ -75,6 +75,14 @@ const mockCacheService = {
 describe('AuthService — MFA (TOTP)', () => {
   let service: AuthService;
 
+  beforeAll(() => {
+    process.env.ENFORCE_MFA_ROLES = 'true';
+  });
+
+  afterAll(() => {
+    delete process.env.ENFORCE_MFA_ROLES;
+  });
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
