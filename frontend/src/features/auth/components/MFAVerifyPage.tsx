@@ -41,7 +41,7 @@ export const MFAVerifyPage: React.FC = () => {
       message.success('Verification successful');
       navigate('/');
     } catch (e: any) {
-      message.error(e.response?.data?.message || 'Invalid token. Please try again.');
+      message.error(e.response?.data?.error?.message || e.response?.data?.message || 'Invalid token. Please try again.');
     } finally {
       setLoading(false);
     }

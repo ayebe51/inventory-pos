@@ -38,7 +38,7 @@ export const MFASetupPage: React.FC = () => {
       setSecret(data.secret);
       setCurrent(1);
     } catch (e: any) {
-      message.error(e.response?.data?.message || 'Failed to initiate MFA setup');
+      message.error(e.response?.data?.error?.message || e.response?.data?.message || 'Failed to initiate MFA setup');
     } finally {
       setLoading(false);
     }
@@ -66,7 +66,7 @@ export const MFASetupPage: React.FC = () => {
       message.success('MFA successfully enabled!');
       setCurrent(2);
     } catch (e: any) {
-      message.error(e.response?.data?.message || 'Invalid token. Please try again.');
+      message.error(e.response?.data?.error?.message || e.response?.data?.message || 'Invalid token. Please try again.');
     } finally {
       setLoading(false);
     }

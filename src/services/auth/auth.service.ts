@@ -4,6 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
 import { v4 as uuidv4 } from 'uuid';
+
+// Allow +/- 2 time steps (±60 seconds) clock drift tolerance for mobile authenticators
+authenticator.options = { window: 2 };
 import { PrismaService } from '../../config/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { AuditService } from '../audit/audit.service';
@@ -58,7 +61,9 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly cacheService: CacheService,
     private readonly auditService: AuditService,
-  ) {}
+  ) {
+    authenticator.options = { window: 2 };
+  }
 
   async validateUser(email: string, password: string) {
     const user = await this.prisma.user.findFirst({
