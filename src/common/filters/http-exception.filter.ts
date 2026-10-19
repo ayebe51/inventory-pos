@@ -15,6 +15,8 @@ import { APIError } from '../types/api-response.type';
  */
 function statusToErrorCode(status: number): ErrorCode {
   switch (status) {
+    case HttpStatus.BAD_REQUEST:
+      return ErrorCode.VALIDATION_ERROR;
     case HttpStatus.UNAUTHORIZED:
       return ErrorCode.UNAUTHORIZED;
     case HttpStatus.FORBIDDEN:
@@ -68,24 +70,38 @@ function extractErrorBody(
       ? { validation: msg as string[] }
       : undefined;
 
+    let sanitizedMessage = isValidationArray ? 'Validation failed' : String(msg);
+    if (
+      typeof sanitizedMessage === 'string' &&
+      (sanitizedMessage.includes('JSON at position') || sanitizedMessage.includes('SyntaxError'))
+    ) {
+      sanitizedMessage = 'Malformed JSON payload in request body';
+    }
+
     return {
       success: false,
       error: {
         code,
-        message: isValidationArray
-          ? 'Validation failed'
-          : String(msg),
+        message: sanitizedMessage,
         ...(details ? { details } : {}),
       },
     };
   }
 
   // Plain string response
+  let message = typeof response === 'string' ? response : 'An error occurred';
+  if (
+    typeof message === 'string' &&
+    (message.includes('JSON at position') || message.includes('SyntaxError'))
+  ) {
+    message = 'Malformed JSON payload in request body';
+  }
+
   return {
     success: false,
     error: {
       code: statusToErrorCode(fallbackStatus),
-      message: typeof response === 'string' ? response : 'An error occurred',
+      message,
     },
   };
 }
@@ -103,7 +119,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const body = extractErrorBody(exception, status);
 
-      if (status >= 500) {
+      if (status === HttpStatus.TOO_MANY_REQUESTS) {
+        this.logger.warn(
+          `[SECURITY_RATE_LIMIT] [${request.method}] ${request.url} from ${request.ip} exceeded rate limit threshold`,
+        );
+      } else if (status >= 500) {
         this.logger.error(
           `[${request.method}] ${request.url} → ${status}`,
           exception.stack,
@@ -111,6 +131,50 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       }
 
       response.status(status).json(body);
+      return;
+    }
+
+    // Express body-parser SyntaxError on malformed JSON payloads
+    if (
+      exception instanceof SyntaxError &&
+      (('status' in exception && (exception as any).status === 400) ||
+        'body' in exception)
+    ) {
+      this.logger.warn(`[SECURITY_MALFORMED_JSON] [${request.method}] ${request.url} from ${request.ip}`);
+      const body: APIError = {
+        success: false,
+        error: {
+          code: ErrorCode.VALIDATION_ERROR,
+          message: 'Malformed JSON payload in request body',
+        },
+      };
+      response.status(HttpStatus.BAD_REQUEST).json(body);
+      return;
+    }
+
+    // Zod validation errors (e.g. from manual Zod schema parsing in controllers)
+    if (
+      exception &&
+      typeof exception === 'object' &&
+      (('name' in exception && (exception as any).name === 'ZodError') ||
+        'issues' in exception)
+    ) {
+      const issues = Array.isArray((exception as any).issues)
+        ? (exception as any).issues
+        : [];
+      const validationDetails = issues.map(
+        (issue: any) =>
+          `${issue.path && issue.path.length > 0 ? issue.path.join('.') : 'field'}: ${issue.message}`,
+      );
+      const body: APIError = {
+        success: false,
+        error: {
+          code: ErrorCode.VALIDATION_ERROR,
+          message: 'Validation failed',
+          details: { validation: validationDetails },
+        },
+      };
+      response.status(HttpStatus.BAD_REQUEST).json(body);
       return;
     }
 

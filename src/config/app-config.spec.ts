@@ -42,13 +42,22 @@ describe('P0-001 JWT Secret Security Validation', () => {
     ).toThrow(/JWT_REFRESH_SECRET cannot use a known default secret value/);
   });
 
-  it('rejects weak secrets (< 32 chars) in production mode', () => {
+  it('rejects known default access secret "fallback-secret-key"', () => {
     expect(() =>
       validateAppConfig({
         ...validBaseConfig,
-        NODE_ENV: 'production',
+        JWT_ACCESS_SECRET: 'fallback-secret-key',
+      }),
+    ).toThrow(/JWT_ACCESS_SECRET cannot use a known default secret value/);
+  });
+
+  it('rejects weak secrets (< 32 chars) across all environments (including development)', () => {
+    expect(() =>
+      validateAppConfig({
+        ...validBaseConfig,
+        NODE_ENV: 'development',
         JWT_ACCESS_SECRET: 'short_secret_under_32_chars',
       }),
-    ).toThrow(/at least 32 characters long in production mode/);
+    ).toThrow(/at least 32 characters long across all environments/);
   });
 });

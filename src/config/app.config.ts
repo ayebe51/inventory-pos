@@ -10,6 +10,12 @@ const KNOWN_DEFAULT_SECRETS = new Set([
   'change_me',
   'default_secret',
   '123456',
+  'fallback-secret-key',
+  'fallback_secret',
+  'dev_secret',
+  'test_secret',
+  'enterprise_secret',
+  'default_jwt_secret',
 ]);
 
 const AppConfigSchema = z.object({
@@ -23,8 +29,6 @@ const AppConfigSchema = z.object({
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 }).superRefine((data, ctx) => {
-  const isProd = data.NODE_ENV === 'production';
-  
   // Check access secret
   if (KNOWN_DEFAULT_SECRETS.has(data.JWT_ACCESS_SECRET.toLowerCase())) {
     ctx.addIssue({
@@ -32,10 +36,10 @@ const AppConfigSchema = z.object({
       message: 'JWT_ACCESS_SECRET cannot use a known default secret value',
       path: ['JWT_ACCESS_SECRET'],
     });
-  } else if (isProd && data.JWT_ACCESS_SECRET.length < 32) {
+  } else if (data.JWT_ACCESS_SECRET.length < 32) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'JWT_ACCESS_SECRET must be at least 32 characters long in production mode',
+      message: 'JWT_ACCESS_SECRET must be at least 32 characters long across all environments',
       path: ['JWT_ACCESS_SECRET'],
     });
   }
@@ -47,10 +51,10 @@ const AppConfigSchema = z.object({
       message: 'JWT_REFRESH_SECRET cannot use a known default secret value',
       path: ['JWT_REFRESH_SECRET'],
     });
-  } else if (isProd && data.JWT_REFRESH_SECRET.length < 32) {
+  } else if (data.JWT_REFRESH_SECRET.length < 32) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'JWT_REFRESH_SECRET must be at least 32 characters long in production mode',
+      message: 'JWT_REFRESH_SECRET must be at least 32 characters long across all environments',
       path: ['JWT_REFRESH_SECRET'],
     });
   }
