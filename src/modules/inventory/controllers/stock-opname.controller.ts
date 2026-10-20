@@ -40,6 +40,19 @@ export class StockOpnameController {
   }
 
   /**
+   * GET /api/v1/inventory/stock-opname/:id
+   * Get single stock opname with lines and variance details
+   */
+  @ApiOperation({ summary: 'Get single stock opname details' })
+  @ApiParam({ name: 'id', description: 'Opname ID' })
+  @Get(':id')
+  @RequirePermissions('STOCK.OPNAME')
+  async findOne(@Param('id') id: string) {
+    const opname = await this.opnameService.findOne(id as UUID);
+    return successResponse(opname);
+  }
+
+  /**
    * POST /api/v1/inventory/stock-opname/initiate
    * Initiate a new stock opname (locks warehouse)
    */

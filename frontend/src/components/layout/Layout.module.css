@@ -517,3 +517,114 @@
   overflow-y: auto;
   padding-right: 8px;
 }
+
+/* Mobile Hamburger Menu Toggle Button (Default Hidden on Desktop) */
+.mobileMenuBtn {
+  display: none;
+}
+
+/* ── Tablet Viewport Adjustments (<= 1024px) ─────────────────────────── */
+@media (max-width: 1024px) {
+  .sidebarRailExpanded {
+    width: 56px;
+  }
+  .islandBaseExpanded {
+    width: 52px !important;
+    border-radius: var(--r-full, 9999px) !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+  }
+  .mainContainerExpanded {
+    margin-left: 96px;
+  }
+  .searchChipBtn {
+    min-width: 180px;
+  }
+}
+
+/* ── Mobile Viewport Adjustments (<= 768px) ──────────────────────────── */
+@media (max-width: 768px) {
+  .root {
+    overflow-x: hidden;
+  }
+
+  .sidebarRail {
+    display: none !important;
+  }
+
+  .mainContainer,
+  .mainContainerCollapsed,
+  .mainContainerExpanded {
+    margin-left: 0 !important;
+    padding: 10px 12px 14px 12px !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    box-sizing: border-box;
+  }
+
+  .topHeaderBar {
+    margin-bottom: 12px;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .mobileMenuBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--r-full, 9999px);
+    border: 1px solid var(--solid-border, #E5E9F0);
+    background: var(--solid-bg, #FFFFFF);
+    color: var(--text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm, 0 2px 8px rgba(15,22,41,0.04));
+    transition: all var(--dur-fast) ease;
+  }
+
+  .mobileMenuBtn:hover {
+    color: var(--brand-500, #F05328);
+    border-color: var(--brand-300, #FF8A65);
+  }
+
+  .searchChipBtn {
+    min-width: 42px;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .searchChipBtn span {
+    display: none;
+  }
+
+  .userTextMeta {
+    display: none !important;
+  }
+
+  .islandUser {
+    padding: 0 4px 0 4px !important;
+    gap: 2px;
+    height: 42px;
+  }
+
+  .topIslandBase {
+    height: 42px;
+    padding: 0 10px;
+  }
+
+  .branchChip {
+    padding: 0 10px;
+    font-size: 11.5px;
+  }
+
+  .contentArea {
+    padding-right: 0;
+    width: 100%;
+    overflow-x: auto;
+  }
+}
+

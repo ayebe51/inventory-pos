@@ -159,6 +159,8 @@ export interface InventoryService {
 }
 
 export interface StockOpnameService {
+  findAll?(): Promise<any[]>;
+  findOne?(id: UUID): Promise<any>;
   initiate(warehouseId: UUID, userId: UUID): Promise<StockOpname>;
   recordCount(opnameId: UUID, items: CountItem[]): Promise<void>;
   requestRecount(opnameId: UUID, items: UUID[]): Promise<void>;

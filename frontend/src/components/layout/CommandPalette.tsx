@@ -94,10 +94,12 @@ export const CommandPalette: React.FC = () => {
       footer={null}
       closable={false}
       width={600}
-      bodyStyle={{ padding: 0 }}
-      maskStyle={{
-        backdropFilter: 'blur(8px)',
-        backgroundColor: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)',
+      styles={{
+        body: { padding: 0 },
+        mask: {
+          backdropFilter: 'blur(8px)',
+          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.4)',
+        },
       }}
       style={{
         top: '15vh',

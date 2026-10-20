@@ -700,12 +700,16 @@ export class POSService implements IPOSService {
       skip: (query.page - 1) * query.per_page,
       take: Number(query.per_page),
       orderBy: { created_at: 'desc' },
+      include: { branch: true, warehouse: true },
     });
     return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
   }
 
   async getShift(id: UUID, user?: { branch_id?: string | null }): Promise<Shift> {
-    const shift = await this.prisma.shift.findUnique({ where: { id } });
+    const shift = await this.prisma.shift.findUnique({
+      where: { id },
+      include: { branch: true, warehouse: true },
+    });
     if (!shift) throw new BusinessRuleException('Shift not found', ErrorCode.NOT_FOUND);
     if (user && user.branch_id && shift.branch_id !== user.branch_id) {
       throw new ForbiddenException('Access denied: Shift belongs to another branch');
@@ -725,7 +729,7 @@ export class POSService implements IPOSService {
       skip: (query.page - 1) * query.per_page,
       take: Number(query.per_page),
       orderBy: { created_at: 'desc' },
-      include: { lines: true, payments: true }
+      include: { lines: true, payments: { include: { payment_method: true } } }
     });
     return { data: data as any, meta: { total, page: query.page, per_page: query.per_page } };
   }

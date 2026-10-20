@@ -112,7 +112,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({ isOpen, 
         style: { borderRadius: 8, fontWeight: 700, height: 38, padding: '0 20px', boxShadow: '0 4px 12px var(--brand-glow)' }
       }}
       cancelButtonProps={{ style: { borderRadius: 8 } }}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

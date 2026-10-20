@@ -9,6 +9,8 @@ import {
   PlusOutlined, SearchOutlined, EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../../lib/api';
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../hooks/useInventory';
 import type { Product } from '../types/inventory.types';
 import { Typography } from 'antd';
@@ -34,9 +36,37 @@ export const ProductManagement: React.FC = () => {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => api.get('/api/v1/master-data/categories').then((r) => r.data),
+  });
+  const categories: any[] = React.useMemo(
+    () => (Array.isArray(categoriesData?.data) ? categoriesData.data : Array.isArray(categoriesData) ? categoriesData : []),
+    [categoriesData]
+  );
+
+  const { data: uomsData } = useQuery({
+    queryKey: ['uoms'],
+    queryFn: () => api.get('/api/v1/master-data/uoms').then((r) => r.data),
+  });
+  const uoms: any[] = React.useMemo(
+    () => (Array.isArray(uomsData?.data) ? uomsData.data : Array.isArray(uomsData) ? uomsData : []),
+    [uomsData]
+  );
+
   const handleOpenCreate = () => {
     setEditingProduct(null);
     form.resetFields();
+    form.setFieldsValue({
+      category_id: categories[0]?.id,
+      uom_id: uoms[0]?.id,
+      cost_method: 'WAC',
+      is_active: true,
+      standard_cost: 0,
+      selling_price: 0,
+      min_selling_price: 0,
+      reorder_point: 10,
+    });
     setDrawerOpen(true);
   };
 
@@ -119,7 +149,8 @@ export const ProductManagement: React.FC = () => {
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleOpenEdit(record)}
-              style={{ color: '#8B5CF6' }}
+              style={{ color: 'var(--brand-600)' }}
+              aria-label={`Ubah produk ${record.name}`}
             />
           </Tooltip>
           <Popconfirm
@@ -130,7 +161,13 @@ export const ProductManagement: React.FC = () => {
             okButtonProps={{ danger: true }}
           >
             <Tooltip title="Delete">
-              <Button type="text" size="small" icon={<DeleteOutlined />} danger />
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                danger
+                aria-label={`Hapus produk ${record.name}`}
+              />
             </Tooltip>
           </Popconfirm>
         </Space>
@@ -214,6 +251,34 @@ export const ProductManagement: React.FC = () => {
           <Form.Item name="name" label="Product Name" rules={[{ required: true }, { max: 200 }]}>
             <Input placeholder="Full product name" />
           </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="category_id"
+                label="Kategori Produk"
+                rules={[{ required: true, message: 'Pilih kategori produk' }]}
+              >
+                <Select placeholder="Pilih Kategori" showSearch optionFilterProp="children">
+                  {categories.map((c: any) => (
+                    <Option key={c.id} value={c.id}>{c.name} ({c.code})</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="uom_id"
+                label="Satuan Unit (UOM)"
+                rules={[{ required: true, message: 'Pilih satuan produk' }]}
+              >
+                <Select placeholder="Pilih Satuan" showSearch optionFilterProp="children">
+                  {uoms.map((u: any) => (
+                    <Option key={u.id} value={u.id}>{u.name} ({u.symbol || u.code})</Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="standard_cost" label="Standard Cost (Rp)" rules={[{ required: true }]}>

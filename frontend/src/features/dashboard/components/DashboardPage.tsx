@@ -181,14 +181,16 @@ export const DashboardPage: React.FC = () => {
           <button
             className={styles.capsuleButton}
             onClick={() => navigate('/inventory')}
+            aria-label="Tambah Produk Baru"
           >
-            <PlusOutlined style={{ marginRight: 6 }} /> + Produk
+            <PlusOutlined style={{ marginRight: 6 }} /> Tambah Produk
           </button>
           <button
             className={styles.capsuleButton}
             onClick={() => navigate('/purchase')}
+            aria-label="Buat Purchase Order Baru"
           >
-            <FileAddOutlined style={{ marginRight: 6 }} /> + Purchase Order
+            <FileAddOutlined style={{ marginRight: 6 }} /> Buat Purchase Order
           </button>
         </div>
       </div>
@@ -280,9 +282,9 @@ export const DashboardPage: React.FC = () => {
           <div className={styles.finexyCard} style={{ height: '100%' }}>
             <div className={styles.finexyCardHeader}>
               <div>
-                <h3 className={styles.finexyCardTitle}>Grafik Penjualan & Profitability</h3>
+                <h3 className={styles.finexyCardTitle}>Grafik Penjualan</h3>
                 <Text style={{ fontSize: 12, color: token.colorTextSecondary }}>
-                  Perbandingan Omset Penjualan (Oranye) & Net Profit (Dark Charcoal)
+                  Tren Omset Penjualan Bersih (Vibrant Coral)
                 </Text>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -460,7 +462,7 @@ export const DashboardPage: React.FC = () => {
         <Table
           columns={columns}
           dataSource={recentActivities}
-          rowKey={(record, idx) => record.id || idx || String(Math.random())}
+          rowKey={(record: any) => record.id || record.text || record.time || 'activity'}
           scroll={{ x: 'max-content' }}
           pagination={false}
           loading={isLoadingActivities}

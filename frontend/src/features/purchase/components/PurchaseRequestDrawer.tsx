@@ -17,6 +17,7 @@ interface PurchaseRequestDrawerProps {
 }
 
 interface PRLineState {
+  key: string;
   product_id: string;
   qty_requested: number;
   uom_id: string;
@@ -29,7 +30,7 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
   const createPR = useCreatePurchaseRequest();
 
   const [lines, setLines] = useState<PRLineState[]>([
-    { product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }
+    { key: 'init-0', product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }
   ]);
 
   const { data: branchesResponse } = useQuery({
@@ -78,7 +79,7 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
   };
 
   const addLine = () => {
-    setLines([...lines, { product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }]);
+    setLines([...lines, { key: `line-${Date.now()}-${Math.random()}`, product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }]);
   };
 
   const removeLine = (index: number) => {
@@ -253,14 +254,14 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
         <Table
           columns={columns}
           dataSource={lines}
-          rowKey={(_, idx) => `${idx}`}
+          rowKey="key"
           pagination={false}
           size="small"
         />
 
         <div style={{ marginTop: 16, textAlign: 'right' }}>
           <Text type="secondary">Total Estimated Value: </Text>
-          <Text strong style={{ fontSize: 16, color: '#8B5CF6' }}>
+          <Text strong style={{ fontSize: 16, color: 'var(--brand-500, #F05328)' }}>
             Rp {totalEst.toLocaleString('id-ID')}
           </Text>
         </div>

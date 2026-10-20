@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Dropdown, Tooltip, Popover } from 'antd';
+import { Dropdown, Tooltip, Popover, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   LayoutDashboard,
@@ -23,6 +23,7 @@ import {
   Building2,
   Settings,
   Layers,
+  Menu as MenuIcon,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
@@ -148,6 +149,11 @@ export const Layout: React.FC = () => {
   const location = useLocation();
 const navigate = useNavigate();
 const [isExpanded, setIsExpanded] = useState(true);
+const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+useEffect(() => {
+  setMobileDrawerOpen(false);
+}, [location.pathname]);
 
 const { data: branchData } = useQuery({
   queryKey: ['branches'],
@@ -273,6 +279,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
                       <button
                         className={`${styles.navIconBtn} ${isGroupActive ? styles.navIconBtnActive : ''}`}
                         onClick={() => navigate(item.key)}
+                        aria-label={item.label}
                       >
                         {item.icon}
                       </button>
@@ -348,6 +355,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
               <button
                 className={styles.navRowExpanded}
                 onClick={toggleTheme}
+                aria-label={isDarkMode ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
@@ -359,6 +367,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
                 className={styles.expandToggleBtn}
                 onClick={() => setIsExpanded(false)}
                 title="Mengecilkan Sidebar"
+                aria-label="Kecilkan sidebar navigasi"
               >
                 <ChevronsLeft size={16} />
                 <span>Kecilkan Sidebar</span>
@@ -367,13 +376,21 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
           ) : (
             <>
               <Tooltip title="Mode Terang / Gelap" placement="right">
-                <button className={styles.navIconBtn} onClick={toggleTheme}>
+                <button
+                  className={styles.navIconBtn}
+                  onClick={toggleTheme}
+                  aria-label={isDarkMode ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'}
+                >
                   {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
                 </button>
               </Tooltip>
 
               <Tooltip title="Memperluas Sidebar" placement="right">
-                <button className={styles.navIconBtn} onClick={() => setIsExpanded(true)}>
+                <button
+                  className={styles.navIconBtn}
+                  onClick={() => setIsExpanded(true)}
+                  aria-label="Perluas sidebar navigasi"
+                >
                   <ChevronsRight size={18} />
                 </button>
               </Tooltip>
@@ -390,8 +407,17 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
       >
         {/* ── Top Header Bar (Clean Header - No Top Nav Switcher) ───────── */}
         <header className={styles.topHeaderBar}>
-          {/* Header Left: Branch Selector Chip (real branches) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Header Left: Mobile Hamburger & Branch Selector Chip */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              className={styles.mobileMenuBtn}
+              onClick={() => setMobileDrawerOpen(true)}
+              aria-label="Buka Menu Navigasi"
+              title="Menu Navigasi"
+            >
+              <MenuIcon size={20} />
+            </button>
+
             <Dropdown
               menu={{
                 items: (branches.length > 0
@@ -420,6 +446,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
                 const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
                 window.dispatchEvent(event);
               }}
+              aria-label="Cari produk, transaksi, supplier secara global (Ctrl + K)"
             >
               <Search size={15} />
               <span>Cari produk, transaksi, supplier...</span>
@@ -429,7 +456,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
             {/* Controls: Notification Bell with Activity Center Popover */}
             <div className={`${styles.topIslandBase} ${styles.islandControls}`}>
               <Popover content={notificationContent} trigger="click" placement="bottomRight">
-                <button className={styles.controlIconBtn}>
+                <button className={styles.controlIconBtn} aria-label="Notifikasi dan aktivitas terbaru">
                   <Bell size={16} style={{ color: 'var(--text-secondary)' }} />
                 </button>
               </Popover>
@@ -441,6 +468,7 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
                     const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
                     window.dispatchEvent(event);
                   }}
+                  aria-label="Pusat bantuan dan pencarian pintas (Ctrl + K)"
                 >
                   <HelpCircle size={16} />
                 </button>
@@ -468,6 +496,156 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
           <Outlet />
         </main>
       </div>
+
+      {/* ── Mobile Navigation Drawer ────────────────────────────────────── */}
+      <Drawer
+        open={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        placement="left"
+        width={300}
+        styles={{
+          header: { display: 'none' },
+          body: { padding: '16px', background: 'var(--solid-bg, #FFFFFF)', display: 'flex', flexDirection: 'column', gap: 12 },
+        }}
+        destroyOnHidden
+      >
+        {/* Brand Capsule */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid var(--solid-border, #E5E9F0)' }}
+        >
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+            onClick={() => {
+              navigate('/');
+              setMobileDrawerOpen(false);
+            }}
+          >
+            <div className={styles.brandLogoMark}>K</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span className={styles.brandTitle}>KIRO POS</span>
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', fontWeight: 600, letterSpacing: '0.04em' }}>ENTERPRISE SYSTEM</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setMobileDrawerOpen(false)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-secondary)' }}
+            aria-label="Tutup Menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Quick Action: Buka POS Kasir */}
+        <button
+          className={styles.posCtaBtn}
+          onClick={() => {
+            navigate('/pos');
+            setMobileDrawerOpen(false);
+          }}
+          style={{ width: '100%' }}
+        >
+          <ShoppingCart size={16} />
+          <span>Buka POS Kasir</span>
+        </button>
+
+        {/* Navigation Items (Scrollable) */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {MINI_ERP_NAV_GROUPS.map((group) => (
+            <div key={group.groupName} style={{ width: '100%', marginBottom: 6 }}>
+              <div className={styles.navGroupHeader}>{group.groupName}</div>
+              {group.items.map((item) => {
+                const isGroupActive =
+                  item.key === '/'
+                    ? location.pathname === '/'
+                    : location.pathname.startsWith(item.key);
+                const hasSub = item.subItems && item.subItems.length > 0;
+                const isSubOpen = openGroupKeys[item.key] ?? false;
+
+                return (
+                  <div key={item.key} style={{ width: '100%', marginBottom: 2 }}>
+                    <button
+                      className={`${styles.navRowExpanded} ${
+                        isGroupActive ? styles.navRowExpandedActive : ''
+                      }`}
+                      onClick={() => {
+                        if (hasSub) {
+                          toggleGroup(item.key);
+                        } else {
+                          navigate(item.key);
+                          setMobileDrawerOpen(false);
+                        }
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </div>
+                      {hasSub && (
+                        <ChevronRight
+                          size={14}
+                          style={{
+                            transform: isSubOpen ? 'rotate(90deg)' : 'none',
+                            transition: 'transform 0.2s ease',
+                          }}
+                        />
+                      )}
+                    </button>
+
+                    {hasSub && isSubOpen && (
+                      <div className={styles.navSubList}>
+                        {item.subItems?.map((sub) => {
+                          const isSubActive = location.pathname === sub.key;
+                          return (
+                            <button
+                              key={sub.key}
+                              className={`${styles.navSubItem} ${
+                                isSubActive ? styles.navSubItemActive : ''
+                              }`}
+                              onClick={() => {
+                                navigate(sub.key);
+                                setMobileDrawerOpen(false);
+                              }}
+                            >
+                              <span>•</span>
+                              <span>{sub.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        {/* Drawer Footer: Theme & Logout */}
+        <div style={{ paddingTop: 12, borderTop: '1px solid var(--solid-border, #E5E9F0)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <button
+            className={styles.navRowExpanded}
+            onClick={toggleTheme}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {isDarkMode ? <Moon size={16} /> : <Sun size={16} />}
+              <span>{isDarkMode ? 'Mode Gelap' : 'Mode Terang'}</span>
+            </div>
+          </button>
+          <button
+            className={styles.navRowExpanded}
+            onClick={() => {
+              setMobileDrawerOpen(false);
+              logout();
+            }}
+            style={{ color: '#F43F5E' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <LogOut size={16} />
+              <span>Keluar (Sign out)</span>
+            </div>
+          </button>
+        </div>
+      </Drawer>
 
       <CommandPalette />
     </div>

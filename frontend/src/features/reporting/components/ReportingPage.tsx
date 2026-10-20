@@ -87,7 +87,7 @@ export const ReportingPage: React.FC = () => {
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
       XLSX.writeFile(wb, `${sheetName}_${Date.now()}.xlsx`);
       message.success('Exported to XLSX');
-    } catch (e) {
+    } catch {
       message.error('Failed to export XLSX');
     }
   };
@@ -97,36 +97,111 @@ export const ReportingPage: React.FC = () => {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
       const doc = new jsPDF();
-      doc.text(`Kiro ERP - ${reportType.toUpperCase()} Report`, 14, 15);
-      doc.text(`As of: ${asOfDate}`, 14, 22);
+
+      const formatIDR = (v: any) => `Rp ${Number(v || 0).toLocaleString('id-ID')}`;
+
+      // Branded Header
+      doc.setFontSize(16);
+      doc.setTextColor(240, 83, 40); // Coral
+      doc.text('KIRO ENTERPRISE ERP', 14, 15);
+
+      doc.setFontSize(11);
+      doc.setTextColor(100, 116, 139);
+      const reportTitles: Record<string, string> = {
+        sales: 'Laporan Analisis Penjualan (Sales Analysis Report)',
+        inventory: 'Laporan Posisi Stok Gudang (Inventory Position Report)',
+        income_statement: 'Laporan Laba Rugi Komprehensif (Income Statement)',
+        balance_sheet: 'Laporan Posisi Keuangan / Neraca (Balance Sheet)',
+        cash_flow: 'Laporan Arus Kas Operasional (Cash Flow Statement)',
+        ar_aging: 'Laporan Umur Piutang Usaha (AR Aging Analysis)',
+        ap_aging: 'Laporan Umur Hutang Usaha (AP Aging Analysis)',
+      };
+
+      doc.text(reportTitles[reportType] || `${reportType.toUpperCase()} Report`, 14, 22);
+      doc.setFontSize(9);
+      doc.text(`Tanggal Cutoff: ${asOfDate} | Dicetak: ${new Date().toLocaleString('id-ID')}`, 14, 28);
+
+      let columns: string[] = [];
+      let rows: any[][] = [];
 
       if (reportType === 'sales') {
         if (!execData?.top_products?.length) return message.warning('No data to export');
-        const columns = ['Product Name', 'Total Qty', 'Total Revenue (Rp)'];
-        const rows = execData.top_products.map((r: any) => [
-          r.product_name, 
-          r.total_qty, 
-          Number(r.total_revenue).toLocaleString()
+        columns = ['Produk', 'Total Kuantitas Terjual', 'Total Omset Penjualan (Rp)'];
+        rows = execData.top_products.map((r: any) => [
+          r.product_name,
+          r.total_qty,
+          formatIDR(r.total_revenue)
         ]);
-        autoTable(doc, { head: [columns], body: rows, startY: 28 });
       } else if (reportType === 'inventory') {
         if (!invData?.items?.length) return message.warning('No data to export');
-        const columns = ['Code', 'Name', 'Warehouse', 'Qty On Hand', 'Avg Cost', 'Total Value'];
-        const rows = invData.items.map((r: any) => [
+        columns = ['Kode SKU', 'Nama Barang', 'Lokasi Gudang', 'Stok Tersedia', 'Harga Pokok Rata-Rata', 'Total Nilai Aset'];
+        rows = invData.items.map((r: any) => [
           r.product_code,
           r.product_name,
           r.warehouse_name,
           r.qty_on_hand,
-          Number(r.average_cost).toLocaleString(),
-          Number(r.total_value).toLocaleString()
+          formatIDR(r.average_cost),
+          formatIDR(r.total_value)
         ]);
-        autoTable(doc, { head: [columns], body: rows, startY: 28 });
+      } else if (reportType === 'income_statement') {
+        columns = ['Komponen Pos Laba Rugi', 'Nilai Finansial (IDR)'];
+        rows = [
+          ['Pendapatan Usaha (Revenue)', formatIDR(incomeData?.revenue)],
+          ['Beban Pokok Penjualan (COGS)', formatIDR(incomeData?.cogs)],
+          ['Laba Kotor (Gross Profit)', formatIDR(incomeData?.gross_profit)],
+          ['Beban Operasional & Administrasi', formatIDR(incomeData?.operating_expenses)],
+          ['Laba Bersih Sebelum Pajak (Net Income)', formatIDR(incomeData?.net_income)],
+        ];
+      } else if (reportType === 'balance_sheet') {
+        columns = ['Klasifikasi Neraca Keuangan', 'Total Saldo Buku (IDR)'];
+        rows = [
+          ['Total Aset (Aset Lancar & Aset Tetap)', formatIDR(balanceData?.total_assets)],
+          ['Total Kewajiban / Liabilitas (Hutang Lancar & Jangka Panjang)', formatIDR(balanceData?.total_liabilities)],
+          ['Total Ekuitas (Modal Saham & Laba Ditahan)', formatIDR(balanceData?.total_equity)],
+        ];
+      } else if (reportType === 'cash_flow') {
+        const items = cashFlowData?.operating_activities?.items || [];
+        if (!items.length) return message.warning('No cash flow data to export');
+        columns = ['Nama Akun Rekening / Kas', 'Arus Kas Masuk (Inflow)', 'Arus Kas Keluar (Outflow)', 'Net Cash Movement'];
+        rows = items.map((r: any) => [
+          r.account_name,
+          formatIDR(r.inflow),
+          formatIDR(r.outflow),
+          formatIDR(r.net_flow)
+        ]);
+      } else if (reportType === 'ar_aging') {
+        const buckets = arAgingData?.buckets || [];
+        if (!buckets.length) return message.warning('No AR aging data to export');
+        columns = ['Periode Umur Piutang (Aging Bracket)', 'Jumlah Invoice Aktif', 'Total Saldo Piutang (IDR)'];
+        rows = buckets.map((r: any) => [
+          r.label,
+          r.count,
+          formatIDR(r.amount)
+        ]);
+      } else if (reportType === 'ap_aging') {
+        const buckets = apAgingData?.buckets || [];
+        if (!buckets.length) return message.warning('No AP aging data to export');
+        columns = ['Periode Umur Hutang (Aging Bracket)', 'Jumlah Tagihan Vendor', 'Total Saldo Hutang (IDR)'];
+        rows = buckets.map((r: any) => [
+          r.label,
+          r.count,
+          formatIDR(r.amount)
+        ]);
       }
 
-      doc.save(`${reportType}_report_${Date.now()}.pdf`);
-      message.success('Exported to PDF');
-    } catch (e) {
-      message.error('Failed to export PDF');
+      autoTable(doc, {
+        head: [columns],
+        body: rows,
+        startY: 34,
+        headStyles: { fillColor: [240, 83, 40], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 9, cellPadding: 4 },
+      });
+
+      doc.save(`${reportType}_report_${asOfDate}.pdf`);
+      message.success('Laporan berhasil diekspor ke PDF');
+    } catch {
+      message.error('Gagal mengekspor laporan ke PDF');
     }
   };
 

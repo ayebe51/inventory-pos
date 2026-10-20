@@ -209,10 +209,8 @@ export const UserManagementPage: React.FC = () => {
         <Text className="page-subtitle" style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
           Manage team member accounts, assign RBAC security roles, and handle password resets.
         </Text>
-      </div>
-
-      {/* Pill Navigation Bar */}
-      <Card bodyStyle={{ padding: '8px 12px' }} style={{ borderRadius: 16, marginBottom: 24, background: 'var(--solid-bg)' }}>
+      </div>      {/* Pill Navigation Bar */}
+      <Card styles={{ body: { padding: '8px 12px' } }} style={{ borderRadius: 16, marginBottom: 24, background: 'var(--solid-bg)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             style={{
@@ -259,7 +257,7 @@ export const UserManagementPage: React.FC = () => {
         </div>
       </Card>
 
-      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 20, background: 'var(--solid-bg)' }}>
+      <Card styles={{ body: { padding: 20 } }} style={{ borderRadius: 20, background: 'var(--solid-bg)' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Input
             placeholder="Search by name or email..."
@@ -298,7 +296,7 @@ export const UserManagementPage: React.FC = () => {
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         width={500}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="full_name" label="Full Name" rules={[{ required: true, message: 'Required' }]}>

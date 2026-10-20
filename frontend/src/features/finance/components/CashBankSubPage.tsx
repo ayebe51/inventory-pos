@@ -93,7 +93,7 @@ export const CashBankSubPage: React.FC = () => {
     <div style={{ paddingTop: 12 }}>
       <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
         <Col xs={24} md={16}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>TOTAL LIQUID CASH & BANK POSITION</Text>}
               value={cashPosition?.total_cash_balance || 0}
@@ -104,7 +104,7 @@ export const CashBankSubPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card title="Quick Cash Controls" bodyStyle={{ padding: 16 }}>
+          <Card title="Quick Cash Controls" styles={{ body: { padding: 16 } }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <Button icon={<PlusOutlined />} type="primary" onClick={() => setModalType('IN')}>
                 Record Cash In
@@ -127,7 +127,7 @@ export const CashBankSubPage: React.FC = () => {
             <span style={{ fontWeight: 700 }}>Cash & Bank Accounts Ledger</span>
           </div>
         }
-        bodyStyle={{ padding: 20 }}
+        styles={{ body: { padding: 20 } }}
       >
         <Table
           dataSource={cashPosition?.accounts}

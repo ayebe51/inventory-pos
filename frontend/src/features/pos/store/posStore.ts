@@ -13,6 +13,7 @@ interface POSState {
   cart: POSItem[];
   addItem: (item: Omit<POSItem, 'qty'>) => void;
   updatePrice: (id: string, price: number) => void;
+  updateQty: (id: string, qty: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
 }
@@ -29,6 +30,12 @@ export const usePOSStore = create<POSState>((set) => ({
   updatePrice: (id, price) => set((state) => ({
     cart: state.cart.map((i) => i.id === id ? { ...i, price } : i)
   })),
+  updateQty: (id, qty) => set((state) => {
+    if (qty <= 0) {
+      return { cart: state.cart.filter((i) => i.id !== id) };
+    }
+    return { cart: state.cart.map((i) => i.id === id ? { ...i, qty } : i) };
+  }),
   removeItem: (id) => set((state) => ({
     cart: state.cart.filter((i) => i.id !== id)
   })),

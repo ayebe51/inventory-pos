@@ -37,11 +37,11 @@ export const useShiftTransactions = (shiftId?: string) =>
 export const useOpenShift = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { opening_balance: number }) =>
+    mutationFn: (data: { opening_balance: number; branch_id?: string; warehouse_id?: string }) =>
       api.post('/api/v1/pos/shifts', {
-        ...data,
-        branch_id: '00000000-0000-0000-0000-000000000000',
-        warehouse_id: '00000000-0000-0000-0000-000000000000',
+        opening_balance: data.opening_balance,
+        ...(data.branch_id ? { branch_id: data.branch_id } : {}),
+        ...(data.warehouse_id ? { warehouse_id: data.warehouse_id } : {}),
       }).then((r) => r.data.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pos', 'shift', 'active'] });

@@ -22,23 +22,50 @@ export class StockOpnameService implements IStockOpnameService {
     private readonly inventoryService: InventoryService,
   ) {}
 
-  async findAll(): Promise<StockOpname[]> {
+  async findAll(): Promise<any[]> {
     const records = await this.prisma.stockOpname.findMany({
       orderBy: { created_at: 'desc' },
+      include: {
+        warehouse: true,
+        lines: {
+          include: {
+            product: true,
+          },
+        },
+      },
     });
     // Transform Prisma model to interface format
     return records.map(r => ({
       id: r.id as UUID,
       opname_number: r.opname_number,
       warehouse_id: r.warehouse_id as UUID,
+      warehouse: r.warehouse,
       status: r.status as any,
       initiated_by: r.initiated_by as UUID,
       initiated_at: r.initiated_at,
       completed_at: r.finalized_at || null,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      lines: []
+      lines: r.lines || [],
     }));
+  }
+
+  async findOne(id: UUID): Promise<any> {
+    const record = await this.prisma.stockOpname.findUnique({
+      where: { id },
+      include: {
+        warehouse: true,
+        lines: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+    if (!record) {
+      throw new BusinessRuleException('Stock opname not found', ErrorCode.NOT_FOUND);
+    }
+    return record;
   }
 
   async initiate(warehouseId: UUID, userId: UUID): Promise<StockOpname> {

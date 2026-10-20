@@ -11,6 +11,7 @@ const { RangePicker } = DatePicker;
 
 export const AuditTrailPage: React.FC = () => {
   const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState<[any, any] | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit-logs'],
@@ -36,29 +37,46 @@ export const AuditTrailPage: React.FC = () => {
     }
   };
 
-  const rawLogs = data?.data || data || [];
-  const filteredLogs = rawLogs.filter((log: any) =>
-    !search ||
-    log.user?.toLowerCase().includes(search.toLowerCase()) ||
-    log.entity?.toLowerCase().includes(search.toLowerCase()) ||
-    log.action?.toLowerCase().includes(search.toLowerCase())
-  );
+  const rawLogs: any[] = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  const filteredLogs = rawLogs.filter((log: any) => {
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const logDate = new Date(log.created_at || log.timestamp).getTime();
+      const start = dateRange[0].startOf('day').valueOf();
+      const end = dateRange[1].endOf('day').valueOf();
+      if (logDate < start || logDate > end) return false;
+    }
+    if (!search) return true;
+    const term = search.toLowerCase();
+    const userStr = String(log.user_id || log.user || '').toLowerCase();
+    const entityStr = String(log.entity_type || log.entity || '').toLowerCase();
+    const actionStr = String(log.action || '').toLowerCase();
+    const idStr = String(log.entity_id || log.record_id || '').toLowerCase();
+    return userStr.includes(term) || entityStr.includes(term) || actionStr.includes(term) || idStr.includes(term);
+  });
 
   const columns: ColumnsType<any> = [
     {
       title: 'TIMESTAMP',
-      dataIndex: 'timestamp',
+      dataIndex: 'created_at',
       width: 170,
-      render: (d) => (
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono, monospace)' }}>
-          {d ? new Date(d).toLocaleString('id-ID') : '—'}
-        </span>
-      )
+      render: (d, r) => {
+        const val = d || r.timestamp;
+        return (
+          <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono, monospace)' }}>
+            {val ? new Date(val).toLocaleString('id-ID') : '—'}
+          </span>
+        );
+      }
     },
     {
       title: 'USER',
-      dataIndex: 'user',
-      render: (u) => <Text style={{ fontWeight: 600, fontSize: 13 }}>{u || 'System'}</Text>
+      dataIndex: 'user_id',
+      render: (u, r) => <Text style={{ fontWeight: 600, fontSize: 13 }}>{u || r.user || 'System'}</Text>
     },
     {
       title: 'ACTION',
@@ -68,32 +86,35 @@ export const AuditTrailPage: React.FC = () => {
     },
     {
       title: 'ENTITY',
-      dataIndex: 'entity',
+      dataIndex: 'entity_type',
       width: 140,
-      render: (e) => <Text style={{ fontSize: 13, fontWeight: 500 }}>{e || '—'}</Text>
+      render: (e, r) => <Text style={{ fontSize: 13, fontWeight: 500 }}>{e || r.entity || '—'}</Text>
     },
     {
       title: 'RECORD ID',
-      dataIndex: 'record_id',
-      render: (t) => (
-        <span style={{
-          padding: '2px 8px',
-          background: 'var(--solid-bg-subtle)',
-          border: '1px solid var(--solid-border)',
-          borderRadius: 6,
-          fontFamily: 'var(--font-mono, monospace)',
-          fontSize: 12,
-          color: 'var(--brand-600)'
-        }}>
-          {t || '—'}
-        </span>
-      )
+      dataIndex: 'entity_id',
+      render: (t, r) => {
+        const id = t || r.record_id;
+        return (
+          <span style={{
+            padding: '2px 8px',
+            background: 'var(--solid-bg-subtle)',
+            border: '1px solid var(--solid-border)',
+            borderRadius: 6,
+            fontFamily: 'var(--font-mono, monospace)',
+            fontSize: 12,
+            color: 'var(--brand-600)'
+          }}>
+            {id || '—'}
+          </span>
+        );
+      }
     },
     {
       title: 'IP ADDRESS',
-      dataIndex: 'ip',
+      dataIndex: 'ip_address',
       width: 140,
-      render: (t) => <Text type="secondary" style={{ fontSize: 12, fontFamily: 'var(--font-mono, monospace)' }}>{t || '127.0.0.1'}</Text>
+      render: (t, r) => <Text type="secondary" style={{ fontSize: 12, fontFamily: 'var(--font-mono, monospace)' }}>{t || r.ip || '127.0.0.1'}</Text>
     },
   ];
 
@@ -129,7 +150,7 @@ export const AuditTrailPage: React.FC = () => {
       </div>
 
       <Card
-        bodyStyle={{ padding: 24 }}
+        styles={{ body: { padding: 24 } }}
         style={{
           borderRadius: 20,
           border: '1px solid var(--solid-border)',
@@ -145,8 +166,14 @@ export const AuditTrailPage: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
             allowClear
             style={{ maxWidth: 360, borderRadius: 10 }}
+            aria-label="Cari log audit"
           />
-          <RangePicker style={{ borderRadius: 10 }} />
+          <RangePicker
+            value={dateRange}
+            onChange={(dates) => setDateRange(dates as any)}
+            style={{ borderRadius: 10 }}
+            aria-label="Filter rentang tanggal audit"
+          />
         </div>
 
         {filteredLogs.length === 0 && !isLoading ? (

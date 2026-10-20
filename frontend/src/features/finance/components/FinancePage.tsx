@@ -80,7 +80,7 @@ export const FinancePage: React.FC = () => {
                   <span style={{ fontWeight: 700, fontSize: 16 }}>Recent Journal Transactions</span>
                 </div>
               }
-              bodyStyle={{ padding: 20 }}
+              styles={{ body: { padding: 20 } }}
               style={{
                 borderRadius: 20,
                 border: '1px solid var(--solid-border)',
@@ -105,7 +105,7 @@ export const FinancePage: React.FC = () => {
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               {/* Cash Position Card */}
               <Card
-                bodyStyle={{ padding: 24 }}
+                styles={{ body: { padding: 24 } }}
                 style={{
                   borderRadius: 20,
                   border: '1px solid var(--solid-border)',
@@ -126,7 +126,7 @@ export const FinancePage: React.FC = () => {
               {/* Quick Actions Card */}
               <Card
                 title={<span style={{ fontWeight: 700, fontSize: 15 }}>Quick Actions</span>}
-                bodyStyle={{ padding: 20 }}
+                styles={{ body: { padding: 20 } }}
                 style={{
                   borderRadius: 20,
                   border: '1px solid var(--solid-border)',

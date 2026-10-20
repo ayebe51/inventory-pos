@@ -191,7 +191,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
       open={isOpen}
       onClose={onClose}
       width={720}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
           <div>

@@ -151,6 +151,7 @@ export const ApprovalPage: React.FC = () => {
             onClick={() => approveMutation.mutate(record.id)}
             loading={approveMutation.isPending}
             style={{ borderRadius: 6, fontWeight: 600, background: '#10B981', borderColor: '#10B981' }}
+            aria-label={`Setujui permohonan ${record.document_type || record.id}`}
           >
             Approve
           </Button>
@@ -160,6 +161,7 @@ export const ApprovalPage: React.FC = () => {
             icon={<CloseCircleOutlined />}
             onClick={() => { setSelectedId(record.id); setRejectModalOpen(true); }}
             style={{ borderRadius: 6, fontWeight: 600 }}
+            aria-label={`Tolak permohonan ${record.document_type || record.id}`}
           >
             Reject
           </Button>
@@ -184,7 +186,7 @@ export const ApprovalPage: React.FC = () => {
       dataIndex: 'document_type',
       width: 180,
       render: (t) => (
-        <Tag color="purple" style={{ borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
+        <Tag color="volcano" style={{ borderRadius: 6, fontWeight: 600, fontSize: 12 }}>
           {t?.replace(/_/g, ' ')}
         </Tag>
       )
@@ -263,7 +265,7 @@ export const ApprovalPage: React.FC = () => {
 
       {/* Main Glass Card */}
       <Card
-        bodyStyle={{ padding: 24 }}
+        styles={{ body: { padding: 24 } }}
         style={{
           borderRadius: 20,
           border: '1px solid var(--solid-border)',
@@ -392,7 +394,7 @@ export const ApprovalPage: React.FC = () => {
         okButtonProps={{ danger: true, disabled: !rejectReason.trim() }}
         okText="Reject Document"
         width={440}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ marginTop: 12 }}>
           <Text style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>

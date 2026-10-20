@@ -44,7 +44,7 @@ export const TaxSubPage: React.FC = () => {
     <div style={{ paddingTop: 12 }}>
       <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
         <Col xs={24} sm={8}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>PPN KELUARAN (OUTPUT TAX)</Text>}
               value={taxSummary?.output_tax || 0}
@@ -55,7 +55,7 @@ export const TaxSubPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>PPN MASUKAN (INPUT TAX)</Text>}
               value={taxSummary?.input_tax || 0}
@@ -66,7 +66,7 @@ export const TaxSubPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>NET PPN PAYABLE TO STATE</Text>}
               value={taxSummary?.net_tax_payable || 0}
@@ -92,7 +92,7 @@ export const TaxSubPage: React.FC = () => {
             )}
           </div>
         }
-        bodyStyle={{ padding: 20 }}
+        styles={{ body: { padding: 20 } }}
       >
         <Text>Period: <strong>{taxSummary?.period_name || 'Active Fiscal Period'}</strong></Text>
         <div style={{ marginTop: 16, padding: 16, background: 'var(--brand-50)', borderRadius: 12 }}>

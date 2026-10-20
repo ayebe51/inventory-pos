@@ -47,7 +47,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ open, 
       footer={
         <Button onClick={onClose}>Close</Button>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       {hasCamera ? (
         <div style={{ textAlign: 'center' }}>

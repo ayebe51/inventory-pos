@@ -169,7 +169,7 @@ export const RoleManagementPage: React.FC = () => {
       </div>
 
       {/* Pill Navigation Bar */}
-      <Card bodyStyle={{ padding: '8px 12px' }} style={{ borderRadius: 16, marginBottom: 24, background: 'var(--solid-bg)' }}>
+      <Card styles={{ body: { padding: '8px 12px' } }} style={{ borderRadius: 16, marginBottom: 24, background: 'var(--solid-bg)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={() => navigate('/admin/users')}
@@ -216,7 +216,7 @@ export const RoleManagementPage: React.FC = () => {
         </div>
       </Card>
 
-      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 20, background: 'var(--solid-bg)' }}>
+      <Card styles={{ body: { padding: 20 } }} style={{ borderRadius: 20, background: 'var(--solid-bg)' }}>
         <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <Input
             placeholder="Search role name or description..."
@@ -255,7 +255,7 @@ export const RoleManagementPage: React.FC = () => {
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="name" label="Role Name" rules={[{ required: true, message: 'Required' }]}>

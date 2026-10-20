@@ -673,7 +673,7 @@ export const StoreProfilePage: React.FC = () => {
         onOk={() => hoForm.submit()}
         okText="Simpan Profil"
         cancelText="Batal"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={hoForm} layout="vertical" onFinish={handleSaveHeadOffice} style={{ marginTop: 16 }}>
           <Form.Item
@@ -709,7 +709,7 @@ export const StoreProfilePage: React.FC = () => {
         onOk={() => form.submit()}
         okText="Simpan Cabang"
         cancelText="Batal"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSaveBranch} style={{ marginTop: 16 }}>
           <Form.Item

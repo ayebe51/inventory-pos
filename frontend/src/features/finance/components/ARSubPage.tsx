@@ -66,7 +66,7 @@ export const ARSubPage: React.FC = () => {
     <div style={{ paddingTop: 12 }}>
       <Row gutter={[20, 20]} style={{ marginBottom: 20 }}>
         <Col xs={24} sm={12}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>TOTAL OUTSTANDING RECEIVABLES (AR)</Text>}
               value={totalOutstanding}
@@ -77,7 +77,7 @@ export const ARSubPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12}>
-          <Card bodyStyle={{ padding: 20 }}>
+          <Card styles={{ body: { padding: 20 } }}>
             <Statistic
               title={<Text style={{ fontSize: 12, color: 'var(--text-secondary)' }}>OVERDUE INVOICES</Text>}
               value={overdueCount}
@@ -106,7 +106,7 @@ export const ARSubPage: React.FC = () => {
             <span style={{ fontWeight: 700 }}>Accounts Receivable Outstanding Invoices</span>
           </div>
         }
-        bodyStyle={{ padding: 20 }}
+        styles={{ body: { padding: 20 } }}
       >
         <Table
           dataSource={outstandingInvoices}

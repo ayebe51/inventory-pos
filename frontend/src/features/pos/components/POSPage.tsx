@@ -1,14 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Card, Row, Col, Button, Typography, Divider, Tag,
   Space, Modal, InputNumber, Statistic, Input,
-  message, theme as antTheme, Badge,
+  message, theme as antTheme, Badge, Grid, Segmented,
 } from 'antd';
 import type { InputRef } from 'antd';
 import {
   ShoppingCartOutlined, DeleteOutlined, PlayCircleOutlined,
   DollarOutlined, QrcodeOutlined, BarcodeOutlined,
+  MinusOutlined, PlusOutlined, PrinterOutlined,
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../../lib/api';
 import { usePOSStore } from '../store/posStore';
 import { useProducts } from '../../inventory/hooks/useInventory';
 import { useActiveShift, useCheckout, usePOSConfig } from '../hooks/usePOS';
@@ -23,10 +27,23 @@ const PAYMENT_METHODS = [
   { key: 'CARD', label: 'Card / EDC', icon: <BarcodeOutlined /> },
 ];
 
-import { useNavigate } from 'react-router-dom';
+interface CompletedReceipt {
+  transaction_number: string;
+  transaction_id: string;
+  date: Date;
+  cashier: string;
+  branch: string;
+  items: Array<{ name: string; qty: number; price: number; subtotal: number }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  paid: number;
+  change: number;
+  paymentMethod: string;
+}
 
 export const POSPage: React.FC = () => {
-  const { cart, addItem, removeItem, clearCart, updatePrice } = usePOSStore();
+  const { cart, addItem, removeItem, clearCart, updatePrice, updateQty } = usePOSStore();
   const { user } = useAuthStore();
   const { data: activeShift, isLoading: shiftLoading } = useActiveShift();
   const { data: products } = useProducts({});
@@ -36,11 +53,47 @@ export const POSPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [paymentModal, setPaymentModal] = useState(false);
+  const [receiptModal, setReceiptModal] = useState(false);
+  const [completedReceipt, setCompletedReceipt] = useState<CompletedReceipt | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [cashPaid, setCashPaid] = useState(0);
   const [selectedMethod, setSelectedMethod] = useState<string>('CASH');
   const [searchTerm, setSearchTerm] = useState('');
   const searchInputRef = useRef<InputRef>(null);
+
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md;
+  const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
+
+  // Query inventory balance for the shift's warehouse
+  const { data: stockReport } = useQuery({
+    queryKey: ['pos', 'stock-position', activeShift?.warehouse_id],
+    queryFn: () => {
+      const qs = activeShift?.warehouse_id ? `?warehouse_id=${activeShift.warehouse_id}` : '';
+      return api.get(`/api/v1/reporting/inventory/position${qs}`).then((r) => r.data?.data?.items || []);
+    },
+    enabled: !!activeShift,
+  });
+
+  const stockMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (Array.isArray(stockReport)) {
+      for (const item of stockReport) {
+        map[item.product_id] = (map[item.product_id] || 0) + Number(item.qty_on_hand || 0);
+      }
+    }
+    return map;
+  }, [stockReport]);
+
+  const getProductStock = (productId: string): number => {
+    if (productId in stockMap) {
+      return stockMap[productId];
+    }
+    if (stockReport && Array.isArray(stockReport) && stockReport.length > 0) {
+      return 0;
+    }
+    return 999;
+  };
 
   const canVoid = ['Owner', 'Supervisor', 'admin', 'manager', 'Sys_Admin'].includes(user?.role || '');
   const canOverridePrice = ['Owner', 'Supervisor', 'admin', 'manager', 'Sys_Admin'].includes(user?.role || '');
@@ -91,6 +144,16 @@ export const POSPage: React.FC = () => {
   );
 
   const handleAddItem = (product: any) => {
+    const stock = getProductStock(product.id);
+    if (stock <= 0) {
+      message.warning(`Stok "${product.name}" habis di gudang kasir`);
+      return;
+    }
+    const currentInCart = cart.find((i) => i.id === product.id)?.qty || 0;
+    if (currentInCart + 1 > stock) {
+      message.warning(`Stok tidak mencukupi (Tersedia: ${stock})`);
+      return;
+    }
     addItem({
       id: product.id,
       name: product.name,
@@ -114,7 +177,7 @@ export const POSPage: React.FC = () => {
     if (!activeShift) return message.error('No active shift!');
     try {
       const paymentAmount = selectedMethod === 'CASH' ? cashPaid : total;
-      await checkout.mutateAsync({
+      const res = await checkout.mutateAsync({
         shift_id: activeShift.id,
         items: cart.map((i) => ({
           product_id: i.id,
@@ -123,9 +186,34 @@ export const POSPage: React.FC = () => {
         })),
         payments: [{ method: selectedMethod, amount: paymentAmount }],
       });
-      message.success('Transaction completed!');
+
+      const receiptTxNumber = res?.transaction_number || `TRX-${Date.now().toString().slice(-6)}`;
+      const completed: CompletedReceipt = {
+        transaction_number: receiptTxNumber,
+        transaction_id: res?.transaction_id || '',
+        date: new Date(),
+        cashier: user?.name || user?.email || 'Kasir',
+        branch: activeShift?.branch?.name || 'Main Branch',
+        items: cart.map((i) => ({
+          name: i.name,
+          qty: i.qty,
+          price: i.price,
+          subtotal: i.qty * i.price,
+        })),
+        subtotal,
+        tax,
+        total,
+        paid: paymentAmount,
+        change: Math.max(0, paymentAmount - total),
+        paymentMethod: selectedMethod,
+      };
+
+      setCompletedReceipt(completed);
+      setReceiptModal(true);
       clearCart();
       setPaymentModal(false);
+      setCashPaid(0);
+      message.success('Transaksi berhasil diselesaikan!');
     } catch (err: any) {
       message.error(err?.message || 'Checkout failed');
     }
@@ -150,152 +238,304 @@ export const POSPage: React.FC = () => {
   }
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', overflow: 'hidden' }}>
-      {/* Left: Product Catalog */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-        <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Title level={5} style={{ margin: 0 }}>Product Catalog</Title>
-          {activeShift && (
-            <Tag style={{ color: '#34D399', background: 'rgba(52,211,153,0.1)', borderColor: 'rgba(52,211,153,0.2)' }}>
-              Shift Active
-            </Tag>
-          )}
-        </div>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
-          <Input
-            ref={searchInputRef}
-            placeholder="Search product (F3)..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            allowClear
-            style={{ flex: 1 }}
+    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', position: 'relative' }}>
+      {/* Mobile Segmented Control */}
+      {isMobile && (
+        <div style={{ padding: '8px 12px', background: token.colorBgContainer, borderBottom: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0 }}>
+          <Segmented
+            block
+            value={mobileTab}
+            onChange={(val) => setMobileTab(val as 'catalog' | 'cart')}
+            options={[
+              { label: 'Product Catalog', value: 'catalog', icon: <BarcodeOutlined /> },
+              { label: `Current Order (${cart.length})`, value: 'cart', icon: <ShoppingCartOutlined /> },
+            ]}
           />
-          <Button icon={<BarcodeOutlined />} onClick={() => setScannerOpen(true)} aria-label="Scan barcode (F4)">
-            Scan (F4)
-          </Button>
         </div>
-        <Row gutter={[8, 8]}>
-          {filteredProducts?.map((product: any) => (
-            <Col key={product.id} xs={12} sm={8} md={8} lg={6}>
-              <Card
-                className="stat-card"
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
-                bodyStyle={{ padding: 12 }}
-                onClick={() => handleAddItem(product)}
-                hoverable
-              >
-                <Text style={{ color: '#A78BFA', fontSize: 10, display: 'block' }}>{product.code}</Text>
-                <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginTop: 2 }}>
-                  {product.name}
-                </Text>
-                <Text style={{ color: '#8B5CF6', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
-                  Rp {product.selling_price?.toLocaleString('id-ID')}
-                </Text>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      </div>
+      )}
 
-      {/* Right: Cart */}
-      <div style={{
-        width: 360,
-        background: token.colorBgContainer,
-        borderLeft: `1px solid ${token.colorBorderSecondary}`,
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        {/* Cart Header */}
-        <div style={{ padding: '16px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Space>
-              <ShoppingCartOutlined style={{ color: '#8B5CF6', fontSize: 18 }} />
-              <Text style={{ fontWeight: 600 }}>Current Order</Text>
-              <Badge count={cart.length} style={{ background: '#8B5CF6' }} />
-            </Space>
-            <Button type="text" size="small" onClick={clearCart} style={{ color: '#F43F5E' }} disabled={!canVoid && cart.length > 0}>
-              Clear
+      {/* Left: Product Catalog */}
+      {(!isMobile || mobileTab === 'catalog') && (
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          paddingTop: isMobile ? 12 : 16,
+          paddingLeft: isMobile ? 12 : 16,
+          paddingRight: isMobile ? 12 : 16,
+          paddingBottom: isMobile && cart.length > 0 ? 76 : (isMobile ? 12 : 16),
+        }}>
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Title level={5} style={{ margin: 0 }}>Product Catalog</Title>
+            {activeShift && (
+              <Tag style={{ color: '#34D399', background: 'rgba(52,211,153,0.1)', borderColor: 'rgba(52,211,153,0.2)' }}>
+                Shift Active
+              </Tag>
+            )}
+          </div>
+          <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
+            <Input
+              ref={searchInputRef}
+              placeholder="Search product (F3)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              allowClear
+              style={{ flex: 1 }}
+            />
+            <Button icon={<BarcodeOutlined />} onClick={() => setScannerOpen(true)} aria-label="Scan barcode (F4)">
+              Scan (F4)
             </Button>
           </div>
-        </div>
-
-        {/* Cart Items */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px' }}>
-          {cart.length === 0 ? (
-            <div style={{ textAlign: 'center', paddingTop: 40, color: '#475569' }}>
-              <ShoppingCartOutlined style={{ fontSize: 36, opacity: 0.3 }} />
-              <div style={{ marginTop: 12, fontSize: 13 }}>Cart is empty</div>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div key={item.id} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 0',
-                borderBottom: `1px solid ${token.colorBorderSecondary}`,
-              }}>
-                <div style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, display: 'block' }}>{item.name}</Text>
-                  {canOverridePrice ? (
-                    <Space size="small">
-                      <Text style={{ fontSize: 12 }}>{item.qty} × </Text>
-                      <InputNumber 
-                        size="small" 
-                        prefix="Rp" 
-                        value={item.price} 
-                        onChange={(val) => val !== null && updatePrice(item.id, val)}
-                        style={{ width: 100 }}
-                      />
-                    </Space>
-                  ) : (
-                    <Text style={{ fontSize: 12 }}>
-                      {item.qty} × Rp {item.price.toLocaleString('id-ID')}
+          <Row gutter={[8, 8]}>
+            {filteredProducts?.map((product: any) => {
+              const stock = getProductStock(product.id);
+              const isOutOfStock = stock <= 0;
+              return (
+                <Col key={product.id} xs={12} sm={8} md={8} lg={6}>
+                  <Card
+                    className="stat-card"
+                    style={{
+                      cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                      opacity: isOutOfStock ? 0.6 : 1,
+                      position: 'relative',
+                    }}
+                    styles={{ body: { padding: 12 } }}
+                    onClick={() => {
+                      if (isOutOfStock) {
+                        message.warning(`Stok "${product.name}" habis di gudang kasir`);
+                        return;
+                      }
+                      handleAddItem(product);
+                    }}
+                    hoverable={!isOutOfStock}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
+                      <Text style={{ color: '#F05328', fontSize: 10, fontWeight: 600 }}>{product.code}</Text>
+                      {isOutOfStock ? (
+                        <Tag color="error" style={{ fontSize: 9.5, margin: 0, padding: '0 4px', borderRadius: 4, lineHeight: '18px' }}>
+                          Habis
+                        </Tag>
+                      ) : stock <= 5 ? (
+                        <Tag color="warning" style={{ fontSize: 9.5, margin: 0, padding: '0 4px', borderRadius: 4, lineHeight: '18px' }}>
+                          Sisa {stock}
+                        </Tag>
+                      ) : (
+                        <Tag color="success" style={{ fontSize: 9.5, margin: 0, padding: '0 4px', borderRadius: 4, lineHeight: '18px' }}>
+                          Stok {stock}
+                        </Tag>
+                      )}
+                    </div>
+                    <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginTop: 4 }}>
+                      {product.name}
                     </Text>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ color: '#8B5CF6', fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
-                    Rp {(item.qty * item.price).toLocaleString('id-ID')}
-                  </Text>
-                  <Button type="text" size="small" icon={<DeleteOutlined />} danger onClick={() => removeItem(item.id)} disabled={!canVoid} />
-                </div>
-              </div>
-            ))
-          )}
+                    <Text style={{ color: '#F05328', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
+                      Rp {product.selling_price?.toLocaleString('id-ID')}
+                    </Text>
+                  </Card>
+                </Col>
+              );
+            })}
+          </Row>
         </div>
+      )}
 
-        {/* Totals */}
-        <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Row justify="space-between">
-              <Text style={{ }}>Subtotal</Text>
-              <Text className="number-display" style={{ }}>Rp {subtotal.toLocaleString('id-ID')}</Text>
-            </Row>
-            <Row justify="space-between">
-              <Text style={{ }}>PPN (11%)</Text>
-              <Text className="number-display" style={{ color: '#FBBF24' }}>Rp {tax.toLocaleString('id-ID')}</Text>
-            </Row>
-            <Divider style={{ borderColor: token.colorBorderSecondary, margin: '8px 0' }} />
-            <Row justify="space-between">
-              <Text style={{ fontWeight: 700, fontSize: 16 }}>TOTAL</Text>
-              <Text className="number-display" style={{ color: '#8B5CF6', fontWeight: 700, fontSize: 18 }}>
-                Rp {total.toLocaleString('id-ID')}
-              </Text>
-            </Row>
-            <Button
-              type="primary"
-              size="large"
-              block
-              disabled={cart.length === 0}
-              onClick={() => setPaymentModal(true)}
-              style={{ marginTop: 8, height: 48, fontSize: 16 }}
-            >
-              Process Payment
-            </Button>
-          </Space>
+      {/* Right: Cart */}
+      {(!isMobile || mobileTab === 'cart') && (
+        <div style={{
+          width: isMobile ? '100%' : 360,
+          flex: isMobile ? 1 : 'none',
+          background: token.colorBgContainer,
+          borderLeft: isMobile ? 'none' : `1px solid ${token.colorBorderSecondary}`,
+          display: 'flex',
+          flexDirection: 'column',
+          height: isMobile ? '100%' : 'auto',
+          overflow: 'hidden',
+        }}>
+          {/* Cart Header */}
+          <div style={{ padding: '16px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Space>
+                <ShoppingCartOutlined style={{ color: '#F05328', fontSize: 18 }} />
+                <Text style={{ fontWeight: 600 }}>Current Order</Text>
+                <Badge count={cart.length} style={{ background: '#F05328' }} />
+              </Space>
+              <Button type="text" size="small" onClick={clearCart} style={{ color: '#F43F5E' }} disabled={!canVoid && cart.length > 0}>
+                Clear
+              </Button>
+            </div>
+          </div>
+
+          {/* Cart Items */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px' }}>
+            {cart.length === 0 ? (
+              <div style={{ textAlign: 'center', paddingTop: 40, color: '#475569' }}>
+                <ShoppingCartOutlined style={{ fontSize: 36, opacity: 0.3 }} />
+                <div style={{ marginTop: 12, fontSize: 13 }}>Cart is empty</div>
+              </div>
+            ) : (
+              cart.map((item) => (
+                <div key={item.id} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 0',
+                  borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.name}
+                    </Text>
+
+                    {/* Stepper Controls & Price */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--solid-bg-subtle, #F1F5F9)', borderRadius: 6, border: `1px solid ${token.colorBorderSecondary}`, padding: '1px 2px' }}>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<MinusOutlined style={{ fontSize: 10 }} />}
+                          onClick={() => {
+                            if (item.qty <= 1 && !canVoid) {
+                              message.warning('Minimal 1 item, atau butuh hak akses void');
+                              return;
+                            }
+                            updateQty(item.id, item.qty - 1);
+                          }}
+                          style={{ width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Kurangi kuantitas"
+                        />
+                        <InputNumber
+                          size="small"
+                          min={1}
+                          max={getProductStock(item.id)}
+                          value={item.qty}
+                          onChange={(val) => {
+                            if (val !== null && val > 0) {
+                              const stock = getProductStock(item.id);
+                              if (val > stock) {
+                                message.warning(`Maksimal ${stock} item tersedia`);
+                                updateQty(item.id, stock);
+                              } else {
+                                updateQty(item.id, Math.floor(val));
+                              }
+                            }
+                          }}
+                          controls={false}
+                          style={{ width: 34, textAlign: 'center', fontSize: 12, padding: 0, border: 'none', background: 'transparent' }}
+                        />
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<PlusOutlined style={{ fontSize: 10 }} />}
+                          onClick={() => {
+                            const stock = getProductStock(item.id);
+                            if (item.qty + 1 > stock) {
+                              message.warning(`Stok tidak mencukupi (Tersedia: ${stock})`);
+                              return;
+                            }
+                            updateQty(item.id, item.qty + 1);
+                          }}
+                          style={{ width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Tambah kuantitas"
+                        />
+                      </div>
+
+                      {canOverridePrice ? (
+                        <InputNumber 
+                          size="small" 
+                          prefix="Rp" 
+                          value={item.price} 
+                          onChange={(val) => val !== null && updatePrice(item.id, val)}
+                          style={{ width: 90 }}
+                        />
+                      ) : (
+                        <Text style={{ fontSize: 11.5, color: token.colorTextSecondary }}>
+                          @ Rp {item.price.toLocaleString('id-ID')}
+                        </Text>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <Text style={{ color: '#F05328', fontWeight: 700, minWidth: 70, textAlign: 'right', fontSize: 13 }}>
+                      Rp {(item.qty * item.price).toLocaleString('id-ID')}
+                    </Text>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      danger
+                      onClick={() => removeItem(item.id)}
+                      disabled={!canVoid}
+                      title="Hapus baris item"
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Totals & Checkout Button */}
+          <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Row justify="space-between">
+                <Text style={{ }}>Subtotal</Text>
+                <Text className="number-display" style={{ }}>Rp {subtotal.toLocaleString('id-ID')}</Text>
+              </Row>
+              <Row justify="space-between">
+                <Text style={{ }}>PPN (11%)</Text>
+                <Text className="number-display" style={{ color: '#FBBF24' }}>Rp {tax.toLocaleString('id-ID')}</Text>
+              </Row>
+              <Divider style={{ borderColor: token.colorBorderSecondary, margin: '8px 0' }} />
+              <Row justify="space-between">
+                <Text style={{ fontWeight: 700, fontSize: 16 }}>TOTAL</Text>
+                <Text className="number-display" style={{ color: '#F05328', fontWeight: 700, fontSize: 18 }}>
+                  Rp {total.toLocaleString('id-ID')}
+                </Text>
+              </Row>
+              <Button
+                type="primary"
+                size="large"
+                block
+                disabled={cart.length === 0}
+                onClick={() => setPaymentModal(true)}
+                style={{ marginTop: 8, height: 48, fontSize: 16 }}
+              >
+                Process Payment
+              </Button>
+            </Space>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile Floating Bottom Bar when viewing Catalog with items in Cart */}
+      {isMobile && mobileTab === 'catalog' && cart.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: 12,
+          left: 12,
+          right: 12,
+          background: 'linear-gradient(135deg, #18181B 0%, #27272A 100%)',
+          borderRadius: 14,
+          padding: '10px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          zIndex: 100,
+        }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#A1A1AA' }}>{cart.length} item di pesanan</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#F05328' }}>Rp {total.toLocaleString('id-ID')}</div>
+          </div>
+          <Button
+            type="primary"
+            onClick={() => setMobileTab('cart')}
+            style={{ borderRadius: 8, height: 36, fontWeight: 600, background: 'linear-gradient(135deg, #F05328 0%, #D94119 100%)', border: 'none' }}
+          >
+            Lihat Pesanan
+          </Button>
+        </div>
+      )}
 
       {/* Payment Modal */}
       <Modal
@@ -303,6 +543,7 @@ export const POSPage: React.FC = () => {
         open={paymentModal}
         onCancel={() => setPaymentModal(false)}
         footer={null}
+        destroyOnHidden
         width={420}
       >
         <div style={{ marginBottom: 20 }}>
@@ -315,14 +556,14 @@ export const POSPage: React.FC = () => {
                   style={{
                     cursor: 'pointer',
                     textAlign: 'center',
-                    borderColor: selectedMethod === method.key ? '#8B5CF6' : token.colorBorderSecondary,
-                    boxShadow: selectedMethod === method.key ? '0 0 16px rgba(139,92,246,0.3)' : 'none',
+                    borderColor: selectedMethod === method.key ? '#F05328' : token.colorBorderSecondary,
+                    boxShadow: selectedMethod === method.key ? '0 0 16px rgba(240,83,40,0.25)' : 'none',
                   }}
-                  bodyStyle={{ padding: 12 }}
+                  styles={{ body: { padding: 12 } }}
                   onClick={() => setSelectedMethod(method.key)}
                 >
-                  <div style={{ color: '#8B5CF6', fontSize: 20 }}>{method.icon}</div>
-                  <Text style={{ fontSize: 12 }}>{method.label}</Text>
+                  <div style={{ color: selectedMethod === method.key ? '#F05328' : token.colorTextSecondary, fontSize: 20 }}>{method.icon}</div>
+                  <Text style={{ fontSize: 12, fontWeight: selectedMethod === method.key ? 600 : 400 }}>{method.label}</Text>
                 </Card>
               </Col>
             ))}
@@ -334,7 +575,7 @@ export const POSPage: React.FC = () => {
           value={total}
           prefix="Rp"
           formatter={(v) => (v as number).toLocaleString('id-ID')}
-          valueStyle={{ color: '#8B5CF6', fontSize: 28, fontWeight: 700 }}
+          styles={{ content: { color: '#F05328', fontSize: 28, fontWeight: 700 } }}
           style={{ marginBottom: 16 }}
         />
 
@@ -373,6 +614,156 @@ export const POSPage: React.FC = () => {
           Confirm Payment
         </Button>
       </Modal>
+
+      {/* Receipt & Thermal Print Modal */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PrinterOutlined style={{ color: '#F05328' }} />
+            <span>Struk Pembayaran / Thermal Receipt</span>
+          </div>
+        }
+        open={receiptModal}
+        onCancel={() => setReceiptModal(false)}
+        width={400}
+        footer={[
+          <Button
+            key="new"
+            size="large"
+            onClick={() => {
+              setReceiptModal(false);
+              setMobileTab('catalog');
+            }}
+          >
+            Transaksi Baru
+          </Button>,
+          <Button
+            key="print"
+            type="primary"
+            size="large"
+            icon={<PrinterOutlined />}
+            onClick={() => window.print()}
+            style={{ background: 'linear-gradient(135deg, #F05328 0%, #D94119 100%)', border: 'none' }}
+          >
+            Cetak Struk (Print)
+          </Button>,
+        ]}
+        destroyOnHidden
+      >
+        <div id="thermal-receipt-wrapper" style={{ padding: '8px 0', display: 'flex', justifyContent: 'center' }}>
+          <div
+            id="thermal-receipt"
+            style={{
+              width: '100%',
+              maxWidth: 320,
+              background: '#FFFFFF',
+              color: '#111827',
+              padding: '16px 14px',
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace',
+              fontSize: 12,
+              lineHeight: 1.4,
+              borderRadius: 6,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              border: '1px solid #E2E8F0',
+            }}
+          >
+            <div style={{ textAlign: 'center', marginBottom: 10 }}>
+              <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: '0.05em', color: '#0F172A' }}>
+                INVENTORY + POS
+              </div>
+              <div style={{ fontSize: 11, color: '#475569' }}>{completedReceipt?.branch || 'STORE & RETAIL'}</div>
+              <div style={{ fontSize: 10, color: '#64748B', marginTop: 2 }}>Bukti Pembayaran Transaksi Kasir</div>
+            </div>
+
+            <div style={{ borderTop: '1px dashed #94A3B8', margin: '8px 0' }} />
+
+            <div style={{ fontSize: 10.5, color: '#334155', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>No. Transaksi:</span>
+                <span style={{ fontWeight: 700 }}>{completedReceipt?.transaction_number}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Waktu:</span>
+                <span>{completedReceipt?.date ? new Date(completedReceipt.date).toLocaleString('id-ID') : '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Kasir:</span>
+                <span>{completedReceipt?.cashier}</span>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px dashed #94A3B8', margin: '8px 0' }} />
+
+            {/* Item List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {completedReceipt?.items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontWeight: 600, fontSize: 11, color: '#1E293B' }}>{item.name}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#475569' }}>
+                    <span>{item.qty} x Rp {item.price.toLocaleString('id-ID')}</span>
+                    <span style={{ fontWeight: 600, color: '#0F172A' }}>Rp {item.subtotal.toLocaleString('id-ID')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ borderTop: '1px dashed #94A3B8', margin: '10px 0' }} />
+
+            {/* Subtotal, Tax, Total, Payment */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: '#334155' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Subtotal:</span>
+                <span>Rp {completedReceipt?.subtotal.toLocaleString('id-ID')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>PPN / Pajak (11%):</span>
+                <span>Rp {completedReceipt?.tax.toLocaleString('id-ID')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 13, borderTop: '1px solid #CBD5E1', paddingTop: 4, marginTop: 2, color: '#0F172A' }}>
+                <span>TOTAL:</span>
+                <span>Rp {completedReceipt?.total.toLocaleString('id-ID')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span>Bayar ({completedReceipt?.paymentMethod}):</span>
+                <span>Rp {completedReceipt?.paid.toLocaleString('id-ID')}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: '#0F172A' }}>
+                <span>Kembalian:</span>
+                <span>Rp {completedReceipt?.change.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px dashed #94A3B8', margin: '12px 0 8px' }} />
+
+            <div style={{ textAlign: 'center', fontSize: 10, color: '#475569' }}>
+              <div style={{ fontWeight: 600 }}>*** TERIMA KASIH ***</div>
+              <div style={{ fontSize: 9, marginTop: 2 }}>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan</div>
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #thermal-receipt, #thermal-receipt * {
+            visibility: visible !important;
+          }
+          #thermal-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 4px !important;
+            margin: 0 !important;
+          }
+        }
+      `}</style>
 
       <BarcodeScannerModal
         open={scannerOpen}

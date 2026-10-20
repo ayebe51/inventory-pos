@@ -112,7 +112,7 @@ const FixedAssetPage: React.FC = () => {
         </Space>
       </div>
 
-      <Card className="stat-card" bodyStyle={{ padding: 0 }}>
+      <Card className="stat-card" styles={{ body: { padding: 0 } }}>
         <Table
           rowKey="id"
           columns={columns}

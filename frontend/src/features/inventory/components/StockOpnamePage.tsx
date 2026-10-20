@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Card
+  Table, Button, Typography, Tag, Drawer, Form, Select, InputNumber, Row, Col, Space, message, Card, Popconfirm, Statistic
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlayCircleOutlined, SaveOutlined, CheckCircleOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, SaveOutlined, CheckCircleOutlined, PlusOutlined, DeleteOutlined, EyeOutlined, CheckOutlined } from '@ant-design/icons';
 import api from '../../../lib/api';
 
 const { Title, Text } = Typography;
@@ -13,7 +13,9 @@ const { Option } = Select;
 export const StockOpnamePage: React.FC = () => {
   const [initDrawerOpen, setInitDrawerOpen] = useState(false);
   const [recordDrawerOpen, setRecordDrawerOpen] = useState(false);
+  const [varianceDrawerOpen, setVarianceDrawerOpen] = useState(false);
   const [selectedOpname, setSelectedOpname] = useState<any>(null);
+  const [inspectingOpname, setInspectingOpname] = useState<any>(null);
   const [form] = Form.useForm();
   const [lines, setLines] = useState<any[]>([]);
   const qc = useQueryClient();
@@ -51,7 +53,8 @@ export const StockOpnamePage: React.FC = () => {
   const record = useMutation({
     mutationFn: (data: { id: string; items: any[] }) => api.post(`/api/v1/inventory/stock-opname/${data.id}/record`, { items: data.items }),
     onSuccess: () => {
-      message.success('Counts recorded');
+      message.success('Hasil hitung fisik berhasil disimpan');
+      refetchOpnames();
       setRecordDrawerOpen(false);
       setLines([]);
     },
@@ -63,8 +66,9 @@ export const StockOpnamePage: React.FC = () => {
   const finalize = useMutation({
     mutationFn: (id: string) => api.post(`/api/v1/inventory/stock-opname/${id}/finalize`).then((r) => r.data.data),
     onSuccess: () => {
-      message.success('Stock Opname finalized');
-      setSelectedOpname(null); // Or data.opname
+      message.success('Stock Opname berhasil difinalisasi dan jurnal penyesuaian dicatat');
+      setSelectedOpname(null);
+      setVarianceDrawerOpen(false);
       refetchOpnames();
       qc.invalidateQueries({ queryKey: ['inventory'] });
     },
@@ -81,8 +85,13 @@ export const StockOpnamePage: React.FC = () => {
   };
 
   const handleRecordSubmit = () => {
-    if (lines.length === 0) return message.error('Add at least one product count');
+    if (lines.length === 0) return message.error('Tambah minimal satu baris hitung produk');
     record.mutate({ id: selectedOpname.id, items: lines });
+  };
+
+  const openVarianceInspection = (record: any) => {
+    setInspectingOpname(record);
+    setVarianceDrawerOpen(true);
   };
 
   const columns: ColumnsType<any> = [
@@ -100,13 +109,29 @@ export const StockOpnamePage: React.FC = () => {
         return dateVal ? new Date(dateVal).toLocaleDateString('id-ID') : '—';
       },
     },
-    { title: 'Status', dataIndex: 'status', render: (s) => <Tag color={s === 'COMPLETED' ? 'green' : 'orange'}>{s}</Tag> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (s) => (
+        <Tag color={s === 'COMPLETED' ? 'green' : s === 'IN_PROGRESS' ? 'blue' : 'orange'}>
+          {s}
+        </Tag>
+      ),
+    },
     {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
-        <Space>
-          {record.status === 'IN_PROGRESS' && (
+        <Space size={6}>
+          <Button
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => openVarianceInspection(record)}
+            aria-label={`Inspeksi varian ${record.opname_number}`}
+          >
+            Inspeksi Varian
+          </Button>
+          {(record.status === 'IN_PROGRESS' || record.status === 'INITIATED') && (
             <>
               <Button
                 size="small"
@@ -115,22 +140,98 @@ export const StockOpnamePage: React.FC = () => {
                   setRecordDrawerOpen(true);
                 }}
                 icon={<SaveOutlined />}
+                aria-label="Catat hasil hitung fisik"
               >
                 Record
               </Button>
-              <Button
-                size="small"
-                type="primary"
-                loading={finalize.isPending}
-                disabled={finalize.isPending}
-                onClick={() => finalize.mutate(record.id)}
-                icon={<CheckCircleOutlined />}
+              <Popconfirm
+                title="Finalisasi Stock Opname?"
+                description="Aksi ini akan mencatat jurnal penyesuaian selisih stok secara permanen dan membuka kembali gudang."
+                onConfirm={() => finalize.mutate(record.id)}
+                okText="Ya, Finalisasi"
+                cancelText="Batal"
+                okButtonProps={{ danger: true }}
               >
-                Finalize
-              </Button>
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={finalize.isPending}
+                  disabled={finalize.isPending}
+                  icon={<CheckCircleOutlined />}
+                  aria-label="Finalisasi stock opname"
+                >
+                  Finalize
+                </Button>
+              </Popconfirm>
             </>
           )}
         </Space>
+      ),
+    },
+  ];
+
+  // Inspecting lines and statistics
+  const inspectingLines: any[] = inspectingOpname?.lines || [];
+  const matchCount = inspectingLines.filter(l => Number(l.qty_difference || 0) === 0).length;
+  const shortageCount = inspectingLines.filter(l => Number(l.qty_difference || 0) < 0).length;
+  const overageCount = inspectingLines.filter(l => Number(l.qty_difference || 0) > 0).length;
+
+  const varianceColumns: ColumnsType<any> = [
+    {
+      title: 'Produk',
+      key: 'product',
+      render: (_, line) => {
+        const prod = line.product || products?.data?.find((p: any) => p.id === line.product_id);
+        return (
+          <div>
+            <Text strong style={{ display: 'block' }}>{prod?.name || 'Produk'}</Text>
+            <Text type="secondary" style={{ fontSize: 11 }}>{prod?.code || line.product_id}</Text>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Stok Sistem',
+      dataIndex: 'qty_system',
+      align: 'right',
+      render: (v) => <Text className="number-display">{Number(v || 0).toLocaleString('id-ID')}</Text>,
+    },
+    {
+      title: 'Hitung Fisik',
+      dataIndex: 'qty_counted',
+      align: 'right',
+      render: (v) => (
+        <Text className="number-display" strong>
+          {v !== null && v !== undefined ? Number(v).toLocaleString('id-ID') : 'Belum dihitung'}
+        </Text>
+      ),
+    },
+    {
+      title: 'Selisih (Varian)',
+      key: 'variance',
+      align: 'right',
+      render: (_, line) => {
+        if (line.qty_counted === null || line.qty_counted === undefined) {
+          return <Tag>Pending</Tag>;
+        }
+        const diff = Number(line.qty_difference || 0);
+        if (diff === 0) {
+          return <Tag color="success" icon={<CheckOutlined />}>Sesuai (0)</Tag>;
+        }
+        if (diff < 0) {
+          return <Tag color="error">Kurang ({diff.toLocaleString('id-ID')})</Tag>;
+        }
+        return <Tag color="blue">Lebih (+{diff.toLocaleString('id-ID')})</Tag>;
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      align: 'center',
+      render: (s) => (
+        <Tag color={s === 'COUNTED' ? 'green' : 'orange'}>
+          {s || 'PENDING'}
+        </Tag>
       ),
     },
   ];
@@ -142,12 +243,17 @@ export const StockOpnamePage: React.FC = () => {
           <Title level={3} className="page-title">Stock Opname</Title>
           <Text className="page-subtitle">Physical stock counting and reconciliation</Text>
         </div>
-        <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => setInitDrawerOpen(true)}>
+        <Button
+          type="primary"
+          icon={<PlayCircleOutlined />}
+          onClick={() => setInitDrawerOpen(true)}
+          aria-label="Mulai Stock Opname Baru"
+        >
           Initiate Opname
         </Button>
       </div>
 
-      <Card className="stat-card" bodyStyle={{ padding: '24px' }}>
+      <Card className="stat-card" styles={{ body: { padding: '24px' } }}>
         <Table
           columns={columns}
           dataSource={opnames}
@@ -158,6 +264,7 @@ export const StockOpnamePage: React.FC = () => {
         />
       </Card>
 
+      {/* Initiate Opname Drawer */}
       <Drawer
         title="Initiate Stock Opname"
         open={initDrawerOpen}
@@ -170,7 +277,7 @@ export const StockOpnamePage: React.FC = () => {
         }
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="warehouse_id" label="Warehouse" rules={[{ required: true }]}>
+          <Form.Item name="warehouse_id" label="Warehouse" rules={[{ required: true, message: 'Pilih gudang' }]}>
             <Select placeholder="Select warehouse to lock and count">
               {warehouses?.data?.map((w: any) => (
                 <Option key={w.id} value={w.id}>{w.name}</Option>
@@ -181,11 +288,12 @@ export const StockOpnamePage: React.FC = () => {
         </Form>
       </Drawer>
 
+      {/* Record Physical Count Drawer */}
       <Drawer
         title="Record Physical Count"
-        width={500}
         open={recordDrawerOpen}
         onClose={() => setRecordDrawerOpen(false)}
+        styles={{ body: { padding: 20 } }}
         footer={
           <Space style={{ float: 'right' }}>
             <Button onClick={() => setRecordDrawerOpen(false)}>Cancel</Button>
@@ -194,7 +302,13 @@ export const StockOpnamePage: React.FC = () => {
         }
       >
         <div style={{ marginBottom: 16 }}>
-          <Button type="dashed" block icon={<PlusOutlined />} onClick={() => setLines([...lines, { id: Date.now(), product_id: null, qty_counted: 0 }])}>
+          <Button
+            type="dashed"
+            block
+            icon={<PlusOutlined />}
+            onClick={() => setLines([...lines, { id: Date.now(), product_id: null, qty_counted: 0 }])}
+            aria-label="Tambah Baris Hitung Produk"
+          >
             Add Count Line
           </Button>
         </div>
@@ -204,25 +318,92 @@ export const StockOpnamePage: React.FC = () => {
               <Select
                 showSearch
                 style={{ width: '100%' }}
-                placeholder="Product"
+                placeholder="Pilih Produk"
                 value={line.product_id}
                 onChange={(v) => setLines(lines.map(l => l.id === line.id ? { ...l, product_id: v } : l))}
-                options={products?.data?.map((p: any) => ({ label: p.name, value: p.id }))}
+                options={products?.data?.map((p: any) => ({ label: `${p.name} (${p.code})`, value: p.id }))}
               />
             </Col>
             <Col span={8}>
               <InputNumber
                 style={{ width: '100%' }}
-                placeholder="Count"
+                placeholder="Jumlah Hitung"
                 value={line.qty_counted}
+                min={0}
                 onChange={(v) => setLines(lines.map(l => l.id === line.id ? { ...l, qty_counted: v } : l))}
               />
             </Col>
             <Col span={2}>
-              <Button type="text" danger icon={<DeleteOutlined />} onClick={() => setLines(lines.filter(l => l.id !== line.id))} />
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => setLines(lines.filter(l => l.id !== line.id))}
+                aria-label="Hapus baris hitung"
+              />
             </Col>
           </Row>
         ))}
+      </Drawer>
+
+      {/* Variance & Detail Inspection Drawer (Fix F-11) */}
+      <Drawer
+        title={`Inspeksi Varian Selisih: ${inspectingOpname?.opname_number || ''}`}
+        open={varianceDrawerOpen}
+        onClose={() => setVarianceDrawerOpen(false)}
+        styles={{ body: { padding: 20 } }}
+        footer={
+          <Space style={{ float: 'right' }}>
+            <Button onClick={() => setVarianceDrawerOpen(false)}>Tutup</Button>
+            {inspectingOpname?.status === 'IN_PROGRESS' && (
+              <Popconfirm
+                title="Finalisasi Stock Opname?"
+                description="Pastikan verifikasi selisih fisik telah selesai. Penyesuaian stok akan diposting ke kartu inventaris."
+                onConfirm={() => finalize.mutate(inspectingOpname.id)}
+                okText="Ya, Finalisasi"
+                cancelText="Batal"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="primary" loading={finalize.isPending} icon={<CheckCircleOutlined />}>
+                  Finalisasi Opname Ini
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        }
+      >
+        <div style={{ marginBottom: 20 }}>
+          <Row gutter={[12, 12]}>
+            <Col span={6}>
+              <Card className="stat-card" styles={{ body: { padding: 12, textAlign: 'center' } }}>
+                <Statistic title="Total Item" value={inspectingLines.length} />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card className="stat-card" styles={{ body: { padding: 12, textAlign: 'center' } }}>
+                <Statistic title="Sesuai" value={matchCount} styles={{ content: { color: '#34D399' } }} />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card className="stat-card" styles={{ body: { padding: 12, textAlign: 'center' } }}>
+                <Statistic title="Selisih Kurang" value={shortageCount} styles={{ content: { color: '#EF4444' } }} />
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card className="stat-card" styles={{ body: { padding: 12, textAlign: 'center' } }}>
+                <Statistic title="Selisih Lebih" value={overageCount} styles={{ content: { color: '#3B82F6' } }} />
+              </Card>
+            </Col>
+          </Row>
+        </div>
+
+        <Table
+          columns={varianceColumns}
+          dataSource={inspectingLines}
+          rowKey={(r: any) => r.id || r.product_id || r.product?.id || 'opname-line'}
+          size="small"
+          pagination={{ pageSize: 8 }}
+        />
       </Drawer>
     </div>
   );

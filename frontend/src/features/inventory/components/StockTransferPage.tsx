@@ -121,7 +121,7 @@ export const StockTransferPage: React.FC = () => {
         </Button>
       </div>
 
-      <Card className="stat-card" bodyStyle={{ padding: '24px' }}>
+      <Card className="stat-card" styles={{ body: { padding: '24px' } }}>
         <Table
           columns={columns}
           dataSource={transfers?.data || []}

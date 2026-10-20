@@ -310,7 +310,7 @@ export const PurchasePage: React.FC = () => {
       </div>
 
       <Card
-        bodyStyle={{ padding: 24 }}
+        styles={{ body: { padding: 24 } }}
         style={{
           borderRadius: 20,
           border: '1px solid var(--solid-border)',
