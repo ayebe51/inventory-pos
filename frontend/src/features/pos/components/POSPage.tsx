@@ -238,7 +238,7 @@ export const POSPage: React.FC = () => {
   }
 
   return (
-    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ height: '100%', minHeight: 0, flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', position: 'relative' }}>
       {/* Mobile Segmented Control */}
       {isMobile && (
         <div style={{ padding: '8px 12px', background: token.colorBgContainer, borderBottom: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0 }}>
@@ -328,8 +328,8 @@ export const POSPage: React.FC = () => {
                     <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginTop: 4 }}>
                       {product.name}
                     </Text>
-                    <Text style={{ color: '#F05328', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
-                      Rp {product.selling_price?.toLocaleString('id-ID')}
+                    <Text className="number-display" style={{ color: '#F05328', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
+                      Rp {Number(product.selling_price || 0).toLocaleString('id-ID')}
                     </Text>
                   </Card>
                 </Col>
@@ -348,11 +348,12 @@ export const POSPage: React.FC = () => {
           borderLeft: isMobile ? 'none' : `1px solid ${token.colorBorderSecondary}`,
           display: 'flex',
           flexDirection: 'column',
-          height: isMobile ? '100%' : 'auto',
+          height: '100%',
+          minHeight: 0,
           overflow: 'hidden',
         }}>
           {/* Cart Header */}
-          <div style={{ padding: '16px', borderBottom: `1px solid ${token.colorBorderSecondary}` }}>
+          <div style={{ padding: '16px', borderBottom: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
                 <ShoppingCartOutlined style={{ color: '#F05328', fontSize: 18 }} />
@@ -366,7 +367,7 @@ export const POSPage: React.FC = () => {
           </div>
 
           {/* Cart Items */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px' }}>
+          <div style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', padding: '8px 16px' }}>
             {cart.length === 0 ? (
               <div style={{ textAlign: 'center', paddingTop: 40, color: '#475569' }}>
                 <ShoppingCartOutlined style={{ fontSize: 36, opacity: 0.3 }} />
@@ -388,11 +389,11 @@ export const POSPage: React.FC = () => {
 
                     {/* Stepper Controls & Price */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--solid-bg-subtle, #F1F5F9)', borderRadius: 6, border: `1px solid ${token.colorBorderSecondary}`, padding: '1px 2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--solid-bg-subtle, #F1F5F9)', borderRadius: 8, border: `1px solid ${token.colorBorderSecondary}`, padding: '2px' }}>
                         <Button
                           type="text"
                           size="small"
-                          icon={<MinusOutlined style={{ fontSize: 10 }} />}
+                          icon={<MinusOutlined style={{ fontSize: 11 }} />}
                           onClick={() => {
                             if (item.qty <= 1 && !canVoid) {
                               message.warning('Minimal 1 item, atau butuh hak akses void');
@@ -400,7 +401,7 @@ export const POSPage: React.FC = () => {
                             }
                             updateQty(item.id, item.qty - 1);
                           }}
-                          style={{ width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
                           title="Kurangi kuantitas"
                         />
                         <InputNumber
@@ -420,12 +421,12 @@ export const POSPage: React.FC = () => {
                             }
                           }}
                           controls={false}
-                          style={{ width: 34, textAlign: 'center', fontSize: 12, padding: 0, border: 'none', background: 'transparent' }}
+                          style={{ width: 38, height: 28, textAlign: 'center', fontSize: 13, fontWeight: 600, padding: 0, border: 'none', background: 'transparent' }}
                         />
                         <Button
                           type="text"
                           size="small"
-                          icon={<PlusOutlined style={{ fontSize: 10 }} />}
+                          icon={<PlusOutlined style={{ fontSize: 11 }} />}
                           onClick={() => {
                             const stock = getProductStock(item.id);
                             if (item.qty + 1 > stock) {
@@ -434,7 +435,7 @@ export const POSPage: React.FC = () => {
                             }
                             updateQty(item.id, item.qty + 1);
                           }}
-                          style={{ width: 22, height: 22, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          style={{ width: 28, height: 28, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
                           title="Tambah kuantitas"
                         />
                       </div>
@@ -448,16 +449,16 @@ export const POSPage: React.FC = () => {
                           style={{ width: 90 }}
                         />
                       ) : (
-                        <Text style={{ fontSize: 11.5, color: token.colorTextSecondary }}>
-                          @ Rp {item.price.toLocaleString('id-ID')}
+                        <Text className="number-display" style={{ fontSize: 12, color: token.colorTextSecondary }}>
+                          @ Rp {Number(item.price || 0).toLocaleString('id-ID')}
                         </Text>
                       )}
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <Text style={{ color: '#F05328', fontWeight: 700, minWidth: 70, textAlign: 'right', fontSize: 13 }}>
-                      Rp {(item.qty * item.price).toLocaleString('id-ID')}
+                    <Text className="number-display" style={{ color: '#F05328', fontWeight: 700, minWidth: 70, textAlign: 'right', fontSize: 13 }}>
+                      Rp {(item.qty * Number(item.price || 0)).toLocaleString('id-ID')}
                     </Text>
                     <Button
                       type="text"
@@ -466,6 +467,7 @@ export const POSPage: React.FC = () => {
                       danger
                       onClick={() => removeItem(item.id)}
                       disabled={!canVoid}
+                      style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Hapus baris item"
                     />
                   </div>
@@ -475,7 +477,7 @@ export const POSPage: React.FC = () => {
           </div>
 
           {/* Totals & Checkout Button */}
-          <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}` }}>
+          <div style={{ padding: 16, borderTop: `1px solid ${token.colorBorderSecondary}`, flexShrink: 0, background: token.colorBgContainer }}>
             <Space direction="vertical" style={{ width: '100%' }}>
               <Row justify="space-between">
                 <Text style={{ }}>Subtotal</Text>

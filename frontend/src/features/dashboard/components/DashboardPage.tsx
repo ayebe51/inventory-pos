@@ -268,7 +268,8 @@ export const DashboardPage: React.FC = () => {
                 {data?.low_stock_alerts ?? 0} <span style={{ fontSize: 14, fontWeight: 600, color: token.colorTextSecondary }}>SKU</span>
               </div>
               <span className={`${styles.trendPill} ${styles.trendPillNegative}`}>
-                Stok ≤ 5 unit — klik untuk periksa →
+                <span>Stok ≤ 5 unit</span>
+                <span style={{ whiteSpace: 'nowrap' }}> — periksa&nbsp;→</span>
               </span>
             </div>
           </div>

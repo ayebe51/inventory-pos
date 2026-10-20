@@ -97,7 +97,7 @@ export const ProductManagement: React.FC = () => {
       title: 'Code',
       dataIndex: 'code',
       width: 120,
-      render: (code) => <Text code style={{ color: '#A78BFA' }}>{code}</Text>,
+      render: (code) => <Text code style={{ color: 'var(--text-secondary)' }}>{code}</Text>,
     },
     {
       title: 'Product Name',
@@ -110,8 +110,8 @@ export const ProductManagement: React.FC = () => {
       align: 'right',
       width: 160,
       render: (price) => (
-        <Text className="number-display" style={{ color: '#34D399', fontWeight: 600 }}>
-          {price ? `Rp ${price.toLocaleString('id-ID')}` : '—'}
+        <Text className="number-display" style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+          {price !== undefined && price !== null ? `Rp ${Number(price).toLocaleString('id-ID')}` : '—'}
         </Text>
       ),
     },
@@ -121,8 +121,8 @@ export const ProductManagement: React.FC = () => {
       align: 'right',
       width: 140,
       render: (cost) => (
-        <Text className="number-display" style={{ color: '#94A3B8' }}>
-          {cost ? `Rp ${cost.toLocaleString('id-ID')}` : '—'}
+        <Text className="number-display" style={{ color: 'var(--text-secondary)' }}>
+          {cost !== undefined && cost !== null ? `Rp ${Number(cost).toLocaleString('id-ID')}` : '—'}
         </Text>
       ),
     },

@@ -115,7 +115,7 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
 
       message.success('Purchase Request created successfully');
       form.resetFields();
-      setLines([{ product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }]);
+      setLines([{ key: 'init-0', product_id: '', qty_requested: 1, uom_id: '', estimated_price: 0 }]);
       onClose();
     } catch (err: any) {
       message.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to create Purchase Request');
