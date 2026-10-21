@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PERMISSION_DEFINITIONS, PERMISSION_KEYS } from '../src/common/constants/permissions';
+import { seedDemoData } from './seeds/demo-data.seed';
 
 const prisma = new PrismaClient();
 
@@ -448,6 +449,9 @@ async function main() {
     data: { outstanding_balance: 0 },
   });
   console.log('  ✓ Customer AR balances reconciled to 0');
+
+  // 8. Enterprise Demo Data for All Modules
+  await seedDemoData(prisma);
 
   console.log('✅ Seed completed successfully');
 }

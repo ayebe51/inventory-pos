@@ -79,7 +79,7 @@ export class ReportingService implements IReportingService {
       FROM journal_entry_lines l
       JOIN journal_entries j ON l.je_id = j.id
       JOIN chart_of_accounts c ON l.account_id = c.id
-      WHERE j.status = 'POSTED' AND j.entry_date <= $1 AND c.account_type IN ('CASH', 'BANK', 'CASH_AND_BANK')
+      WHERE j.status = 'POSTED' AND j.entry_date <= $1 AND (c.account_type IN ('CASH', 'BANK', 'CASH_AND_BANK') OR c.account_category IN ('CASH', 'BANK', 'CASH_AND_BANK'))
       ${branchId ? `AND c.branch_id = $2::uuid` : ''}
     `, asOfDate, ...(branchId ? [branchId] : []));
     const cash_position = Number(cashResult[0]?.balance || 0);
@@ -272,7 +272,7 @@ export class ReportingService implements IReportingService {
       JOIN journal_entries j ON l.je_id = j.id
       JOIN chart_of_accounts c ON l.account_id = c.id
       WHERE j.period_id = $1 AND j.status = 'POSTED'
-        AND c.account_type IN ('CASH', 'BANK', 'CASH_AND_BANK')
+        AND (c.account_type IN ('CASH', 'BANK', 'CASH_AND_BANK') OR c.account_category IN ('CASH', 'BANK', 'CASH_AND_BANK'))
     `, params.period_id);
 
     const cash_in = Number(result[0]?.cash_in || 0);
