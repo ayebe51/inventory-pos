@@ -168,7 +168,8 @@ const COA_ACCOUNTS: COAAccount[] = [
   { account_code: '6.204.000', account_name: 'Selisih Bank', account_type: 'OTHER_EXPENSE', account_category: 'OTHER_EXPENSE', parent_code: '6.200.000', level: 3, is_header: false, normal_balance: 'DEBIT', is_system: true },
 ];
 
-async function main() {
+export async function seedCOA(prismaClient?: PrismaClient) {
+  const db = prismaClient ?? prisma;
   console.log('🌱 Seeding Chart of Accounts...');
 
   // Build a map of account_code → id for parent lookups
@@ -176,7 +177,7 @@ async function main() {
 
   // First pass: create all accounts without parent references
   for (const account of COA_ACCOUNTS) {
-    const created = await prisma.chartOfAccount.upsert({
+    const created = await db.chartOfAccount.upsert({
       where: { account_code: account.account_code },
       update: {
         account_name: account.account_name,
@@ -207,7 +208,7 @@ async function main() {
     if (account.parent_code) {
       const parentId = codeToId.get(account.parent_code);
       if (parentId) {
-        await prisma.chartOfAccount.update({
+        await db.chartOfAccount.update({
           where: { account_code: account.account_code },
           data: { parent_id: parentId },
         });
@@ -215,13 +216,14 @@ async function main() {
     }
   }
   console.log('  ✓ Set parent references');
-
   console.log('✅ COA seed completed successfully');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ COA seed failed:', e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  seedCOA()
+    .catch((e) => {
+      console.error('❌ COA seed failed:', e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

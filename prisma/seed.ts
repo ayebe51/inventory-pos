@@ -6,6 +6,8 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PERMISSION_DEFINITIONS, PERMISSION_KEYS } from '../src/common/constants/permissions';
+import { seedCOA } from './seeds/coa.seed';
+import { seedJournalTemplates } from './seeds/journal-templates.seed';
 import { seedDemoData } from './seeds/demo-data.seed';
 
 const prisma = new PrismaClient();
@@ -414,33 +416,31 @@ async function main() {
   }
   console.log('  ✓ Seeded 12 Fiscal Periods (Month 9 is OPEN)');
 
-  // 6. Link Payment Methods to COA accounts
+  // 6. Chart of Accounts (COA) & Journal Templates
+  await seedCOA(prisma);
+  await seedJournalTemplates(prisma);
+
+  // 7. Link Payment Methods to COA accounts
   console.log('🌱 Linking Payment Methods to COA Accounts...');
   const cashAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.001' } });
   const bankAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.003' } });
   const edcAccount = await prisma.chartOfAccount.findUnique({ where: { account_code: '1.101.005' } });
 
-  if (cashAccount) {
-    await prisma.paymentMethod.upsert({
-      where: { code: 'CSH' },
-      update: { account_id: cashAccount.id, is_active: true },
-      create: { code: 'CSH', name: 'Cash', type: 'CASH', account_id: cashAccount.id, is_active: true },
-    });
-  }
-  if (edcAccount) {
-    await prisma.paymentMethod.upsert({
-      where: { code: 'CRD' },
-      update: { account_id: edcAccount.id, is_active: true },
-      create: { code: 'CRD', name: 'Credit/Debit Card', type: 'CARD', account_id: edcAccount.id, is_active: true },
-    });
-  }
-  if (bankAccount) {
-    await prisma.paymentMethod.upsert({
-      where: { code: 'TRF' },
-      update: { account_id: bankAccount.id, is_active: true },
-      create: { code: 'TRF', name: 'Bank Transfer', type: 'TRANSFER', account_id: bankAccount.id, is_active: true },
-    });
-  }
+  await prisma.paymentMethod.upsert({
+    where: { code: 'CSH' },
+    update: { account_id: cashAccount?.id ?? null, is_active: true },
+    create: { code: 'CSH', name: 'Cash', type: 'CASH', account_id: cashAccount?.id ?? null, is_active: true },
+  });
+  await prisma.paymentMethod.upsert({
+    where: { code: 'CRD' },
+    update: { account_id: edcAccount?.id ?? null, is_active: true },
+    create: { code: 'CRD', name: 'Credit/Debit Card', type: 'CARD', account_id: edcAccount?.id ?? null, is_active: true },
+  });
+  await prisma.paymentMethod.upsert({
+    where: { code: 'TRF' },
+    update: { account_id: bankAccount?.id ?? null, is_active: true },
+    create: { code: 'TRF', name: 'Bank Transfer', type: 'TRANSFER', account_id: bankAccount?.id ?? null, is_active: true },
+  });
   console.log('  ✓ Payment Methods linked to COA accounts');
 
   // 7. Customer Outstanding Balance Reconciliation

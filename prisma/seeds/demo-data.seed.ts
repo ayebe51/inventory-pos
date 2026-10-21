@@ -1031,10 +1031,31 @@ export async function seedDemoData(prisma: PrismaClient) {
   // =========================================================================
   console.log('  🛒 9. Seeding Shift Kasir & Transaksi POS (7 Hari Terakhir & Hari Ini)...');
 
-  // Dapatkan payment methods
-  const cashPm = await prisma.paymentMethod.findUnique({ where: { code: 'CSH' } });
-  const cardPm = await prisma.paymentMethod.findUnique({ where: { code: 'CRD' } });
-  const trfPm = await prisma.paymentMethod.findUnique({ where: { code: 'TRF' } });
+  // Dapatkan payment methods (pastikan selalu ada)
+  let cashPm = await prisma.paymentMethod.findUnique({ where: { code: 'CSH' } });
+  if (!cashPm) {
+    cashPm = await prisma.paymentMethod.upsert({
+      where: { code: 'CSH' },
+      update: { is_active: true },
+      create: { code: 'CSH', name: 'Cash', type: 'CASH', is_active: true },
+    });
+  }
+  let cardPm = await prisma.paymentMethod.findUnique({ where: { code: 'CRD' } });
+  if (!cardPm) {
+    cardPm = await prisma.paymentMethod.upsert({
+      where: { code: 'CRD' },
+      update: { is_active: true },
+      create: { code: 'CRD', name: 'Credit/Debit Card', type: 'CARD', is_active: true },
+    });
+  }
+  let trfPm = await prisma.paymentMethod.findUnique({ where: { code: 'TRF' } });
+  if (!trfPm) {
+    trfPm = await prisma.paymentMethod.upsert({
+      where: { code: 'TRF' },
+      update: { is_active: true },
+      create: { code: 'TRF', name: 'Bank Transfer', type: 'TRANSFER', is_active: true },
+    });
+  }
 
   // Bersihkan transaksi POS dan shift demo sebelumnya
   const oldDemoShifts = await prisma.shift.findMany({
@@ -1792,7 +1813,7 @@ export async function seedDemoData(prisma: PrismaClient) {
       customer_id: customerMap.get('CUST-001')!.id,
       branch_id: hqBranch.id,
       payment_date: new Date('2026-10-07T14:30:00Z'),
-      payment_method_id: trfPm!.id,
+      payment_method_id: (trfPm ?? cashPm).id,
       amount: 14430000,
       status: 'POSTED',
       reference_number: 'BCA-TRF-0091823',
@@ -1823,7 +1844,7 @@ export async function seedDemoData(prisma: PrismaClient) {
       customer_id: customerMap.get('CUST-002')!.id,
       branch_id: hqBranch.id,
       payment_date: new Date('2026-10-14T10:15:00Z'),
-      payment_method_id: trfPm!.id,
+      payment_method_id: (trfPm ?? cashPm).id,
       amount: 4000000,
       status: 'POSTED',
       reference_number: 'BCA-TRF-0094582',
@@ -1854,7 +1875,7 @@ export async function seedDemoData(prisma: PrismaClient) {
       supplier_id: supplierMap.get('SUPP-004')!.id,
       branch_id: hqBranch.id,
       payment_date: new Date('2026-10-03T16:00:00Z'),
-      payment_method_id: trfPm!.id,
+      payment_method_id: (trfPm ?? cashPm).id,
       amount: 27750000,
       status: 'POSTED',
       reference_number: 'KLIKBCA-CORP-4881',
@@ -1885,7 +1906,7 @@ export async function seedDemoData(prisma: PrismaClient) {
       supplier_id: supplierMap.get('SUPP-003')!.id,
       branch_id: hqBranch.id,
       payment_date: new Date('2026-10-11T14:00:00Z'),
-      payment_method_id: trfPm!.id,
+      payment_method_id: (trfPm ?? cashPm).id,
       amount: 10000000,
       status: 'POSTED',
       reference_number: 'KLIKBCA-CORP-5120',

@@ -379,16 +379,17 @@ const JOURNAL_TEMPLATES: JournalTemplateSeed[] = [
   },
 ];
 
-async function main() {
+export async function seedJournalTemplates(prismaClient?: PrismaClient) {
+  const db = prismaClient ?? prisma;
   console.log('🌱 Seeding Auto Journal Templates...');
 
   for (const template of JOURNAL_TEMPLATES) {
     // Find the account IDs
-    const debitAccount = await prisma.chartOfAccount.findUnique({
+    const debitAccount = await db.chartOfAccount.findUnique({
       where: { account_code: template.debit_account_code },
     });
 
-    const creditAccount = await prisma.chartOfAccount.findUnique({
+    const creditAccount = await db.chartOfAccount.findUnique({
       where: { account_code: template.credit_account_code },
     });
 
@@ -402,7 +403,7 @@ async function main() {
       continue;
     }
 
-    await prisma.autoJournalTemplate.upsert({
+    await db.autoJournalTemplate.upsert({
       where: { event_type: template.event_type },
       update: {
         description: template.description,
@@ -424,9 +425,11 @@ async function main() {
   console.log('✅ Journal templates seed completed successfully');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Journal templates seed failed:', e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  seedJournalTemplates()
+    .catch((e) => {
+      console.error('❌ Journal templates seed failed:', e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
