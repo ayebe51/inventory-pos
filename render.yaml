@@ -16,6 +16,8 @@ services:
     startCommand: node dist/src/main.js
     healthCheckPath: /api/v1/health
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -43,6 +45,8 @@ services:
         source: /*
         destination: /index.html
     envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
       - key: VITE_API_URL
         fromService:
           type: web

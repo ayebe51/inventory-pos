@@ -27,8 +27,9 @@ if [ ! -f .env ]; then
     echo "WARNING: Using default secrets. This is not recommended for production."
 fi
 
-echo "[2/4] Building and starting Docker containers..."
-docker-compose up -d --build
+echo "[2/4] Pulling base images and building Docker containers..."
+docker-compose build --pull backend frontend
+docker-compose up -d
 
 echo "[3/4] Waiting for Database to be ready..."
 # Docker-compose will handle the healthcheck, but we pause a bit to let Prisma connect
