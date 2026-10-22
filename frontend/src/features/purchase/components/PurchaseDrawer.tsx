@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import {
   Drawer, Form, Table, Button, InputNumber,
-  Space, Typography, Row, Col, Select, DatePicker, Tag
+  Space, Typography, Row, Col, Select, DatePicker, Tag, Alert
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, DeleteOutlined, ShopOutlined,
-  ShoppingOutlined
+  ShoppingOutlined, HomeOutlined
 } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import api from '../../../lib/api';
 import { useCreatePurchaseOrder } from '../hooks/usePurchase';
 import type { PurchaseOrderLine } from '../types/purchase.types';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Text } = Typography;
 
@@ -25,9 +26,13 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
   const [form] = Form.useForm();
   const [orderDate, setOrderDate] = useState<dayjs.Dayjs>(dayjs());
   const [supplierId, setSupplierId] = useState<string>('');
+  const [warehouseId, setWarehouseId] = useState<string>('');
+  const [submitAttempted, setSubmitAttempted] = useState<boolean>(false);
   const [lines, setLines] = useState<PurchaseOrderLine[]>([
     { product_id: '', qty_ordered: 1, uom_id: '', unit_price: 0 }
   ]);
+
+  const responsiveWidth = useResponsiveDrawerWidth(720);
 
   const { data: suppliersResponse } = useQuery({
     queryKey: ['suppliers'],
@@ -47,7 +52,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
   });
   const branches = branchesResponse?.data || [];
 
-  const { data: warehousesResponse } = useQuery({
+  const { data: warehousesResponse, isLoading: isWarehousesLoading, error: warehousesError } = useQuery({
     queryKey: ['warehouses'],
     queryFn: () => api.get('/api/v1/warehouses').then((r) => r.data),
   });
@@ -80,17 +85,24 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
   }, [lines]);
 
   const handleSubmit = () => {
-    if (!supplierId) return;
+    setSubmitAttempted(true);
+    if (!supplierId || !warehouseId) return;
+
+    const selectedWarehouse = warehouses.find((w: any) => w.id === warehouseId);
+    if (!selectedWarehouse) return;
+
     mutate({
       supplier_id: supplierId,
-      branch_id: branches[0]?.id || '00000000-0000-0000-0000-000000000000',
-      warehouse_id: warehouses[0]?.id || '00000000-0000-0000-0000-000000000000',
+      branch_id: selectedWarehouse.branch_id || branches[0]?.id,
+      warehouse_id: selectedWarehouse.id,
       order_date: orderDate ? orderDate.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
       lines: lines.filter(l => l.product_id)
     }, {
       onSuccess: () => {
         onClose();
         setSupplierId('');
+        setWarehouseId('');
+        setSubmitAttempted(false);
         setLines([{ product_id: '', qty_ordered: 1, uom_id: '', unit_price: 0 }]);
       }
     });
@@ -190,10 +202,10 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
       title="Create Purchase Order"
       open={isOpen}
       onClose={onClose}
-      width={720}
+      width={responsiveWidth}
       destroyOnHidden
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <Text style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block' }}>Total PO Value</Text>
             <Text style={{ fontSize: 20, fontWeight: 800, color: 'var(--brand-600)' }}>
@@ -207,7 +219,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
             <Button
               type="primary"
               loading={isPending}
-              disabled={!supplierId || totalAmount <= 0}
+              disabled={!supplierId || !warehouseId || totalAmount <= 0}
               onClick={handleSubmit}
               style={{
                 borderRadius: 8,
@@ -225,7 +237,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
     >
       <Form form={form} layout="vertical" style={{ marginTop: 8 }}>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item label="Order Date" required>
               <DatePicker
                 value={orderDate}
@@ -235,8 +247,13 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
               />
             </Form.Item>
           </Col>
-          <Col span={12}>
-            <Form.Item label="Supplier" required>
+          <Col xs={24} sm={12}>
+            <Form.Item
+              label="Supplier"
+              required
+              validateStatus={submitAttempted && !supplierId ? 'error' : ''}
+              help={submitAttempted && !supplierId ? 'Please select a supplier' : undefined}
+            >
               <Select
                 value={supplierId || undefined}
                 onChange={(val) => setSupplierId(val)}
@@ -254,6 +271,52 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
                   </Select.Option>
                 ))}
               </Select>
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col xs={24} sm={24}>
+            <Form.Item
+              label="Receiving Warehouse"
+              required
+              validateStatus={submitAttempted && !warehouseId ? 'error' : ''}
+              help={submitAttempted && !warehouseId ? 'Please select the destination receiving warehouse' : undefined}
+            >
+              {warehousesError ? (
+                <Alert
+                  type="error"
+                  message="Failed to load destination warehouses. Verify permissions."
+                  showIcon
+                  style={{ borderRadius: 8 }}
+                />
+              ) : (
+                <Select
+                  value={warehouseId || undefined}
+                  onChange={(val) => setWarehouseId(val)}
+                  placeholder="Select receiving warehouse..."
+                  loading={isWarehousesLoading}
+                  style={{ width: '100%', borderRadius: 8 }}
+                  showSearch
+                  optionFilterProp="children"
+                  notFoundContent={isWarehousesLoading ? 'Loading warehouses...' : 'No warehouses found'}
+                >
+                  {warehouses.filter((w: any) => w.is_active !== false).map((w: any) => {
+                    const branch = branches.find((b: any) => b.id === w.branch_id);
+                    return (
+                      <Select.Option key={w.id} value={w.id}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <HomeOutlined style={{ color: 'var(--brand-500)' }} />
+                            <span style={{ fontWeight: 600 }}>{w.name} ({w.code})</span>
+                          </div>
+                          {branch && <Tag style={{ fontSize: 10, borderRadius: 4 }}>{branch.name}</Tag>}
+                        </div>
+                      </Select.Option>
+                    );
+                  })}
+                </Select>
+              )}
             </Form.Item>
           </Col>
         </Row>
@@ -285,6 +348,7 @@ export const PurchaseDrawer: React.FC<PurchaseDrawerProps> = ({ isOpen, onClose 
           pagination={false}
           size="middle"
           rowKey="key"
+          scroll={{ x: 600 }}
           style={{ background: 'var(--solid-bg)', borderRadius: 12, overflow: 'hidden' }}
         />
       </Form>

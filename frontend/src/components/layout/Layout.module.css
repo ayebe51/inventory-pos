@@ -414,6 +414,14 @@
   color: var(--text-primary);
   cursor: pointer;
   transition: all var(--dur-fast) ease;
+  max-width: 240px;
+  min-width: 0;
+}
+
+.branchChip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .branchChip:hover {
@@ -630,14 +638,45 @@
   }
 
   .branchChip {
-    padding: 0 10px;
+    padding: 0 8px;
     font-size: 11.5px;
+    max-width: 135px;
+    min-width: 0;
+  }
+  .branchChip span {
+    max-width: 75px;
   }
 
   .contentArea {
     padding-right: 0;
     width: 100%;
     overflow-x: auto;
+  }
+}
+
+/* ── Narrow Mobile Viewport Adjustments (<= 480px) ─────────────────── */
+@media (max-width: 480px) {
+  .topHeaderBar {
+    gap: 6px;
+  }
+
+  .branchChip {
+    padding: 0 6px;
+    font-size: 11px;
+    max-width: 105px;
+    gap: 4px;
+  }
+
+  .branchChip span {
+    max-width: 55px;
+  }
+
+  .helpControlWrapper {
+    display: none !important;
+  }
+
+  .islandControls {
+    padding: 0 6px !important;
   }
 }
 

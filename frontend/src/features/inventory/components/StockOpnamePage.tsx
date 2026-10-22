@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlayCircleOutlined, SaveOutlined, CheckCircleOutlined, PlusOutlined, DeleteOutlined, EyeOutlined, CheckOutlined } from '@ant-design/icons';
 import api from '../../../lib/api';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -19,6 +20,10 @@ export const StockOpnamePage: React.FC = () => {
   const [form] = Form.useForm();
   const [lines, setLines] = useState<any[]>([]);
   const qc = useQueryClient();
+
+  const initDrawerWidth = useResponsiveDrawerWidth(480);
+  const recordDrawerWidth = useResponsiveDrawerWidth(680);
+  const varianceDrawerWidth = useResponsiveDrawerWidth(780);
 
   const { data: warehouses } = useQuery({
     queryKey: ['warehouses'],
@@ -269,6 +274,7 @@ export const StockOpnamePage: React.FC = () => {
         title="Initiate Stock Opname"
         open={initDrawerOpen}
         onClose={() => setInitDrawerOpen(false)}
+        width={initDrawerWidth}
         footer={
           <Space style={{ float: 'right' }}>
             <Button onClick={() => setInitDrawerOpen(false)}>Cancel</Button>
@@ -293,6 +299,7 @@ export const StockOpnamePage: React.FC = () => {
         title="Record Physical Count"
         open={recordDrawerOpen}
         onClose={() => setRecordDrawerOpen(false)}
+        width={recordDrawerWidth}
         styles={{ body: { padding: 20 } }}
         footer={
           <Space style={{ float: 'right' }}>
@@ -351,6 +358,7 @@ export const StockOpnamePage: React.FC = () => {
         title={`Inspeksi Varian Selisih: ${inspectingOpname?.opname_number || ''}`}
         open={varianceDrawerOpen}
         onClose={() => setVarianceDrawerOpen(false)}
+        width={varianceDrawerWidth}
         styles={{ body: { padding: 20 } }}
         footer={
           <Space style={{ float: 'right' }}>
@@ -402,6 +410,7 @@ export const StockOpnamePage: React.FC = () => {
           dataSource={inspectingLines}
           rowKey={(r: any) => r.id || r.product_id || r.product?.id || 'opname-line'}
           size="small"
+          scroll={{ x: 650 }}
           pagination={{ pageSize: 8 }}
         />
       </Drawer>

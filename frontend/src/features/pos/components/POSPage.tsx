@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Card, Row, Col, Button, Typography, Divider, Tag,
   Space, Modal, InputNumber, Statistic, Input,
-  message, theme as antTheme, Badge, Grid, Segmented,
+  message, theme as antTheme, Badge, Grid, Segmented, Tooltip,
 } from 'antd';
 import type { InputRef } from 'antd';
 import {
@@ -275,14 +275,18 @@ export const POSPage: React.FC = () => {
           <div style={{ marginBottom: 16, display: 'flex', gap: 12 }}>
             <Input
               ref={searchInputRef}
-              placeholder="Search product (F3)..."
+              placeholder={isMobile ? "Search product..." : "Search product (F3)..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               allowClear
               style={{ flex: 1 }}
             />
-            <Button icon={<BarcodeOutlined />} onClick={() => setScannerOpen(true)} aria-label="Scan barcode (F4)">
-              Scan (F4)
+            <Button
+              icon={<BarcodeOutlined />}
+              onClick={() => setScannerOpen(true)}
+              aria-label={isMobile ? "Scan barcode" : "Scan barcode (F4)"}
+            >
+              {isMobile ? 'Scan' : 'Scan (F4)'}
             </Button>
           </div>
           <Row gutter={[8, 8]}>
@@ -310,7 +314,21 @@ export const POSPage: React.FC = () => {
                     hoverable={!isOutOfStock}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
-                      <Text style={{ color: '#F05328', fontSize: 10, fontWeight: 600 }}>{product.code}</Text>
+                      <Tooltip title={product.code}>
+                        <Text
+                          ellipsis
+                          style={{
+                            color: 'var(--brand-500)',
+                            fontSize: 10,
+                            fontWeight: 600,
+                            maxWidth: '65%',
+                            display: 'inline-block',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {product.code}
+                        </Text>
+                      </Tooltip>
                       {isOutOfStock ? (
                         <Tag color="error" style={{ fontSize: 9.5, margin: 0, padding: '0 4px', borderRadius: 4, lineHeight: '18px' }}>
                           Habis
@@ -325,10 +343,13 @@ export const POSPage: React.FC = () => {
                         </Tag>
                       )}
                     </div>
-                    <Text style={{ fontSize: 13, fontWeight: 500, display: 'block', marginTop: 4 }}>
+                    <Text
+                      ellipsis={{ tooltip: product.name }}
+                      style={{ fontSize: 13, fontWeight: 500, display: 'block', marginTop: 4 }}
+                    >
                       {product.name}
                     </Text>
-                    <Text className="number-display" style={{ color: '#F05328', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
+                    <Text className="number-display" style={{ color: 'var(--brand-500)', fontSize: 13, fontWeight: 700, display: 'block', marginTop: 4 }}>
                       Rp {Number(product.selling_price || 0).toLocaleString('id-ID')}
                     </Text>
                   </Card>

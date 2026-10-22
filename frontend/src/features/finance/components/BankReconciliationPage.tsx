@@ -70,7 +70,7 @@ export const BankReconciliationPage: React.FC = () => {
           <Title level={3} className="page-title" style={{ marginBottom: 4 }}>Bank Reconciliation</Title>
           <Text className="page-subtitle">Match bank statements against system records</Text>
         </div>
-        <Space>
+        <Space wrap>
           <Upload
             name="file"
             action={`${import.meta.env.VITE_API_URL || ''}/api/v1/bank-reconciliation/upload`}

@@ -14,37 +14,31 @@ interface JournalEntryModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_COA_ACCOUNTS = [
-  { value: '1001-CASH', label: '1001-CASH — Kas & Setara Kas' },
-  { value: '1002-BANK', label: '1002-BANK — Rekening Bank Utama' },
-  { value: '1100-AR',   label: '1100-AR — Piutang Usaha (Accounts Receivable)' },
-  { value: '1300-INV',  label: '1300-INV — Persediaan Barang Dagangan' },
-  { value: '2100-AP',   label: '2100-AP — Hutang Usaha (Accounts Payable)' },
-  { value: '3001-EQU',  label: '3001-EQU — Modal / Ekuitas Pemilik' },
-  { value: '4001-REV',  label: '4001-REV — Pendapatan Penjualan' },
-  { value: '5001-COGS', label: '5001-COGS — Harga Pokok Penjualan (HPP)' },
-  { value: '6001-EXP',  label: '6001-EXP — Beban Operasional & Umum' },
-];
 
 export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, onClose }) => {
   const [form] = Form.useForm();
   const [lines, setLines] = useState<JournalEntryLine[]>([
-    { accountId: '1001-CASH', debit: 0, credit: 0 },
-    { accountId: '4001-REV', debit: 0, credit: 0 },
+    { accountId: '', debit: 0, credit: 0 },
+    { accountId: '', debit: 0, credit: 0 },
   ]);
 
-  const { data: coaData } = useQuery({
+  const { data: coaData, isLoading: isCoaLoading } = useQuery({
     queryKey: ['coa-accounts'],
     queryFn: () => api.get('/api/v1/master-data/coa').then((r: any) => r.data),
     enabled: isOpen,
   });
 
+  const { data: periodResponse } = useQuery({
+    queryKey: ['accounting', 'period'],
+    queryFn: () => api.get('/api/v1/accounting/period').then((r: any) => r.data),
+    enabled: isOpen,
+  });
+  const periods = periodResponse?.data || [];
+
   const coaOptions = (coaData?.data || []).map((acc: any) => ({
     value: acc.id,
     label: `${acc.account_code} — ${acc.account_name} (${acc.account_type})`,
   }));
-
-  const accountOptions = coaOptions.length > 0 ? coaOptions : DEFAULT_COA_ACCOUNTS;
 
   const { mutate, isPending } = useCreateJournalEntry();
 
@@ -86,14 +80,27 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
         return;
       }
 
-      const hasEmptyAccounts = lines.some(l => !l.accountId);
+      const hasEmptyAccounts = lines.some(l => !l.accountId || !l.accountId.trim());
       if (hasEmptyAccounts) {
-        message.error('All lines must have a selected Account ID');
+        message.error('All lines must have a valid selected Account from Chart of Accounts');
+        return;
+      }
+
+      const selectedDate = values.date.toDate();
+      const matchedPeriod = periods.find((p: any) => {
+        const start = new Date(p.start_date);
+        const end = new Date(p.end_date);
+        return selectedDate >= start && selectedDate <= end && p.status !== 'CLOSED';
+      }) || periods.find((p: any) => p.status === 'OPEN') || periods[0];
+
+      if (!matchedPeriod) {
+        message.error('No active fiscal period found for this transaction date');
         return;
       }
 
       mutate({
         date: values.date.format('YYYY-MM-DD'),
+        period_id: matchedPeriod.id,
         description: values.description,
         lines,
       }, {
@@ -102,9 +109,12 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
           onClose();
           form.resetFields();
           setLines([
-            { accountId: '1001-CASH', debit: 0, credit: 0 },
-            { accountId: '4001-REV', debit: 0, credit: 0 },
+            { accountId: '', debit: 0, credit: 0 },
+            { accountId: '', debit: 0, credit: 0 },
           ]);
+        },
+        onError: (err: any) => {
+          message.error(err.response?.data?.error?.message || err.response?.data?.message || err.message || 'Failed to post journal entry');
         }
       });
     } catch (_) {}
@@ -119,10 +129,11 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({ isOpen, on
           showSearch
           allowClear
           value={lines[index].accountId || undefined}
-          placeholder="Select or enter account..."
+          placeholder={isCoaLoading ? "Loading Chart of Accounts..." : "Select account from COA..."}
           onChange={(val) => handleLineChange(index, 'accountId', val || '')}
           style={{ width: '100%', borderRadius: 8 }}
-          options={accountOptions}
+          options={coaOptions}
+          loading={isCoaLoading}
         />
       ),
     },

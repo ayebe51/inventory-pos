@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import {
   Table, Tag, Button, Space, Typography, Card,
   Drawer, Form, Input, Select, InputNumber,
-  Row, Col, Tooltip, message, Modal,
+  Row, Col, Tooltip, message, Modal, DatePicker,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useQuery } from '@tanstack/react-query';
+import dayjs from 'dayjs';
 import {
   PlusOutlined, SendOutlined, StopOutlined,
   ReloadOutlined, WarningOutlined, FallOutlined, DeleteOutlined
@@ -15,6 +16,7 @@ import {
   useInvoices, useCreateInvoice, usePostInvoice, useCancelInvoice,
   useDisputeInvoice, useWriteOffInvoice
 } from '../hooks/useInvoicing';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Title, Text } = Typography;
 
@@ -35,6 +37,7 @@ export const InvoicingPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'sales' | 'purchase'>('sales');
   const [form] = Form.useForm();
+  const drawerWidth = useResponsiveDrawerWidth(540);
 
   const { data, isLoading, refetch } = useInvoices({ type: activeTab.toUpperCase() });
   const createInvoice = useCreateInvoice();
@@ -73,6 +76,8 @@ export const InvoicingPage: React.FC = () => {
       const values = await form.validateFields();
       await createInvoice.mutateAsync({
         ...values,
+        invoice_date: values.invoice_date?.format ? values.invoice_date.format('YYYY-MM-DD') : values.invoice_date,
+        due_date: values.due_date?.format ? values.due_date.format('YYYY-MM-DD') : values.due_date,
         type: activeTab.toUpperCase(),
         branch_id: warehouses[0]?.branch_id || values.branch_id,
         lines: (values.lines || []).map((l: any) => ({
@@ -333,7 +338,7 @@ export const InvoicingPage: React.FC = () => {
         title={`Create ${activeTab === 'sales' ? 'Sales' : 'Purchase'} Invoice`}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={520}
+        width={drawerWidth}
         footer={
           <Space style={{ float: 'right' }}>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -341,7 +346,7 @@ export const InvoicingPage: React.FC = () => {
           </Space>
         }
       >
-        <Form form={form} layout="vertical">
+        <Form form={form} layout="vertical" initialValues={{ invoice_date: dayjs(), due_date: dayjs().add(30, 'day') }}>
           <Form.Item name={activeTab === 'sales' ? 'customer_id' : 'supplier_id'} label={activeTab === 'sales' ? 'Customer' : 'Supplier'} rules={[{ required: true, message: 'Required' }]}>
             <Select
               placeholder={`Select ${activeTab === 'sales' ? 'customer' : 'supplier'}`}
@@ -356,12 +361,12 @@ export const InvoicingPage: React.FC = () => {
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item name="invoice_date" label="Invoice Date" rules={[{ required: true, message: 'Required' }]}>
-                <Input type="date" />
+                <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="due_date" label="Due Date" rules={[{ required: true, message: 'Required' }]}>
-                <Input type="date" />
+                <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>

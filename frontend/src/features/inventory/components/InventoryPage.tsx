@@ -90,12 +90,12 @@ export const InventoryPage: React.FC = () => {
                   padding: '9px 20px',
                   borderRadius: 9999,
                   border: 'none',
-                  background: isActive ? '#18181B' : 'transparent',
+                  background: isActive ? 'var(--brand-gradient)' : 'transparent',
                   color: isActive ? '#FFFFFF' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 500,
                   fontSize: 13.5,
                   cursor: 'pointer',
-                  boxShadow: isActive ? '0 4px 12px rgba(24, 24, 27, 0.25)' : 'none',
+                  boxShadow: isActive ? '0 4px 12px var(--brand-glow)' : 'none',
                   transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap'
                 }}

@@ -429,16 +429,19 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
               }}
               trigger={['click']}
             >
-              <div className={`${styles.topIslandBase} ${styles.branchChip}`}>
-                <Building2 size={15} style={{ color: '#F05328' }} />
+              <div
+                className={`${styles.topIslandBase} ${styles.branchChip}`}
+                title={branches[0]?.name ?? 'Cabang'}
+              >
+                <Building2 size={15} style={{ color: '#F05328', flexShrink: 0 }} />
                 <span>{branches[0]?.name ?? 'Cabang'}</span>
-                <ChevronDown size={14} style={{ color: 'var(--text-tertiary)' }} />
+                <ChevronDown size={14} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
               </div>
             </Dropdown>
           </div>
 
           {/* Header Center / Right: Global Search & Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Global Search Bar Shortcut */}
             <button
               className={styles.searchChipBtn}
@@ -461,18 +464,20 @@ const branches: any[] = Array.isArray(branchData) ? branchData : (branchData?.da
                 </button>
               </Popover>
 
-              <Tooltip title="Pencarian & Bantuan (Ctrl + K)">
-                <button
-                  className={styles.controlIconBtn}
-                  onClick={() => {
-                    const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
-                    window.dispatchEvent(event);
-                  }}
-                  aria-label="Pusat bantuan dan pencarian pintas (Ctrl + K)"
-                >
-                  <HelpCircle size={16} />
-                </button>
-              </Tooltip>
+              <div className={styles.helpControlWrapper}>
+                <Tooltip title="Pencarian & Bantuan (Ctrl + K)">
+                  <button
+                    className={styles.controlIconBtn}
+                    onClick={() => {
+                      const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true });
+                      window.dispatchEvent(event);
+                    }}
+                    aria-label="Pusat bantuan dan pencarian pintas (Ctrl + K)"
+                  >
+                    <HelpCircle size={16} />
+                  </button>
+                </Tooltip>
+              </div>
             </div>
 
             {/* User Profile Chip */}

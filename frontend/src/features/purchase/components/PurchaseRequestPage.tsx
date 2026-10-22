@@ -97,7 +97,7 @@ export const PurchaseRequestPage: React.FC = () => {
 
   return (
     <div className="page-container">
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="page-header">
         <div>
           <Title level={3} className="page-title" style={{ marginBottom: 4 }}>
             Purchase Requests
@@ -106,7 +106,7 @@ export const PurchaseRequestPage: React.FC = () => {
             Manage internal requests for goods or services
           </Text>
         </div>
-        <Space>
+        <Space wrap>
           <Button
             type="primary"
             icon={<PlusOutlined />}

@@ -8,6 +8,7 @@ import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../lib/api';
 import { useCreatePurchaseRequest } from '../hooks/usePurchase';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Text } = Typography;
 
@@ -27,6 +28,7 @@ interface PRLineState {
 
 export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ isOpen, onClose }) => {
   const [form] = Form.useForm();
+  const drawerWidth = useResponsiveDrawerWidth(720);
   const createPR = useCreatePurchaseRequest();
 
   const [lines, setLines] = useState<PRLineState[]>([
@@ -200,7 +202,7 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
   return (
     <Drawer
       title="Create Purchase Request"
-      width={720}
+      width={drawerWidth}
       open={isOpen}
       onClose={onClose}
       extra={
@@ -257,6 +259,7 @@ export const PurchaseRequestDrawer: React.FC<PurchaseRequestDrawerProps> = ({ is
           rowKey="key"
           pagination={false}
           size="small"
+          scroll={{ x: 600 }}
         />
 
         <div style={{ marginTop: 16, textAlign: 'right' }}>

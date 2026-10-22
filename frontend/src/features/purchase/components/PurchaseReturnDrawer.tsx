@@ -6,6 +6,7 @@ import {
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../../lib/api';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -17,6 +18,7 @@ interface PurchaseReturnDrawerProps {
 
 export const PurchaseReturnDrawer: React.FC<PurchaseReturnDrawerProps> = ({ open, onClose }) => {
   const [form] = Form.useForm();
+  const drawerWidth = useResponsiveDrawerWidth(720);
   const [lines, setLines] = useState<any[]>([]);
   const qc = useQueryClient();
 
@@ -196,7 +198,7 @@ export const PurchaseReturnDrawer: React.FC<PurchaseReturnDrawerProps> = ({ open
       title="Buat Retur Pembelian (Return to Supplier)"
       open={open}
       onClose={onClose}
-      width={720}
+      width={drawerWidth}
       footer={
         <Space style={{ float: 'right' }}>
           <Button onClick={onClose}>Batal</Button>
@@ -257,6 +259,7 @@ export const PurchaseReturnDrawer: React.FC<PurchaseReturnDrawerProps> = ({ open
           pagination={false}
           size="small"
           rowKey="key"
+          scroll={{ x: 600 }}
         />
       </Form>
     </Drawer>

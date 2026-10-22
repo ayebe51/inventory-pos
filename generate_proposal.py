@@ -30,7 +30,7 @@ def create_complete_proposal_docx(output_path):
         footer = section.footer
         f_p = footer.paragraphs[0]
         f_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        f_run = f_p.add_run("Proposal Penawaran Lisensi Sistem Terpadu: Inventory + POS + Finance | Dokumen Resmi")
+        f_run = f_p.add_run("Proposal Solusi Sistem Terpadu: Inventory + POS + Finance | Konsultasi Solusi Bisnis")
         f_run.font.name = 'Calibri'
         f_run.font.size = Pt(8.5)
         f_run.font.color.rgb = RGBColor(156, 163, 175)
@@ -40,13 +40,14 @@ def create_complete_proposal_docx(output_path):
     DARK = RGBColor(31, 41, 55)         # Charcoal Dark (#1F2937)
     MUTED = RGBColor(107, 114, 128)     # Gray (#6B7280)
     AMBER = RGBColor(180, 83, 9)        # Amber (#B45309)
+    GREEN = RGBColor(22, 101, 52)       # Emerald Green (#166534)
 
     # -------------------------------------------------------------
     # COVER PAGE
     # -------------------------------------------------------------
     p_meta = doc.add_paragraph()
     p_meta.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    r_doc_id = p_meta.add_run("DOKUMEN PENAWARAN RESMI  |  NO: PROP/EIPF/2026/L-01\n")
+    r_doc_id = p_meta.add_run("DOKUMEN EKSPLORASI SOLUSI BISNIS  |  NO: PROP/EIPF/2026/V2\n")
     r_doc_id.font.name = 'Calibri'
     r_doc_id.font.size = Pt(9.5)
     r_doc_id.font.bold = True
@@ -58,21 +59,21 @@ def create_complete_proposal_docx(output_path):
     p_title = doc.add_paragraph()
     p_title.paragraph_format.space_after = Pt(12)
     p_title.paragraph_format.line_spacing = 1.15
-    r_title = p_title.add_run("PROPOSAL PENAWARAN LISENSI APLIKASI SISTEM TERPADU:\nENTERPRISE INVENTORY, POS & FINANCIAL GOVERNANCE SYSTEM")
+    r_title = p_title.add_run("PROPOSAL SOLUSI DIGITALISASI OPERASIONAL BISNIS:\nINTEGRASI POINT OF SALE (POS), MANAJEMEN PERSEDIAAN & TATA KELOLA KEUANGAN MANDIRI")
     r_title.font.name = 'Calibri'
-    r_title.font.size = Pt(22)
+    r_title.font.size = Pt(21)
     r_title.font.bold = True
     r_title.font.color.rgb = PRIMARY
 
     p_sub = doc.add_paragraph()
-    p_sub.paragraph_format.space_after = Pt(22)
+    p_sub.paragraph_format.space_after = Pt(20)
     r_sub = p_sub.add_run(
-        "Penjualan Lisensi Perangkat Lunak Penuh (Outright Perpetual License). "
-        "Sistem Mandiri (On-Premise / Private Cloud), Bebas Biaya Sewa Berlangganan (No SaaS), "
-        "Bebas Jumlah Cabang & Pengguna (Unlimited), dengan Kedaulatan Data 100% Milik Perusahaan."
+        "Modernisasi Sistem Operasional Toko & Rantai Pasok Berbasis Hak Milik Mandiri (One-Time Perpetual License). "
+        "Bebas Biaya Sewa Berlangganan Bulanan (No SaaS Fee), Tanpa Biaya Lisensi Tambahan per Kasir/User, "
+        "serta Menjamin Kedaulatan Data Finansial 100% Milik Perusahaan Anda."
     )
     r_sub.font.name = 'Calibri'
-    r_sub.font.size = Pt(12)
+    r_sub.font.size = Pt(11.5)
     r_sub.font.color.rgb = DARK
 
     # Callout box on cover
@@ -82,14 +83,15 @@ def create_complete_proposal_docx(output_path):
     set_cell_background(c_cell, "F0FDF4") # Light Emerald
     set_cell_margins(c_cell, 180, 180, 200, 200)
     c_p = c_cell.paragraphs[0]
-    c_r1 = c_p.add_run("✓ SKEMA INVESTASI HAK MILIK SEUMUR HIDUP & TERUJI STANDAR BANK-GRADE\n")
+    c_r1 = c_p.add_run("✓ PENDEKATAN KEMITRAAN & JAMINAN NILAI INVESTASI:\n")
     c_r1.font.bold = True
     c_r1.font.size = Pt(10)
-    c_r1.font.color.rgb = RGBColor(22, 101, 52)
+    c_r1.font.color.rgb = GREEN
     c_r2 = c_p.add_run(
-        "Investasi satu kali untuk kepemilikan software seumur hidup. Sistem telah lolos audit keamanan penetrasi otonom "
-        "(PentAGI Security Audit) terhadap kebocoran kasir (Anti-IDOR), pencegahan stok minus serentak (Race Condition), "
-        "validasi transaksi ketat, dan enkripsi kriptografi tingkat tinggi."
+        "Proposal ini dirancang bukan sekadar untuk menawarkan aplikasi, melainkan sebagai solusi menyeluruh dalam "
+        "menghilangkan kebocoran stok, mempercepat layanan kasir, dan mengotomatiskan pembukuan laba rugi. "
+        "Investasi satu kali bayar (One-Time Capex) mencakup instalasi di server mandiri, migrasi data bisnis awal, "
+        "pelatihan staf hingga lancar, serta jaminan garansi bebas bug."
     )
     c_r2.font.size = Pt(9.5)
     c_r2.font.color.rgb = RGBColor(21, 128, 61)
@@ -101,10 +103,10 @@ def create_complete_proposal_docx(output_path):
     meta_table = doc.add_table(rows=4, cols=2)
     meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     meta_data = [
-        ("Ditujukan Kepada:", "Direksi, Tim Manajemen Eksekutif & Pemilik Perusahaan"),
-        ("Model Penawaran:", "Penjualan Lisensi Software Penuh (One-Time Perpetual License)"),
-        ("Disusun Oleh:", "Tim Pengembang Solusi Teknologi Informasi"),
-        ("Status Aplikasi:", "Production-Ready & Teruji Audit Keamanan Siber")
+        ("Ditujukan Kepada:", "Direksi, Tim Manajemen Eksekutif & Pemilik Usaha"),
+        ("Model Kerjasama:", "Solusi Sistem Mandiri Terpadu & Jasa Implementasi Hulu-ke-Hilir"),
+        ("Penyusun Dokumen:", "Tim Konsultan Solusi & Arsitek Sistem Teknologi Informasi"),
+        ("Kesiapan Sistem:", "Production-Ready, Teruji Keamanan Siber, & Siap Uji Coba (Live Demo)")
     ]
     for i, (k, v) in enumerate(meta_data):
         row = meta_table.rows[i]
@@ -124,46 +126,74 @@ def create_complete_proposal_docx(output_path):
     doc.add_page_break()
 
     # -------------------------------------------------------------
-    # 1. EXECUTIVE SUMMARY & MODEL KEPEMILIKAN LISENSI
+    # 1. DIAGNOSA TANTANGAN OPERASIONAL BISNIS
     # -------------------------------------------------------------
     h1 = doc.add_paragraph()
     h1.paragraph_format.space_before = Pt(12)
     h1.paragraph_format.space_after = Pt(8)
-    r_h1 = h1.add_run("1. Ringkasan Eksekutif (Executive Summary)")
+    r_h1 = h1.add_run("1. Diagnosa Masalah: Titik Rawan Operasional Ritel & Distribusi")
     r_h1.font.name = 'Calibri'
     r_h1.font.size = Pt(16)
     r_h1.font.bold = True
     r_h1.font.color.rgb = PRIMARY
 
-    p_body1 = doc.add_paragraph()
-    p_body1.paragraph_format.space_after = Pt(8)
-    p_body1.paragraph_format.line_spacing = 1.15
-    p_body1.add_run(
-        "Banyak pelaku bisnis ritel, distribusi, dan perdagangan saat ini merasa terjebak dalam skema sewa perangkat lunak (SaaS). "
-        "Sistem SaaS mengenakan tarif per kasir, per cabang, dan per bulan secara berulang selamanya. "
-        "Semakin berkembang cabang usaha dan jumlah staf kasir, tagihan bulanan justru melonjak drastis. "
-        "Selain itu, basis data transaksi rahasia dan laporan keuangan perusahaan tersimpan di server pihak ketiga yang rawan kebocoran."
+    p_d_intro = doc.add_paragraph()
+    p_d_intro.paragraph_format.space_after = Pt(8)
+    p_d_intro.paragraph_format.line_spacing = 1.15
+    p_d_intro.add_run(
+        "Dalam mengelola operasional ritel, cafe/restoran, toko grosir, maupun distribusi, pemilik bisnis "
+        "dan manajemen sering menghadapi 4 (empat) titik kebocoran krusial yang mengikis profitabilitas tanpa disadari:"
     )
 
-    p_body2 = doc.add_paragraph()
-    p_body2.paragraph_format.space_after = Pt(14)
-    p_body2.paragraph_format.line_spacing = 1.15
-    p_body2.add_run(
-        "Proposal ini menawarkan solusi strategis berupa PENJUALAN LISENSI PENUH (PERPETUAL SOFTWARE LICENSE). "
-        "Sistem terpadu ini mencakup operasional Point of Sale (POS) di kasir, manajemen multi-gudang dan rantai pasok, "
-        "hingga pembukuan akuntansi otomatis berpasangan (Double-Entry General Ledger). "
-        "Dengan model lisensi putus, perangkat lunak menjadi aset digital milik perusahaan Anda seumur hidup. "
-        "Aplikasi dipasang langsung di server lokal kantor (On-Premise) atau Private Cloud milik Anda, "
-        "menjamin 100% kedaulatan data finansial, kebebasan ekspansi toko tanpa biaya tambahan, dan efisiensi anggaran jangka panjang."
+    pain_points = [
+        ("A. Kebocoran Kasir & Ketidakdisiplinan Laci Kas",
+         "Pencatatan modal kas awal sering diabaikan, selisih uang setoran di akhir shift sulit ditelusuri pelakunya, "
+         "dan adanya celah kecurangan staf berupa pembatalan struk (void liar) atau pemberian diskon sepihak."),
+        ("B. Selisih Persediaan Fisik vs Catatan (Stok Gaib)",
+         "Barang hilang atau rusak di gudang baru diketahui berbulan-bulan kemudian saat stok opname tahunan. "
+         "Selain itu, kasir sering melakukan 'overselling' (menjual barang yang stok fisiknya sudah habis), "
+         "atau toko kehabisan produk best-seller karena tidak adanya sistem peringatan batas pemesanan ulang (Reorder Point)."),
+        ("C. Laporan Keuangan Terfragmentasi & Terlambat",
+         "Data penjualan tersimpan di aplikasi kasir, mutasi stok dicatat di Excel terpisah, dan bukti faktur pembelian "
+         "masih bertumpuk dalam nota manual. Akibatnya, pemilik bisnis baru mengetahui angka laba bersih berhari-hari bahkan "
+         "berminggu-minggu setelah akhir bulan."),
+        ("D. Jebakan Biaya Sewa Berlangganan (SaaS Lock-in)",
+         "Banyak pemilik bisnis merasa terbebani oleh model sewa software (SaaS) komersial yang mengenakan biaya per kasir, "
+         "per cabang, dan per bulan. Semakin banyak cabang yang dibuka, biaya sewa melonjak berlipat ganda, sementara data finansial "
+         "dan daftar pelanggan rahasia perusahaan tersimpan di cloud publik milik pihak ketiga yang berisiko disandera.")
+    ]
+
+    for title, desc in pain_points:
+        p_pt = doc.add_paragraph()
+        p_pt.paragraph_format.space_before = Pt(4)
+        p_pt.paragraph_format.space_after = Pt(2)
+        r_pt1 = p_pt.add_run(title + ": ")
+        r_pt1.font.bold = True
+        r_pt1.font.size = Pt(10)
+        r_pt1.font.color.rgb = SECONDARY
+        r_pt2 = p_pt.add_run(desc)
+        r_pt2.font.size = Pt(9.5)
+        r_pt2.font.color.rgb = DARK
+
+    p_sol_box = doc.add_paragraph()
+    p_sol_box.paragraph_format.space_before = Pt(8)
+    p_sol_box.paragraph_format.space_after = Pt(14)
+    r_sol = p_sol_box.add_run(
+        "💡 SOLUSI KAMI: Menghadirkan sistem operasional terpadu yang memadukan Point of Sale (POS) ultra-cepat, "
+        "manajemen gudang anti-kebocoran, serta akuntansi otomatis berpasangan (Double-Entry GL). "
+        "Sistem ini kami serahkan secara penuh sebagai aset digital mandiri milik perusahaan Anda—tanpa tagihan sewa bulanan apapun selamanya."
     )
+    r_sol.font.italic = True
+    r_sol.font.size = Pt(9.5)
+    r_sol.font.color.rgb = PRIMARY
 
     # -------------------------------------------------------------
-    # 2. KOMPARASI: LISENSI PENUH VS SEWA SAAS
+    # 2. KOMPARASI: SEWA SAAS VS SISTEM MANDIRI
     # -------------------------------------------------------------
     h2 = doc.add_paragraph()
-    h2.paragraph_format.space_before = Pt(14)
+    h2.paragraph_format.space_before = Pt(10)
     h2.paragraph_format.space_after = Pt(8)
-    r_h2 = h2.add_run("2. Studi Komparasi: Model Lisensi Penuh vs Model Sewa (SaaS)")
+    r_h2 = h2.add_run("2. Analisis Finansial: Model Sewa (SaaS) vs Sistem Mandiri (Hak Milik)")
     r_h2.font.name = 'Calibri'
     r_h2.font.size = Pt(16)
     r_h2.font.bold = True
@@ -171,7 +201,7 @@ def create_complete_proposal_docx(output_path):
 
     table_comp = doc.add_table(rows=6, cols=3)
     table_comp.alignment = WD_TABLE_ALIGNMENT.CENTER
-    headers = ["Aspek Analisis", "Model Sewa / Langganan (SaaS)", "Model Lisensi Penuh (Penawaran Kami)"]
+    headers = ["Aspek Evaluasi Bisnis", "Model Sewa / Langganan (SaaS)", "Model Sistem Mandiri (Solusi Kami)"]
     
     for j, text in enumerate(headers):
         cell = table_comp.rows[0].cells[j]
@@ -184,11 +214,11 @@ def create_complete_proposal_docx(output_path):
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     comp_rows = [
-        ("Biaya Perangkat Lunak", "Biaya sewa berulang selamanya. Jika berhenti bayar, akses software langsung dicabut vendor.", "Investasi 1x di awal (One-time Capex). Lisensi berlaku seumur hidup tanpa tagihan sewa bulanan apapun."),
-        ("Simulasi Biaya 3 Tahun (5 Toko)", "± Rp 108.000.000,- (asumsi Rp 600rb/toko/bln untuk modul POS + Akuntansi).", "Hanya Rp 35.000.000 - Rp 55.000.000,- sekali bayar. Menghemat puluhan hingga ratusan juta rupiah."),
-        ("Kapasitas Cabang & User", "Dibatasi ketat. Ada biaya tambahan setiap kali menambah user kasir atau membuka cabang baru.", "Bebas tanpa batas (Unlimited Outlets & Users). Ekspansi 10 atau 50 cabang baru tanpa biaya lisensi lagi."),
-        ("Kedaulatan & Keamanan Data", "Database tersimpan di cloud publik vendor, rentan diintip kompetitor atau bocor.", "100% Data Sovereignty. Database PostgreSQL berada di server internal perusahaan Anda sendiri."),
-        ("Ketergantungan Internet", "Jika koneksi internet putus atau server vendor down, operasional kasir berhenti total.", "Mendukung jaringan intranet lokal (LAN). Meja kasir tetap melayani pelanggan saat internet eksternal padam.")
+        ("Skema Biaya Lisensi", "Biaya sewa berulang selamanya. Jika berhenti bayar, akses software dan data langsung terputus.", "Investasi 1x di awal (One-time Capex). Hak pakai seumur hidup tanpa tagihan sewa bulanan."),
+        ("Simulasi Biaya 3 Tahun (3-5 Cabang)", "± Rp 72.000.000,- s/d Rp 120.000.000,- (asumsi Rp 500rb - 800rb/cabang/bulan untuk POS + Akuntansi).", "Jauh lebih hemat puluhan juta rupiah. Sekali bayar untuk seluruh modul terpadu."),
+        ("Ekspansi & Tambah Perangkat", "Biaya naik setiap menambah kasir atau toko baru. Dibatasi lisensi per perangkat / per user.", "Tanpa Biaya Lisensi per User. Bebas tambah kasir tanpa biaya sewa tambahan. Pada Paket Enterprise, bebas membuka cabang baru tanpa beli lisensi lagi."),
+        ("Kedaulatan & Keamanan Data", "Database disimpan di cloud publik vendor, data omzet dan margin rawan dianalisis pihak luar.", "100% Data Sovereignty. Database berada di server milik perusahaan sendiri, terjaga kerahasiaannya."),
+        ("Keandalan Saat Internet Padam", "Bila internet terputus atau server vendor bermasalah, kasir toko berhenti melayani.", "Mendukung jaringan intranet lokal toko (LAN). Meja kasir tetap dapat beroperasi normal.")
     ]
 
     for i, row_data in enumerate(comp_rows):
@@ -205,99 +235,39 @@ def create_complete_proposal_docx(output_path):
                 r.font.bold = True
                 r.font.color.rgb = PRIMARY
             elif j == 2:
-                r.font.color.rgb = RGBColor(15, 118, 110) # Dark teal
+                r.font.color.rgb = GREEN
+                r.font.bold = True
             else:
                 r.font.color.rgb = DARK
 
     doc.add_page_break()
 
     # -------------------------------------------------------------
-    # 3. FITUR DAN MODUL SISTEM LENGKAP
+    # 3. PILIHAN PAKET SOLUSI & MATRIKS PEMBEDA FITUR
     # -------------------------------------------------------------
     h3 = doc.add_paragraph()
     h3.paragraph_format.space_before = Pt(12)
     h3.paragraph_format.space_after = Pt(8)
-    r_h3 = h3.add_run("3. Seluruh Modul Terpadu Termasuk dalam Satu Lisensi")
+    r_h3 = h3.add_run("3. Pilihan Paket Solusi & Matriks Pembeda Fitur")
     r_h3.font.name = 'Calibri'
     r_h3.font.size = Pt(16)
     r_h3.font.bold = True
     r_h3.font.color.rgb = PRIMARY
 
-    p_mod_intro = doc.add_paragraph()
-    p_mod_intro.paragraph_format.space_after = Pt(6)
-    p_mod_intro.add_run(
-        "Lisensi yang Anda beli mencakup **seluruh modul inti sistem** tanpa ada fitur yang dikunci atau dibatasi. "
-        "Semua kemampuan berikut langsung aktif dan siap digunakan sejak hari pertama:"
+    p_p_intro = doc.add_paragraph()
+    p_p_intro.paragraph_format.space_after = Pt(8)
+    p_p_intro.paragraph_format.line_spacing = 1.15
+    p_p_intro.add_run(
+        "Agar investasi tepat sasaran sesuai skala bisnis dan anggaran perusahaan Anda, "
+        "kami menyediakan 2 (dua) opsi paket implementasi sistem mandiri dengan rincian fitur sebagai berikut:"
     )
 
-    modules = [
-        ("A. Modul Point of Sale (POS) & Kasir Cepat", [
-            "Antarmuka kasir ultra-responsif, kompatibel dengan barcode scanner laser, printer thermal struk, dan laci uang otomatis (cash drawer).",
-            "Manajemen Shift & Laci Kasir: Wajib input modal kas awal, pencatatan kas kecil (petty cash), dan blind count saat tutup shift.",
-            "Multi-Metode Pembayaran: Pembayaran Tunai, QRIS dinamis/statis, EDC Debit/Kredit, Transfer Bank, dan Piutang Jatuh Tempo Pelanggan.",
-            "Pencegahan Fraud Kasir: Proteksi void struk berbasis hak akses supervisor, batasan diskon staf maksimal, dan larangan harga minus."
-        ]),
-        ("B. Modul Manajemen Pergudangan & Inventaris (Multi-Warehouse Engine)", [
-            "Multi-Cabang & Multi-Gudang: Tata kelola terpisah antara gudang utama logistik, gudang display toko cabang, maupun gudang retur.",
-            "Row-Level Database Locking (Anti-Stok Minus): Menjamin tidak akan pernah terjadi overselling meskipun kasir checkout serentak.",
-            "Surat Jalan & Transfer Stok Antar Cabang: Alur mutasi stok antar cabang lengkap dengan status verifikasi terima fisik barang.",
-            "Stock Opname Digital: Fitur audit fisik berkala, menghitung selisih persediaan fisik dengan catatan sistem dan auto-adjustment."
-        ]),
-        ("C. Modul Pengadaan & Rantai Pasok (Purchasing & Supply Chain)", [
-            "Purchase Request (PR) & Purchase Order (PO) otomatis saat stok barang mencapai batas minimum pemesanan ulang (Reorder Point).",
-            "Penerimaan Barang (Goods Receipt / GR) dengan pencocokan parsial terhadap dokumen pesanan dan faktur pemasok.",
-            "Retur Pembelian (Purchase Return) terintegrasi langsung dengan pemotongan hutang dagang supplier (Debit Note)."
-        ]),
-        ("D. Modul Akuntansi & Tata Kelola Keuangan (Financial Governance)", [
-            "Chart of Accounts (COA) Fleksibel: Struktur bagan akun standar akuntansi Indonesia yang dapat disesuaikan dengan kebutuhan perusahaan.",
-            "Otomatisasi Jurnal Umum (Double-Entry): Setiap transaksi POS kasir dan mutasi barang langsung membentuk jurnal debit-kredit otomatis.",
-            "Laporan Keuangan Real-Time Standar SAK: Laporan Laba Rugi (Income Statement), Neraca Keuangan (Balance Sheet), dan Arus Kas (Cash Flow).",
-            "Manajemen Piutang Usaha (AR) & Hutang Usaha (AP): Lengkap dengan tabel umur piutang (Aging Schedule) untuk mengontrol likuiditas.",
-            "Rekonsiliasi Bank: Modul pencocokan mutasi rekening koran bank dengan catatan kas internal secara otomatis."
-        ]),
-        ("E. Modul Keamanan Siber Bank-Grade & Audit Trail (PentAGI Verified)", [
-            "Role-Based Access Control (RBAC): Pemisahan wewenang bertingkat (Owner, Finance Manager, Warehouse, Purchasing, Kasir).",
-            "Keamanan Terverifikasi PentAGI: Teruji tangguh terhadap serangan IDOR shift kasir, pembobolan otorisasi, dan race condition stok.",
-            "Immutable Audit Log: Setiap perubahan data produk, harga jual, transaksi kasir, dan jurnal tersimpan permanen tanpa bisa dihapus staf."
-        ])
-    ]
-
-    for title, points in modules:
-        p_m = doc.add_paragraph()
-        p_m.paragraph_format.space_before = Pt(8)
-        p_m.paragraph_format.space_after = Pt(2)
-        r_m = p_m.add_run(title)
-        r_m.font.name = 'Calibri'
-        r_m.font.size = Pt(11.5)
-        r_m.font.bold = True
-        r_m.font.color.rgb = SECONDARY
-
-        for pt in points:
-            p_pt = doc.add_paragraph(style='List Bullet')
-            p_pt.paragraph_format.space_after = Pt(2)
-            p_pt.paragraph_format.line_spacing = 1.15
-            r_pt = p_pt.add_run(pt)
-            r_pt.font.name = 'Calibri'
-            r_pt.font.size = Pt(9.5)
-            r_pt.font.color.rgb = DARK
-
-    # -------------------------------------------------------------
-    # 4. ARSITEKTUR TEKNOLOGI MODERN
-    # -------------------------------------------------------------
-    h4 = doc.add_paragraph()
-    h4.paragraph_format.space_before = Pt(14)
-    h4.paragraph_format.space_after = Pt(8)
-    r_h4 = h4.add_run("4. Arsitektur Teknologi & Kesiapan Skalabilitas")
-    r_h4.font.name = 'Calibri'
-    r_h4.font.size = Pt(16)
-    r_h4.font.bold = True
-    r_h4.font.color.rgb = PRIMARY
-
-    table_tech = doc.add_table(rows=5, cols=3)
-    table_tech.alignment = WD_TABLE_ALIGNMENT.CENTER
-    tech_headers = ["Komponen Sistem", "Teknologi Enterprise", "Keunggulan bagi Perusahaan Klien"]
-    for j, th in enumerate(tech_headers):
-        c = table_tech.rows[0].cells[j]
+    table_pkg = doc.add_table(rows=13, cols=3)
+    table_pkg.alignment = WD_TABLE_ALIGNMENT.CENTER
+    pkg_headers = ["Fitur & Cakupan Kemampuan", "Paket STARTER\n(Single Outlet / Retail Mandiri)", "Paket ENTERPRISE\n(Multi-Cabang & Rantai Pasok)"]
+    
+    for j, th in enumerate(pkg_headers):
+        c = table_pkg.rows[0].cells[j]
         set_cell_background(c, "1E3A8A")
         set_cell_margins(c, 130, 130, 150, 150)
         p = c.paragraphs[0]
@@ -305,38 +275,93 @@ def create_complete_proposal_docx(output_path):
         r.font.bold = True
         r.font.size = Pt(9.5)
         r.font.color.rgb = RGBColor(255, 255, 255)
+        if j > 0:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    tech_rows = [
-        ("Backend Engine", "NestJS (TypeScript Enterprise)", "Kinerja pemrosesan tinggi, arsitektur modular standar industri, mudah diintegrasikan."),
-        ("Frontend Web POS", "React 19 + Vite SPA", "Beban akses halaman ultra cepat (<0.5 detik), tidak membutuhkan komputer kasir berspesifikasi tinggi."),
-        ("Relational Database", "PostgreSQL 16 Enterprise", "Standar keamanan perbankan, kepatuhan transaksi ACID, dan keandalan data finansial."),
-        ("In-Memory Caching", "Redis 7 High-Speed Store", "Eksekusi session kasir dan proteksi penembakan sistem (rate-limit) dalam hitungan sub-milidetik.")
+    pkg_matrix = [
+        ("Model Arsitektur Bisnis", "Toko Tunggal (Single-Store Architecture)", "Jaringan Multi-Cabang (Pusat HQ + Banyak Cabang)"),
+        ("Manajemen Gudang (Warehouse)", "1 Gudang Toko Terpadu", "Multi-Gudang (Gudang Pusat, Toko, & Retur)"),
+        ("Kasir POS & Shift Laci Uang", "✓ POS Cepat, Struk, Blind Count Shift", "✓ POS Cepat, Struk, Blind Count Shift"),
+        ("Proteksi Kebocoran Kasir", "✓ Batasan Akses Kasir Standar", "✓ Otorisasi Void Khusus Supervisor & Limit Diskon"),
+        ("Manajemen Persediaan & Stok", "✓ Kartu Stok, Opname, Alert Minimum", "✓ Kartu Stok, Opname, + Transfer Antar Toko (DO)"),
+        ("Proteksi Stok Anti-Minus", "Peringatan Stok Sistem", "✓ Row-Level Database Lock (Anti-Overselling)"),
+        ("Pengadaan & Pembelian (Purchasing)", "Pencatatan Pembelian & Faktur Supplier", "✓ Siklus Lengkap (PR ➔ PO ➔ Goods Receipt ➔ Retur)"),
+        ("Penjualan B2B & Daftar Harga", "Penjualan Kasir Retail", "✓ B2B Sales Order, DO, & Price List (Retail/Grosir/VIP)"),
+        ("Modul Akuntansi & Laporan Keuangan", "Rekap Kas Harian & Laba Kotor Toko", "✓ Full General Ledger, COA Standar, Laba Rugi & Neraca SAK"),
+        ("Rekonsiliasi Bank & Umur Piutang", "Pencatatan Transfer Manual", "✓ Rekonsiliasi Bank Otomatis & AR/AP Aging Schedule"),
+        ("Kapasitas Pengguna & Lisensi User", "Tanpa Biaya per User (Bebas buat user toko)\nDisiapkan untuk tim kasir & pengelola toko", "Tanpa Biaya per User & Cabang (Bebas ekspansi)\nDilengkapi 10+ Hak Akses Berjenjang antar divisi"),
+        ("Garansi & Pendampingan Purna Jual", "Garansi Bebas Bug 3 Bulan", "Garansi Bebas Bug 6 Bulan + SLA Prioritas < 1 Jam")
     ]
-    for i, tr in enumerate(tech_rows):
-        row = table_tech.rows[i+1]
+
+    for i, row_data in enumerate(pkg_matrix):
+        row = table_pkg.rows[i+1]
         bg = "F9FAFB" if i % 2 == 1 else "FFFFFF"
-        for j, val in enumerate(tr):
+        for j, val in enumerate(row_data):
             c = row.cells[j]
             set_cell_background(c, bg)
-            set_cell_margins(c, 110, 110, 130, 130)
+            set_cell_margins(c, 100, 100, 120, 120)
             p = c.paragraphs[0]
             r = p.add_run(val)
-            r.font.size = Pt(9)
+            r.font.size = Pt(8.5)
             if j == 0:
                 r.font.bold = True
                 r.font.color.rgb = PRIMARY
-            else:
+            elif j == 1:
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 r.font.color.rgb = DARK
+            elif j == 2:
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                r.font.bold = True
+                r.font.color.rgb = GREEN
+
+    # -------------------------------------------------------------
+    # 4. NILAI BISNIS DARI FITUR UTAMA (BUSINESS VALUE)
+    # -------------------------------------------------------------
+    h4 = doc.add_paragraph()
+    h4.paragraph_format.space_before = Pt(14)
+    h4.paragraph_format.space_after = Pt(8)
+    r_h4 = h4.add_run("4. Manfaat Operasional Riil bagi Manajemen Bisnis")
+    r_h4.font.name = 'Calibri'
+    r_h4.font.size = Pt(16)
+    r_h4.font.bold = True
+    r_h4.font.color.rgb = PRIMARY
+
+    b_values = [
+        ("Kasir Cepat & Tertib (Point of Sale)",
+         "Proses checkout pelanggan membutuhkan waktu kurang dari 3 detik. Mendukung scanner barcode dan printer struk thermal. "
+         "Kasir diwajibkan menghitung fisik uang tunai saat tutup shift (Blind Count) sebelum melihat angka sistem, sehingga selisih setoran langsung terdeteksi."),
+        ("Pengawasan Stok Multi-Gudang & Surat Jalan Resmi",
+         "Perpindahan barang antar cabang tercatat resmi melalui Surat Jalan (Delivery Order) dan verifikasi penerimaan fisik. "
+         "Fitur stok opname digital memungkinkan penghitungan persediaan harian/mingguan tanpa harus menutup operasional toko."),
+        ("Otomatisasi Pembukuan Tanpa Perlu Akuntan Mahal",
+         "Setiap ada barang terjual di kasir atau barang masuk dari supplier, sistem secara otomatis membentuk jurnal akuntansi "
+         "berpasangan (Debit-Kredit). Laporan Laba Rugi dan Neraca Keuangan perusahaan selalu ter-update secara real-time."),
+        ("Audit Trail Permanen & Proteksi Keamanan",
+         "Seluruh aktivitas sistem—mulai dari perubahan harga produk, retur barang, pembatalan nota, hingga pembayaran faktur—terekam "
+         "dalam log audit permanen yang tidak dapat diedit atau dihapus oleh staf manapun, memberikan rasa aman 100% bagi pemilik usaha.")
+    ]
+
+    for title, desc in b_values:
+        p_bv = doc.add_paragraph()
+        p_bv.paragraph_format.space_before = Pt(4)
+        p_bv.paragraph_format.space_after = Pt(2)
+        r_bv1 = p_bv.add_run("✓ " + title + ":\n")
+        r_bv1.font.bold = True
+        r_bv1.font.size = Pt(10)
+        r_bv1.font.color.rgb = SECONDARY
+        r_bv2 = p_bv.add_run(desc)
+        r_bv2.font.size = Pt(9.5)
+        r_bv2.font.color.rgb = DARK
 
     doc.add_page_break()
 
     # -------------------------------------------------------------
-    # 5. STRUKTUR INVESTASI LISENSI & SKEMA PEMBAYARAN
+    # 5. STRUKTUR INVESTASI TRANSPARAN & TAHAPAN IMPLEMENTASI
     # -------------------------------------------------------------
     h5 = doc.add_paragraph()
     h5.paragraph_format.space_before = Pt(12)
     h5.paragraph_format.space_after = Pt(8)
-    r_h5 = h5.add_run("5. Struktur Investasi Lisensi Penuh & Skema Pembayaran")
+    r_h5 = h5.add_run("5. Struktur Investasi & Skema Pembayaran Bertahap")
     r_h5.font.name = 'Calibri'
     r_h5.font.size = Pt(16)
     r_h5.font.bold = True
@@ -346,95 +371,80 @@ def create_complete_proposal_docx(output_path):
     p_inv.paragraph_format.space_after = Pt(8)
     p_inv.paragraph_format.line_spacing = 1.15
     p_inv.add_run(
-        "Penawaran ini merupakan paket implementasi terpadu hulu-ke-hilir. "
-        "Klien memperoleh hak milik lisensi software secara penuh, instalasi di server klien, konfigurasi Chart of Accounts, "
-        "migrasi data master, serta pelatihan seluruh staf operasional:"
+        "Seluruh paket investasi di bawah ini bersifat **sekali bayar (One-Time Fee)** dan sudah merupakan paket terpadu: "
+        "mencakup lisensi hak milik sistem seumur hidup, jasa instalasi server, migrasi data awal, pelatihan staf, serta garansi purna jual:"
     )
 
-    table_inv = doc.add_table(rows=7, cols=3)
-    table_inv.alignment = WD_TABLE_ALIGNMENT.CENTER
-    inv_headers = ["Komponen Pekerjaan", "Uraian & Spesifikasi Deliverable", "Status / Keterangan"]
-    for j, ih in enumerate(inv_headers):
-        c = table_inv.rows[0].cells[j]
+    # Pricing Table
+    table_price = doc.add_table(rows=3, cols=3)
+    table_price.alignment = WD_TABLE_ALIGNMENT.CENTER
+    pr_headers = ["Pilihan Paket Solusi", "Nilai Investasi (One-Time)", "Cakupan Layanan Implementasi Termasuk"]
+    for j, ph in enumerate(pr_headers):
+        c = table_price.rows[0].cells[j]
         set_cell_background(c, "1E3A8A")
-        set_cell_margins(c, 140, 140, 150, 150)
+        set_cell_margins(c, 120, 120, 140, 140)
         p = c.paragraphs[0]
-        r = p.add_run(ih)
+        r = p.add_run(ph)
         r.font.bold = True
         r.font.size = Pt(9.5)
         r.font.color.rgb = RGBColor(255, 255, 255)
 
-    inv_rows = [
-        ("1. Lisensi Software Penuh (Perpetual License)", "Hak penggunaan seumur hidup tanpa biaya sewa SaaS. Bebas tanpa batasan jumlah cabang, toko, user kasir, maupun volume transaksi.", "Termasuk (Hak Milik Penuh)"),
-        ("2. Instalasi & Deployment Server", "Instalasi backend NestJS, database PostgreSQL 16, Redis, dan frontend React 19 di server kantor lokal (On-Premise) atau Private Cloud Klien.", "Termasuk (Siap Pakai)"),
-        ("3. Setup Akuntansi & Konfigurasi COA", "Penyusunan Chart of Accounts standar, pengaturan saldo awal buku besar, akun kas/bank, dan konfigurasi aturan jurnal otomatis.", "Termasuk (Sesuai SOP Klien)"),
-        ("4. Migrasi Data Master Bisnis", "Import dan verifikasi data produk, barcode, harga jual, data pelanggan, supplier, serta saldo awal persediaan barang via template Excel.", "Termasuk (Tervalidasi)"),
-        ("5. Pelatihan Staf (Training) & UAT", "Pelatihan langsung untuk seluruh staf kasir, tim gudang, purchasing, serta admin akuntansi hingga berita acara UAT ditandatangani.", "Termasuk (On-site / Online)"),
-        ("6. Garansi Bebas Bug Awal (6 Bulan)", "Garansi perbaikan bug teknis secara gratis selama 6 (enam) bulan penuh dan pendampingan operasional intensif pasca Go-Live.", "Termasuk (Gratis Rp 0,-)")
+    price_rows = [
+        ("Paket STARTER\n(Toko / Gerai Mandiri)",
+         "Rp 16.500.000,-\n(Sekali Bayar)",
+         "• Lisensi Hak Milik Toko Tunggal (Single Outlet & Gudang Toko)\n• Bebas buat akun staf & kasir toko (Tanpa biaya lisensi per user)\n• Setup Server Lokal Toko / VPS Standar\n• Impor Master Produk & Stok Awal dari Excel\n• Pelatihan 1 Sesi untuk Tim Kasir & Pengelola Toko\n• Garansi Bebas Bug 3 Bulan Penuh"),
+        ("Paket ENTERPRISE\n(Multi-Cabang & Rantai Pasok)",
+         "Rp 38.500.000,-\n(Sekali Bayar)",
+         "• Lisensi Hak Milik Multi-Cabang & Rantai Pasok Terpadu\n• Bebas buka cabang baru & tambah kasir tanpa beli lisensi lagi\n• Setup Private Cloud / Server Korporat Dedicated\n• Migrasi Data Lengkap Multi-Cabang (Produk, Customer, Supplier, Saldo)\n• Pelatihan Komprehensif per Divisi (Gudang, Kasir, Finance)\n• Garansi Bebas Bug 6 Bulan Penuh + SLA Prioritas < 1 Jam")
     ]
 
-    for i, ir in enumerate(inv_rows):
-        row = table_inv.rows[i+1]
-        bg = "F9FAFB" if i % 2 == 1 else "FFFFFF"
-        for j, val in enumerate(ir):
-            c = row.cells[j]
-            set_cell_background(c, bg)
-            set_cell_margins(c, 110, 110, 130, 130)
-            p = c.paragraphs[0]
-            r = p.add_run(val)
-            r.font.size = Pt(9)
-            if j == 0:
-                r.font.bold = True
-                r.font.color.rgb = PRIMARY
-            elif j == 2:
-                r.font.bold = True
-                r.font.color.rgb = RGBColor(22, 101, 52)
-            else:
-                r.font.color.rgb = DARK
+    for i, (p_name, p_cost, p_inc) in enumerate(price_rows):
+        row = table_price.rows[i+1]
+        bg = "FFFFFF" if i == 0 else "F0FDF4"
+        
+        c0 = row.cells[0]
+        set_cell_background(c0, bg)
+        set_cell_margins(c0, 120, 120, 130, 130)
+        p0 = c0.paragraphs[0]
+        r0 = p0.add_run(p_name)
+        r0.font.bold = True
+        r0.font.size = Pt(9.5)
+        r0.font.color.rgb = PRIMARY
 
-    # Total Investment Callout
-    p_box = doc.add_paragraph()
-    p_box.paragraph_format.space_before = Pt(12)
-    p_box.paragraph_format.space_after = Pt(10)
-    
-    t_box = doc.add_table(rows=1, cols=1)
-    t_box.alignment = WD_TABLE_ALIGNMENT.CENTER
-    t_cell = t_box.rows[0].cells[0]
-    set_cell_background(t_cell, "EFF6FF") # Soft Blue
-    set_cell_margins(t_cell, 150, 150, 180, 180)
-    p_t = t_cell.paragraphs[0]
-    r_t1 = p_t.add_run("TOTAL NILAI INVESTASI LISENSI PENUH & IMPLEMENTASI LENGKAP:\n")
-    r_t1.font.bold = True
-    r_t1.font.size = Pt(11)
-    r_t1.font.color.rgb = PRIMARY
-    r_t2 = p_t.add_run("Rp 35.000.000,- s/d Rp 55.000.000,- (Sesuai Skala Operasional Klien)\n")
-    r_t2.font.bold = True
-    r_t2.font.size = Pt(13)
-    r_t2.font.color.rgb = AMBER
-    r_t3 = p_t.add_run(
-        "*Catatan: Investasi satu kali bayar (one-time license fee). Bebas biaya sewa bulanan, bebas royalti per transaksi, "
-        "dan bebas biaya pembukaan cabang baru di masa depan."
-    )
-    r_t3.font.italic = True
-    r_t3.font.size = Pt(9)
-    r_t3.font.color.rgb = MUTED
+        c1 = row.cells[1]
+        set_cell_background(c1, bg)
+        set_cell_margins(c1, 120, 120, 130, 130)
+        p1 = c1.paragraphs[0]
+        p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r1 = p1.add_run(p_cost)
+        r1.font.bold = True
+        r1.font.size = Pt(11)
+        r1.font.color.rgb = AMBER if i == 0 else GREEN
 
-    # Tahapan Pembayaran (Term of Payment)
+        c2 = row.cells[2]
+        set_cell_background(c2, bg)
+        set_cell_margins(c2, 120, 120, 130, 130)
+        p2 = c2.paragraphs[0]
+        r2 = p2.add_run(p_inc)
+        r2.font.size = Pt(8.5)
+        r2.font.color.rgb = DARK
+
+    # Tahapan Pembayaran Transparan (Term of Payment)
     h5_top = doc.add_paragraph()
-    h5_top.paragraph_format.space_before = Pt(8)
+    h5_top.paragraph_format.space_before = Pt(14)
     h5_top.paragraph_format.space_after = Pt(4)
-    r_top = h5_top.add_run("Tahapan Pembayaran Transparan (Term of Payment / TOP):")
+    r_top = h5_top.add_run("Tahapan Pembayaran Berbasis Progres (Term of Payment):")
     r_top.font.bold = True
     r_top.font.size = Pt(11)
     r_top.font.color.rgb = PRIMARY
 
     table_top = doc.add_table(rows=4, cols=3)
     table_top.alignment = WD_TABLE_ALIGNMENT.CENTER
-    top_headers = ["Tahap Pembayaran", "Persentase", "Kriteria Penagihan (Milestone Trigger)"]
+    top_headers = ["Tahap Pembayaran", "Porsi", "Kriteria Penagihan (Milestone Hasil Nyata)"]
     for j, th in enumerate(top_headers):
         c = table_top.rows[0].cells[j]
         set_cell_background(c, "1E3A8A")
-        set_cell_margins(c, 110, 110, 130, 130)
+        set_cell_margins(c, 100, 100, 120, 120)
         p = c.paragraphs[0]
         r = p.add_run(th)
         r.font.bold = True
@@ -442,9 +452,9 @@ def create_complete_proposal_docx(output_path):
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     top_data = [
-        ("Tahap I (Uang Muka / DP)", "40%", "Dibayarkan saat penandatanganan lembar persetujuan proposal / kontrak implementasi sebelum instalasi dimulai."),
-        ("Tahap II (Progress Setup & Training)", "40%", "Dibayarkan setelah server berhasil diinstal, data master produk selesai dimigrasi, dan pelatihan staf kasir selesai."),
-        ("Tahap III (Pelunasan Akhir)", "20%", "Dibayarkan saat sistem resmi beroperasi melayani transaksi nyata (Go-Live) dan penandatanganan Berita Acara Serah Terima (BAST).")
+        ("Tahap I (Uang Muka / DP)", "40%", "Dibayarkan saat persetujuan kesepakatan implementasi untuk memulai setup server & konfigurasi awal."),
+        ("Tahap II (Progress Setup & Data)", "40%", "Dibayarkan setelah server siap, data produk berhasil dimigrasi, dan staf selesai mengikuti sesi pelatihan."),
+        ("Tahap III (Pelunasan Akhir)", "20%", "Dibayarkan setelah sistem beroperasi lancar melayani transaksi nyata di toko (Go-Live) dan serah terima resmi.")
     ]
     for i, td in enumerate(top_data):
         row = table_top.rows[i+1]
@@ -452,10 +462,10 @@ def create_complete_proposal_docx(output_path):
         for j, val in enumerate(td):
             c = row.cells[j]
             set_cell_background(c, bg)
-            set_cell_margins(c, 100, 100, 120, 120)
+            set_cell_margins(c, 90, 90, 110, 110)
             p = c.paragraphs[0]
             r = p.add_run(val)
-            r.font.size = Pt(9)
+            r.font.size = Pt(8.5)
             if j == 0:
                 r.font.bold = True
                 r.font.color.rgb = PRIMARY
@@ -466,35 +476,42 @@ def create_complete_proposal_docx(output_path):
                 r.font.color.rgb = DARK
 
     # -------------------------------------------------------------
-    # 6. JADWAL IMPLEMENTASI (ROADMAP 4 MINGGU)
+    # 6. ROADMAP PENGERJAAN & JAMINAN GARANSI
     # -------------------------------------------------------------
     h6 = doc.add_paragraph()
     h6.paragraph_format.space_before = Pt(14)
-    h6.paragraph_format.space_after = Pt(8)
-    r_h6 = h6.add_run("6. Jadwal Kerja & Roadmap Implementasi (4 Minggu)")
+    h6.paragraph_format.space_after = Pt(6)
+    r_h6 = h6.add_run("6. Jadwal Kerja Terarah & Garansi Purna Jual")
     r_h6.font.name = 'Calibri'
     r_h6.font.size = Pt(16)
     r_h6.font.bold = True
     r_h6.font.color.rgb = PRIMARY
 
-    table_time = doc.add_table(rows=5, cols=4)
+    p_road = doc.add_paragraph()
+    p_road.paragraph_format.space_after = Pt(6)
+    p_road.add_run(
+        "Proses implementasi dirancang agar tidak mengganggu operasional toko yang sedang berjalan, "
+        "dengan target penyelesaian dalam kurun waktu 2 s/d 4 minggu:"
+    )
+
+    table_time = doc.add_table(rows=5, cols=3)
     table_time.alignment = WD_TABLE_ALIGNMENT.CENTER
-    time_headers = ["Tahapan Milestone", "Durasi", "Aktivitas Utama", "Hasil Nyata (Deliverable)"]
+    time_headers = ["Minggu Pelaksanaan", "Aktivitas Utama", "Hasil Nyata (Deliverables)"]
     for j, th in enumerate(time_headers):
         c = table_time.rows[0].cells[j]
         set_cell_background(c, "1E3A8A")
-        set_cell_margins(c, 120, 120, 140, 140)
+        set_cell_margins(c, 100, 100, 120, 120)
         p = c.paragraphs[0]
         r = p.add_run(th)
         r.font.bold = True
-        r.font.size = Pt(9.5)
+        r.font.size = Pt(9)
         r.font.color.rgb = RGBColor(255, 255, 255)
 
     time_rows = [
-        ("Tahap 1: Setup Server & COA", "Minggu 1", "Pemasangan sistem di server klien, konfigurasi database, dan setup Chart of Accounts.", "Server Siap & Lingkungan Terkonfigurasi"),
-        ("Tahap 2: Migrasi Data Master", "Minggu 2", "Import data master produk, barcode, harga jual, data pelanggan, supplier, dan stok awal.", "Database Lengkap & Tervalidasi"),
-        ("Tahap 3: Pelatihan & UAT", "Minggu 3", "Pelatihan staf kasir, tim gudang, serta admin akuntansi. Simulasi transaksi nyata hulu-hilir.", "Berita Acara User Acceptance Test (UAT)"),
-        ("Tahap 4: Go-Live & Handover", "Minggu 4", "Peluncuran operasional live di toko, pendampingan transaksi kasir, dan penyerahan sertifikat lisensi.", "Sistem Beroperasi Penuh & Sertifikat Lisensi")
+        ("Minggu 1", "Pemasangan sistem di server, konfigurasi database, dan penyusunan akun COA.", "Server Berjalan & Lingkungan Siap Pakai"),
+        ("Minggu 2", "Impor data produk, barcode, harga jual, data pelanggan, supplier, dan stok awal.", "Database Lengkap & Tervalidasi dengan Data Riil"),
+        ("Minggu 3", "Pelatihan langsung staf kasir, tim gudang, dan admin. Simulasi transaksi hulu-hilir.", "Seluruh Staf Terlatih & Terampil Menggunakan Sistem"),
+        ("Minggu 4", "Peluncuran resmi di toko (Go-Live), pendampingan kasir, dan serah terima dokumen.", "Sistem Beroperasi Penuh Melayani Transaksi Nyata")
     ]
     for i, tr in enumerate(time_rows):
         row = table_time.rows[i+1]
@@ -502,10 +519,10 @@ def create_complete_proposal_docx(output_path):
         for j, val in enumerate(tr):
             c = row.cells[j]
             set_cell_background(c, bg)
-            set_cell_margins(c, 100, 100, 120, 120)
+            set_cell_margins(c, 90, 90, 110, 110)
             p = c.paragraphs[0]
             r = p.add_run(val)
-            r.font.size = Pt(9)
+            r.font.size = Pt(8.5)
             if j == 0:
                 r.font.bold = True
                 r.font.color.rgb = PRIMARY
@@ -515,152 +532,110 @@ def create_complete_proposal_docx(output_path):
     doc.add_page_break()
 
     # -------------------------------------------------------------
-    # 7. GARANSI, PERBAIKAN BUG & LAYANAN PURNA JUAL
+    # 7. LOW-FRICTION CALL TO ACTION: UNDANGAN LIVE DEMO
     # -------------------------------------------------------------
     h7 = doc.add_paragraph()
     h7.paragraph_format.space_before = Pt(12)
     h7.paragraph_format.space_after = Pt(8)
-    r_h7 = h7.add_run("7. Jaminan Garansi Bebas Bug & Standar Layanan Purna Jual")
+    r_h7 = h7.add_run("7. Langkah Selanjutnya: Undangan Sesi Uji Coba (Live Demo)")
     r_h7.font.name = 'Calibri'
     r_h7.font.size = Pt(16)
     r_h7.font.bold = True
     r_h7.font.color.rgb = PRIMARY
 
-    p_sla_intro = doc.add_paragraph()
-    p_sla_intro.paragraph_format.space_after = Pt(8)
-    p_sla_intro.paragraph_format.line_spacing = 1.15
-    p_sla_intro.add_run(
-        "Untuk memberikan kepastian dan ketenangan pikiran bagi manajemen perusahaan, "
-        "kami menyediakan skema garansi dan pemeliharaan purna jual yang jelas, transparan, dan terstruktur:"
+    p_cta1 = doc.add_paragraph()
+    p_cta1.paragraph_format.space_after = Pt(8)
+    p_cta1.paragraph_format.line_spacing = 1.15
+    p_cta1.add_run(
+        "Memilih sistem operasional bisnis merupakan keputusan strategis bagi masa depan perusahaan Anda. "
+        "Kami sangat memahami bahwa manajemen membutuhkan keyakinan penuh sebelum melakukan investasi."
     )
 
-    # 7.1 Garansi Awal
-    p_g = doc.add_paragraph()
-    p_g.paragraph_format.space_before = Pt(4)
-    p_g.paragraph_format.space_after = Pt(2)
-    r_g = p_g.add_run("A. Garansi Bebas Bug (6 Bulan Pertama — GRATIS)")
-    r_g.font.bold = True
-    r_g.font.size = Pt(11)
-    r_g.font.color.rgb = SECONDARY
-
-    p_gt = doc.add_paragraph()
-    p_gt.paragraph_format.space_after = Pt(10)
-    p_gt.paragraph_format.line_spacing = 1.15
-    p_gt.add_run(
-        "Selama 6 (enam) bulan pertama terhitung sejak tanggal Go-Live, seluruh perbaikan terhadap potensi bug teknis, "
-        "kesalahan formula sistem, atau kendala operasional diselesaikan secara **CUMA-CUMA (Rp 0,- / GRATIS)**. "
-        "Bantuan darurat terhadap kendala kasir direspon dengan target SLA < 1 jam kerja."
+    p_cta2 = doc.add_paragraph()
+    p_cta2.paragraph_format.space_after = Pt(12)
+    p_cta2.paragraph_format.line_spacing = 1.15
+    p_cta2.add_run(
+        "Oleh karena itu, kami dengan senang hati mengundang Bapak/Ibu beserta tim kunci untuk menghadiri "
+        "**Sesi Pemaparan & Uji Coba Langsung (Live Interactive Demo) selama 30 Menit**. "
+        "Dalam sesi ini, kita dapat mensimulasikan alur transaksi kasir, mutasi stok, hingga terbentuknya laporan keuangan "
+        "menggunakan contoh data bisnis riil."
     )
 
-    # 7.2 Opsi Pasca Garansi
-    p_p = doc.add_paragraph()
-    p_p.paragraph_format.space_before = Pt(4)
-    p_p.paragraph_format.space_after = Pt(2)
-    r_p = p_p.add_run("B. Skema Layanan Pemeliharaan Pasca Masa Garansi (Opsional)")
-    r_p.font.bold = True
-    r_p.font.size = Pt(11)
-    r_p.font.color.rgb = SECONDARY
-
-    p_pt_desc = doc.add_paragraph()
-    p_pt_desc.paragraph_format.space_after = Pt(6)
-    p_pt_desc.paragraph_format.line_spacing = 1.15
-    p_pt_desc.add_run(
-        "Setelah masa garansi 6 bulan berakhir, sistem tetap dapat digunakan secara normal tanpa ada kewajiban membayar biaya apapun. "
-        "Namun jika klien menghendaki pendampingan teknis jangka panjang, tersedia 2 skema pemeliharaan standar industri:"
+    # Callout Box for Zero-Risk Demo
+    demo_box = doc.add_table(rows=1, cols=1)
+    demo_box.alignment = WD_TABLE_ALIGNMENT.CENTER
+    db_cell = demo_box.rows[0].cells[0]
+    set_cell_background(db_cell, "EFF6FF") # Soft Blue
+    set_cell_margins(db_cell, 150, 150, 180, 180)
+    p_db = db_cell.paragraphs[0]
+    r_db1 = p_db.add_run("🌟 JAMINAN TANPA RESIKO & TANPA KOMITMEN:\n")
+    r_db1.font.bold = True
+    r_db1.font.size = Pt(10)
+    r_db1.font.color.rgb = PRIMARY
+    r_db2 = p_db.add_run(
+        "Sesi demo ini bersifat 100% informatif dan gratis. Tidak ada kewajiban ataupun komitmen apapun dari pihak Bapak/Ibu "
+        "untuk melakukan pembelian. Tujuannya murni untuk memberikan gambaran nyata bagaimana sistem ini dapat memangkas kebocoran "
+        "dan menghemat jam kerja tim operasional Anda."
     )
+    r_db2.font.size = Pt(9.5)
+    r_db2.font.color.rgb = DARK
 
-    table_maint = doc.add_table(rows=6, cols=3)
-    table_maint.alignment = WD_TABLE_ALIGNMENT.CENTER
-    maint_headers = ["Opsi Layanan Purna Jual", "Cakupan Layanan", "Standar Biaya Jasa"]
-    for j, mh in enumerate(maint_headers):
-        c = table_maint.rows[0].cells[j]
-        set_cell_background(c, "1E3A8A")
-        set_cell_margins(c, 120, 120, 140, 140)
-        p = c.paragraphs[0]
-        r = p.add_run(mh)
-        r.font.bold = True
-        r.font.size = Pt(9.5)
-        r.font.color.rgb = RGBColor(255, 255, 255)
+    for _ in range(2):
+        doc.add_paragraph()
 
-    maint_rows = [
-        ("Opsi 1: Kontrak Pemeliharaan Tahunan (AMC) — Sangat Direkomendasikan", "Perbaikan bug tanpa batas selama 1 tahun penuh, monitoring kesehatan server & backup berkala, serta bantuan darurat prioritas (<1 jam).", "10% - 15% dari nilai lisensi / tahun (± Rp 4.500.000,- s/d Rp 6.000.000,- / tahun)"),
-        ("Opsi 2: Perbaikan Bug Minor (On-Demand / Pay-per-Case)", "Penanganan kendala format print struk, perbaikan layout laporan Excel, penyesuaian teks/label, atau salah input pengguna kasir.", "Rp 300.000,- s/d Rp 500.000,- per penanganan kasus"),
-        ("Opsi 3: Perbaikan Bug Major (On-Demand / Pay-per-Case)", "Penanganan selisih formula kalkulasi diskon, kendala koneksi kasir ke database, atau masalah integrasi pembayaran.", "Rp 1.000.000,- s/d Rp 2.000.000,- per penanganan kasus"),
-        ("Opsi 4: Pemulihan Bencana (Disaster Recovery)", "Pemulihan basis data akibat listrik padam mendadak, kerusakan hardware server, atau migrasi server darurat.", "Rp 2.500.000,- s/d Rp 4.000.000,- per insiden"),
-        ("Opsi 5: Permintaan Fitur Baru (Change Request / CR)", "Klien menghendaki modul baru tambahan atau perubahan alur bisnis kustom di luar cakupan proposal awal.", "Rp 1.000.000,- s/d Rp 1.500.000,- per hari kerja (man-day)")
+    # Form Konfirmasi Jadwal Demo (Bukan paksaan beli!)
+    p_f_title = doc.add_paragraph()
+    p_f_title.paragraph_format.space_after = Pt(4)
+    r_ft = p_f_title.add_run("Formulir Permintaan Jadwal Sesi Live Demo:")
+    r_ft.font.bold = True
+    r_ft.font.size = Pt(11)
+    r_ft.font.color.rgb = PRIMARY
+
+    table_form = doc.add_table(rows=6, cols=2)
+    table_form.alignment = WD_TABLE_ALIGNMENT.CENTER
+    form_fields = [
+        ("Nama Perusahaan / Usaha", ": __________________________________________________"),
+        ("Nama Kontak / PIC", ": __________________________________________________"),
+        ("Jabatan", ": __________________________________________________"),
+        ("No. WhatsApp / Email", ": __________________________________________________"),
+        ("Pilihan Paket yang Diminati", ": [  ] Paket STARTER      [  ] Paket ENTERPRISE"),
+        ("Rencana Waktu Sesi Demo", ": Hari/Tanggal: ___________________ Jam: ____________")
     ]
+    for i, (k, v) in enumerate(form_fields):
+        row = table_form.rows[i]
+        c1, c2 = row.cells[0], row.cells[1]
+        c1.width = Inches(2.4)
+        c2.width = Inches(4.1)
+        p1 = c1.paragraphs[0]
+        r1 = p1.add_run(k)
+        r1.font.bold = True
+        r1.font.size = Pt(9.5)
+        r1.font.color.rgb = PRIMARY
+        p2 = c2.paragraphs[0]
+        r2 = p2.add_run(v)
+        r2.font.size = Pt(9.5)
+        r2.font.color.rgb = DARK
 
-    for i, mr in enumerate(maint_rows):
-        row = table_maint.rows[i+1]
-        bg = "F9FAFB" if i % 2 == 1 else "FFFFFF"
-        for j, val in enumerate(mr):
-            c = row.cells[j]
-            set_cell_background(c, bg)
-            set_cell_margins(c, 100, 100, 120, 120)
-            p = c.paragraphs[0]
-            r = p.add_run(val)
-            r.font.size = Pt(9)
-            if j == 0:
-                r.font.bold = True
-                r.font.color.rgb = PRIMARY
-            elif j == 2:
-                r.font.bold = True
-                r.font.color.rgb = AMBER
-            else:
-                r.font.color.rgb = DARK
+    for _ in range(2):
+        doc.add_paragraph()
 
-    # -------------------------------------------------------------
-    # 8. LEMBAR KONFIRMASI & PERSETUJUAN KEMITRAAN
-    # -------------------------------------------------------------
-    h8 = doc.add_paragraph()
-    h8.paragraph_format.space_before = Pt(16)
-    h8.paragraph_format.space_after = Pt(8)
-    r_h8 = h8.add_run("8. Lembar Konfirmasi & Persetujuan Kemitraan")
-    r_h8.font.name = 'Calibri'
-    r_h8.font.size = Pt(16)
-    r_h8.font.bold = True
-    r_h8.font.color.rgb = PRIMARY
-
-    p_close = doc.add_paragraph()
-    p_close.paragraph_format.space_after = Pt(16)
-    p_close.paragraph_format.line_spacing = 1.15
-    p_close.add_run(
-        "Demikian proposal penawaran lisensi penuh Sistem Enterprise Inventory, POS & Financial Governance ini kami sampaikan. "
-        "Kami siap mendemonstrasikan sistem secara langsung dan mendampingi digitalisasi operasional bisnis perusahaan Anda. "
-        "Untuk konfirmasi persetujuan penawaran atau penjadwalan demo aplikasi, silakan menandatangani lembar konfirmasi di bawah ini:"
-    )
-
-    table_sign = doc.add_table(rows=5, cols=2)
-    table_sign.alignment = WD_TABLE_ALIGNMENT.CENTER
-    s_col1, s_col2 = table_sign.rows[0].cells[0], table_sign.rows[0].cells[1]
-    s_col1.width = Inches(3.2)
-    s_col2.width = Inches(3.2)
-
-    p_s1 = s_col1.paragraphs[0]
-    r_s1 = p_s1.add_run("Disetujui Oleh Pihak Klien:\n(Manajemen / Direksi Perusahaan)")
-    r_s1.font.bold = True
-    r_s1.font.size = Pt(10)
-    r_s1.font.color.rgb = PRIMARY
-
-    p_s2 = s_col2.paragraphs[0]
-    r_s2 = p_s2.add_run("Diajukan Oleh Pihak Pengembang:\n(Tim Solusi Sistem Enterprise)")
-    r_s2.font.bold = True
-    r_s2.font.size = Pt(10)
-    r_s2.font.color.rgb = PRIMARY
-
-    # Empty rows for signature space
-    for r_idx in range(1, 4):
-        table_sign.rows[r_idx].cells[0].paragraphs[0].add_run("\n")
-        table_sign.rows[r_idx].cells[1].paragraphs[0].add_run("\n")
-
-    p_n1 = table_sign.rows[4].cells[0].paragraphs[0]
-    p_n1.add_run("Nama: _________________________\nJabatan: ______________________\nTanggal: ______________________").font.size = Pt(9.5)
-
-    p_n2 = table_sign.rows[4].cells[1].paragraphs[0]
-    p_n2.add_run("Nama: _________________________\nJabatan: Solution Architect / Lead\nTanggal: ______________________").font.size = Pt(9.5)
+    # Contact Info Box
+    p_contact = doc.add_paragraph()
+    p_contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_c1 = p_contact.add_run("Hubungi Tim Kami untuk Koordinasi Jadwal Demo & Konsultasi Kebutuhan:\n")
+    r_c1.font.size = Pt(9.5)
+    r_c1.font.color.rgb = MUTED
+    r_c2 = p_contact.add_run("WhatsApp / Telp: [Nomor Kontak Anda]  |  Email: [Email Bisnis Anda]\n")
+    r_c2.font.bold = True
+    r_c2.font.size = Pt(10)
+    r_c2.font.color.rgb = PRIMARY
+    r_c3 = p_contact.add_run("Tersedia untuk Sesi Demo Langsung (On-Site di Kantor Anda) maupun Demo Online (Zoom / Google Meet).")
+    r_c3.font.italic = True
+    r_c3.font.size = Pt(8.5)
+    r_c3.font.color.rgb = MUTED
 
     doc.save(output_path)
-    print(f"Complete updated proposal successfully generated at: {output_path}")
+    print(f"Revised elegant proposal successfully generated at: {output_path}")
 
 if __name__ == '__main__':
     target = os.path.abspath('Proposal_Penawaran_Aplikasi_Enterprise_Inventory_POS.docx')

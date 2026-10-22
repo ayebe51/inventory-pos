@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import api from '../../../lib/api';
 import { usePayments, useCreatePayment } from '../../invoicing/hooks/useInvoicing';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Title, Text } = Typography;
 
@@ -15,6 +16,7 @@ export const PaymentPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'RECEIPT' | 'VOUCHER'>('RECEIPT');
   const [form] = Form.useForm();
+  const drawerWidth = useResponsiveDrawerWidth(500);
 
   const { data: paymentsData, isLoading, refetch } = usePayments({ payment_type: activeTab });
   const createPayment = useCreatePayment();
@@ -83,11 +85,11 @@ export const PaymentPage: React.FC = () => {
           <Title level={3} className="page-title" style={{ marginBottom: 4 }}>Payments</Title>
           <Text className="page-subtitle">Manage incoming receipts (AR) and outgoing payments (AP)</Text>
         </div>
-        <Space>
+        <Space wrap>
           <Button onClick={() => setActiveTab('RECEIPT')} type={activeTab === 'RECEIPT' ? 'primary' : 'default'}>AR Receipts</Button>
           <Button onClick={() => setActiveTab('VOUCHER')} type={activeTab === 'VOUCHER' ? 'primary' : 'default'}>AP Payments</Button>
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)} style={{ marginLeft: 8 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setDrawerOpen(true)}>
             Record {activeTab === 'RECEIPT' ? 'Receipt' : 'Payment'}
           </Button>
         </Space>
@@ -99,7 +101,7 @@ export const PaymentPage: React.FC = () => {
         title={`Record ${activeTab === 'RECEIPT' ? 'Payment Receipt (AR)' : 'Payment Voucher (AP)'}`}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={500}
+        width={drawerWidth}
         footer={
           <Space style={{ float: 'right' }}>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>

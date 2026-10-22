@@ -16,6 +16,7 @@ import {
   Col,
   Popconfirm,
   Descriptions,
+  Alert,
 } from 'antd';
 import {
   Store,
@@ -35,7 +36,7 @@ interface BranchItem {
   id: string;
   code: string;
   name: string;
-  type: 'HEAD_OFFICE' | 'BRANCH';
+  type: 'HEAD_OFFICE' | 'BRANCH' | 'MAIN' | 'STORE';
   parent_id: string | null;
   address: string | null;
   is_active: boolean;
@@ -64,6 +65,8 @@ export const StoreProfilePage: React.FC = () => {
   const [branches, setBranches] = useState<BranchItem[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseItem[]>([]);
   const [hierarchy, setHierarchy] = useState<HierarchyNode[]>([]);
+  const [branchError, setBranchError] = useState<string | null>(null);
+  const [warehouseError, setWarehouseError] = useState<string | null>(null);
   
   // Modals state
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
@@ -73,23 +76,39 @@ export const StoreProfilePage: React.FC = () => {
   const [form] = Form.useForm();
   const [hoForm] = Form.useForm();
 
-  // Fetch all organization data
+  // Helper to determine if a node is Head Office
+  const isHeadOffice = (b: BranchItem) =>
+    b.type === 'HEAD_OFFICE' || (b.type as any) === 'MAIN' || b.parent_id === null;
+
+  // Fetch all organization data with explicit error tracking
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setBranchError(null);
+    setWarehouseError(null);
     try {
-      const [branchRes, hierarchyRes, warehouseRes] = await Promise.all([
-        api.get('/api/v1/organization/branches').catch(() => ({ data: { data: [] } })),
-        api.get('/api/v1/organization/hierarchy').catch(() => ({ data: { data: [] } })),
-        api.get('/api/v1/warehouses').catch(() => ({ data: { data: [] } })),
+      const [branchRes, hierarchyRes, warehouseRes] = await Promise.allSettled([
+        api.get('/api/v1/organization/branches'),
+        api.get('/api/v1/organization/hierarchy'),
+        api.get('/api/v1/warehouses'),
       ]);
 
-      const branchList: BranchItem[] = branchRes.data?.data || [];
-      const hierarchyData: HierarchyNode[] = hierarchyRes.data?.data || [];
-      const warehouseList: WarehouseItem[] = warehouseRes.data?.data || [];
+      if (branchRes.status === 'fulfilled') {
+        setBranches(branchRes.value.data?.data || []);
+      } else {
+        const status = (branchRes.reason as any)?.response?.status;
+        setBranchError(status === 403 ? 'Akses Ditolak (403)' : 'Gagal memuat cabang');
+      }
 
-      setBranches(branchList);
-      setHierarchy(hierarchyData);
-      setWarehouses(warehouseList);
+      if (hierarchyRes.status === 'fulfilled') {
+        setHierarchy(hierarchyRes.value.data?.data || []);
+      }
+
+      if (warehouseRes.status === 'fulfilled') {
+        setWarehouses(warehouseRes.value.data?.data || []);
+      } else {
+        const status = (warehouseRes.reason as any)?.response?.status;
+        setWarehouseError(status === 403 ? 'Akses Ditolak (403)' : 'Gagal memuat gudang');
+      }
     } catch (err: any) {
       message.error(err.message || 'Gagal memuat data profil toko & cabang');
     } finally {
@@ -101,8 +120,8 @@ export const StoreProfilePage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const headOffice = branches.find((b) => b.type === 'HEAD_OFFICE') || branches[0];
-  const regularBranches = branches.filter((b) => b.type === 'BRANCH');
+  const headOffice = branches.find(isHeadOffice) || branches[0];
+  const regularBranches = branches.filter((b) => b.id !== headOffice?.id);
 
   // Handle Head Office Create / Update
   const handleSaveHeadOffice = async (values: any) => {
@@ -173,18 +192,21 @@ export const StoreProfilePage: React.FC = () => {
       title: 'Kode Cabang',
       dataIndex: 'code',
       key: 'code',
-      render: (code: string, record: BranchItem) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-500)' }}>
-            {code}
-          </span>
-          {record.type === 'HEAD_OFFICE' && (
-            <Tag color="volcano" style={{ fontSize: 10, fontWeight: 700, borderRadius: 4 }}>
-              PUSAT / HO
-            </Tag>
-          )}
-        </div>
-      ),
+      render: (code: string, record: BranchItem) => {
+        const isHO = isHeadOffice(record);
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brand-500)' }}>
+              {code}
+            </span>
+            {isHO && (
+              <Tag color="volcano" style={{ fontSize: 10, fontWeight: 700, borderRadius: 4 }}>
+                PUSAT / HO
+              </Tag>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Nama Cabang',
@@ -203,11 +225,14 @@ export const StoreProfilePage: React.FC = () => {
       title: 'Tipe Node',
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => (
-        <Tag color={type === 'HEAD_OFFICE' ? 'purple' : 'blue'} style={{ borderRadius: 12, fontWeight: 600 }}>
-          {type === 'HEAD_OFFICE' ? 'Head Office' : 'Cabang Operasional'}
-        </Tag>
-      ),
+      render: (_: string, record: BranchItem) => {
+        const isHO = isHeadOffice(record);
+        return (
+          <Tag color={isHO ? 'purple' : 'blue'} style={{ borderRadius: 12, fontWeight: 600 }}>
+            {isHO ? 'Head Office' : 'Cabang Operasional'}
+          </Tag>
+        );
+      },
     },
     {
       title: 'Gudang Terkait',
@@ -261,7 +286,7 @@ export const StoreProfilePage: React.FC = () => {
             Edit
           </Button>
 
-          {record.type !== 'HEAD_OFFICE' && (
+          {!isHeadOffice(record) && (
             <Popconfirm
               title={`${record.is_active ? 'Nonaktifkan' : 'Aktifkan'} Cabang?`}
               description={`Apakah Anda yakin ingin ${record.is_active ? 'menonaktifkan' : 'mengaktifkan'} ${record.name}?`}
@@ -401,13 +426,20 @@ export const StoreProfilePage: React.FC = () => {
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3B82F6' }}>
                   <Building2 size={18} />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {regularBranches.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Cabang</span>
-                </div>
+                {branchError ? (
+                  <div style={{ fontSize: 13, color: '#EF4444', fontWeight: 600 }}>
+                    <AlertCircle size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: 'text-bottom' }} />
+                    {branchError}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {regularBranches.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Cabang</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
-              {regularBranches.filter((b) => b.is_active).length} Cabang Aktif Digunakan
+            <div style={{ fontSize: 12, color: branchError ? '#EF4444' : '#10B981', fontWeight: 600, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
+              {branchError ? 'Periksa hak akses organisasi' : `${regularBranches.filter((b) => b.is_active).length} Cabang Aktif Digunakan`}
             </div>
           </Card>
         </Col>
@@ -433,13 +465,20 @@ export const StoreProfilePage: React.FC = () => {
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981' }}>
                   <WarehouseIcon size={18} />
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {warehouses.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Gudang</span>
-                </div>
+                {warehouseError ? (
+                  <div style={{ fontSize: 13, color: '#EF4444', fontWeight: 600 }}>
+                    <AlertCircle size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: 'text-bottom' }} />
+                    {warehouseError}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {warehouses.length} <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>Gudang</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
-              Tersebar di seluruh cabang operasional
+            <div style={{ fontSize: 12, color: warehouseError ? '#EF4444' : 'var(--text-secondary)', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--solid-border-subtle, #F1F5F9)' }}>
+              {warehouseError ? 'Periksa izin INVENTORY.READ' : 'Tersebar di seluruh cabang operasional'}
             </div>
           </Card>
         </Col>
@@ -584,6 +623,15 @@ export const StoreProfilePage: React.FC = () => {
               ),
               children: (
                 <div style={{ padding: '12px 0' }}>
+                  {warehouseError && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Data Pemetaan Gudang Tidak Lengkap"
+                      description={`${warehouseError}. Pastikan pengguna saat ini memiliki izin INVENTORY.READ untuk memuat daftar gudang operasional.`}
+                      style={{ marginBottom: 16, borderRadius: 10 }}
+                    />
+                  )}
                   <div style={{ marginBottom: 16 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                       Pemetaan Gudang Fisik per Cabang Operasional

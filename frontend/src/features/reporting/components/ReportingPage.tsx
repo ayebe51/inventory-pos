@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Row, Col, Card, Typography, Select, Button, Space, DatePicker, message, Table, Statistic } from 'antd';
+import { Row, Col, Card, Typography, Select, Button, Space, DatePicker, message, Table, Statistic, theme } from 'antd';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { 
@@ -19,6 +19,7 @@ const { Option } = Select;
 export type ReportType = 'sales' | 'inventory' | 'income_statement' | 'balance_sheet' | 'cash_flow' | 'ar_aging' | 'ap_aging';
 
 export const ReportingPage: React.FC = () => {
+  const { token } = theme.useToken();
   const [reportType, setReportType] = useState<ReportType>('sales');
   const [asOfDate, setAsOfDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   
@@ -208,18 +209,18 @@ export const ReportingPage: React.FC = () => {
   const salesOption = {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'axis' },
-    legend: { bottom: 0 },
+    legend: { bottom: 0, textStyle: { color: token.colorTextSecondary } },
     grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
     xAxis: {
       type: 'category',
       data: execData?.top_products?.map((d: any) => d.product_name) || [],
-      axisLabel: { color: '#94A3B8', interval: 0, rotate: 15 },
-      axisLine: { lineStyle: { color: '#2D2D3F' } }
+      axisLabel: { color: token.colorTextSecondary, interval: 0, rotate: 15 },
+      axisLine: { lineStyle: { color: token.colorBorderSecondary } }
     },
     yAxis: {
       type: 'value',
-      axisLabel: { color: '#94A3B8' },
-      splitLine: { lineStyle: { color: '#1E1E2E' } }
+      axisLabel: { color: token.colorTextSecondary },
+      splitLine: { lineStyle: { color: token.colorBorderSecondary, type: 'dashed' } }
     },
     series: [
       {
@@ -228,7 +229,7 @@ export const ReportingPage: React.FC = () => {
         barWidth: '40%',
         data: execData?.top_products?.map((d: any) => d.total_revenue) || [],
         itemStyle: { 
-          color: '#8B5CF6',
+          color: 'var(--brand-500)',
           borderRadius: [4, 4, 0, 0]
         }
       }
@@ -243,14 +244,14 @@ export const ReportingPage: React.FC = () => {
   const inventoryOption = {
     backgroundColor: 'transparent',
     tooltip: { trigger: 'item' },
-    legend: { textStyle: { color: '#94A3B8' }, orient: 'vertical', right: 10, top: 'center' },
+    legend: { textStyle: { color: token.colorTextSecondary }, orient: 'vertical', right: 10, top: 'center' },
     series: [
       {
         name: 'Inventory Value',
         type: 'pie',
         radius: ['40%', '70%'],
         avoidLabelOverlap: false,
-        itemStyle: { borderRadius: 10, borderColor: '#12121A', borderWidth: 2 },
+        itemStyle: { borderRadius: 10, borderColor: token.colorBgContainer, borderWidth: 2 },
         label: { show: false, position: 'center' },
         emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
         labelLine: { show: false },

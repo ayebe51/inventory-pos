@@ -8,6 +8,7 @@ import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../../lib/api';
 import dayjs from 'dayjs';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -17,6 +18,7 @@ export const StockTransferPage: React.FC = () => {
   const [form] = Form.useForm();
   const [lines, setLines] = useState<any[]>([]);
   const qc = useQueryClient();
+  const drawerWidth = useResponsiveDrawerWidth(600);
 
   const { data: products } = useQuery({
     queryKey: ['products'],
@@ -87,7 +89,7 @@ export const StockTransferPage: React.FC = () => {
     {
       title: 'Transfer #',
       dataIndex: 'transfer_number',
-      render: (v) => <Text code style={{ color: '#A78BFA' }}>{v}</Text>,
+      render: (v) => <Text code style={{ color: 'var(--brand-500)' }}>{v}</Text>,
     },
     {
       title: 'Date',
@@ -136,7 +138,7 @@ export const StockTransferPage: React.FC = () => {
         title="Create Stock Transfer"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={600}
+        width={drawerWidth}
         footer={
           <Space style={{ float: 'right' }}>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
@@ -149,8 +151,24 @@ export const StockTransferPage: React.FC = () => {
         <Form form={form} layout="vertical" initialValues={{ transfer_date: dayjs() }}>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="from_warehouse_id" label="Source Warehouse" rules={[{ required: true }]}>
-                <Select placeholder="Select source">
+              <Form.Item
+                name="from_warehouse_id"
+                label="Source Warehouse"
+                dependencies={['to_warehouse_id']}
+                rules={[
+                  { required: true, message: 'Source warehouse is required' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const toId = getFieldValue('to_warehouse_id');
+                      if (value && toId && value === toId) {
+                        return Promise.reject(new Error('Source and destination warehouses cannot be the same'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
+                <Select placeholder="Select source" showSearch optionFilterProp="children">
                   {warehouses?.data?.map((w: any) => (
                     <Option key={w.id} value={w.id}>{w.name}</Option>
                   ))}
@@ -158,8 +176,24 @@ export const StockTransferPage: React.FC = () => {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="to_warehouse_id" label="Destination Warehouse" rules={[{ required: true }]}>
-                <Select placeholder="Select destination">
+              <Form.Item
+                name="to_warehouse_id"
+                label="Destination Warehouse"
+                dependencies={['from_warehouse_id']}
+                rules={[
+                  { required: true, message: 'Destination warehouse is required' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const fromId = getFieldValue('from_warehouse_id');
+                      if (value && fromId && value === fromId) {
+                        return Promise.reject(new Error('Destination and source warehouses cannot be the same'));
+                      }
+                      return Promise.resolve();
+                    },
+                  }),
+                ]}
+              >
+                <Select placeholder="Select destination" showSearch optionFilterProp="children">
                   {warehouses?.data?.map((w: any) => (
                     <Option key={w.id} value={w.id}>{w.name}</Option>
                   ))}

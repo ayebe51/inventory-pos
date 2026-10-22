@@ -2,11 +2,13 @@ import React from 'react';
 import {
   Drawer, Form, Table, Button, Input, InputNumber,
   Space, Divider, message, Typography,
-  Row, Col, Alert,
+  Row, Col, Alert, DatePicker,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import dayjs from 'dayjs';
 import type { PurchaseOrder } from '../types/purchase.types';
 import { useConfirmGoodsReceipt } from '../hooks/usePurchase';
+import { useResponsiveDrawerWidth } from '../../../hooks/useResponsiveDrawerWidth';
 
 const { Text } = Typography;
 
@@ -30,6 +32,7 @@ interface Props {
 
 export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrder }) => {
   const [form] = Form.useForm();
+  const drawerWidth = useResponsiveDrawerWidth(700);
   const confirmGR = useConfirmGoodsReceipt();
 
   if (!purchaseOrder) return null;
@@ -51,7 +54,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
       const values = await form.validateFields();
       await confirmGR.mutateAsync({
         po_id: purchaseOrder.id,
-        receipt_date: values.receipt_date || new Date().toISOString().split('T')[0],
+        receipt_date: values.receipt_date?.format ? values.receipt_date.format('YYYY-MM-DD') : (values.receipt_date || dayjs().format('YYYY-MM-DD')),
         notes: values.notes,
         lines: initialLines.map((line) => ({
           po_line_id: line.po_line_id,
@@ -63,7 +66,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
       });
       message.success('Goods Receipt created and confirmed!');
       onClose();
-    } catch (err) {
+    } catch (_) {
       // validation inline
     }
   };
@@ -128,7 +131,7 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
       title={`Goods Receipt — ${purchaseOrder.po_number}`}
       open={open}
       onClose={onClose}
-      width={700}
+      width={drawerWidth}
       footer={
         <Space style={{ float: 'right' }}>
           <Button onClick={onClose}>Cancel</Button>
@@ -146,11 +149,11 @@ export const GoodsReceiptDrawer: React.FC<Props> = ({ open, onClose, purchaseOrd
         style={{ marginBottom: 16 }}
       />
 
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" initialValues={{ receipt_date: dayjs() }}>
         <Row gutter={12}>
           <Col span={12}>
             <Form.Item name="receipt_date" label="Receipt Date">
-              <Input type="date" defaultValue={new Date().toISOString().split('T')[0]} />
+              <DatePicker format="YYYY-MM-DD" style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>
